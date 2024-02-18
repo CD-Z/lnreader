@@ -11,15 +11,4 @@
     android:scaleType="centerCrop"
     android:navigationBarColor="#333333"
     tools:context=".MainActivity">
-
-    <com.airbnb.lottie.LottieAnimationView
-        android:id="@+id/lottie"
-        android:layout_width="200dp"
-        android:layout_height="200dp"
-        android:layout_gravity="center_horizontal"
-        android:orientation="horizontal"
-        android:paddingLeft="25dp"
-        app:lottie_autoPlay="true"
-        app:lottie_loop="false"
-        app:lottie_rawRes="@raw/loading" />
 </LinearLayout>
