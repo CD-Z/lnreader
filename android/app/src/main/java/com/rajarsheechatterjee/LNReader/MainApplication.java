@@ -21,6 +21,8 @@ import expo.modules.ReactNativeHostWrapper;
 
 import java.util.List;
 
+import org.devio.rn.splashscreen.SplashScreenReactPackage;
+
 public class MainApplication extends Application implements ReactApplication {
 
   private final ReactNativeHost mReactNativeHost = 
@@ -36,6 +38,7 @@ public class MainApplication extends Application implements ReactApplication {
           packages.add(new NavigationBarColorPackage());
           packages.add(new VolumeButtonListenerPackage());
           packages.add(new ZipArchivePackage());
+          //packages.add(new SplashScreenReactPackage());
           return packages;
         }
 

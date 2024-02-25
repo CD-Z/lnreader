@@ -24,7 +24,7 @@
     <!-- Below line is handled by '@expo/configure-splash-screen' command and it's discouraged to modify it manually -->
     <!-- Customize your splash screen theme here -->
     <item name="android:windowSplashScreenBackground" tools:targetApi="s">@color/colorPrimaryDark</item>
-    <item name="android:windowSplashScreenAnimatedIcon" tools:targetApi="s">@drawable/t</item>
+    <item name="android:windowSplashScreenAnimatedIcon" tools:targetApi="s" >@drawable/invisible</item>
     <item name="android:windowSplashScreenAnimationDuration" tools:targetApi="s">1000</item>
     <!-- <item name="icon">@drawable/no_icon</item> -->
     <item name="android:windowBackground">@drawable/splashscreen</item>
