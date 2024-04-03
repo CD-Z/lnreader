@@ -30,7 +30,7 @@ const DefaultChapterSortModal = ({
         onDismiss={hideDisplayModal}
         contentContainerStyle={[
           styles.containerStyle,
-          { backgroundColor: overlay(2, theme.surface) },
+          { backgroundColor: overlay(2, theme.background) },
         ]}
       >
         <SortItem

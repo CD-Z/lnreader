@@ -161,7 +161,7 @@ export const StatsCard: React.FC<{ label: string; value?: number }> = ({
         styles.statsCardCtn,
         {
           backgroundColor: theme.isDark
-            ? overlay(2, theme.surface)
+            ? overlay(2, theme.background)
             : theme.secondaryContainer,
         },
       ]}

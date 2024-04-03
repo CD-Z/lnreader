@@ -29,7 +29,7 @@ const FontPickerModal: React.FC<FontPickerModalProps> = ({
         onDismiss={onDismiss}
         contentContainerStyle={[
           styles.containerStyle,
-          { backgroundColor: overlay(2, theme.surface) },
+          { backgroundColor: overlay(2, theme.background) },
         ]}
       >
         {readerFonts.map(item => (

@@ -34,7 +34,6 @@ export const useTheme = (): ThemeColors => {
       colors = {
         ...colors,
         background: '#000000',
-        surface: '#000000',
       };
     }
 
@@ -48,7 +47,7 @@ export const useTheme = (): ThemeColors => {
 
     colors = {
       ...colors,
-      surface2: getElevationColor(colors, 0.08),
+      surface: getElevationColor(colors, 0.08),
       overlay3: overlay(3, colors.surface),
       rippleColor: Color(colors.primary).alpha(0.12).toString(),
       surfaceReader: Color(colors.surface).alpha(0.9).toString(),

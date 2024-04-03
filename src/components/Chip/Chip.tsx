@@ -15,7 +15,7 @@ const Chip: React.FC<ChipProps> = ({ label, theme }) => (
       styles.chipContainer,
       {
         backgroundColor: theme.isDark
-          ? overlay(1, theme.surface)
+          ? overlay(1, theme.background)
           : theme.secondaryContainer,
       },
     ]}

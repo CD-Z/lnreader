@@ -280,7 +280,7 @@ export default function GoogleDriveModal({
       onDismiss={closeModal}
       contentContainerStyle={[
         styles.modalContainer,
-        { backgroundColor: overlay(2, theme.surface) },
+        { backgroundColor: overlay(2, theme.background) },
       ]}
     >
       <>

@@ -212,7 +212,7 @@ const createStylesheet = (theme: ThemeColors, insets: EdgeInsets) => {
   return StyleSheet.create({
     drawer: {
       flex: 1,
-      backgroundColor: theme.surface,
+      backgroundColor: theme.background,
       paddingTop: 48,
     },
     headerCtn: {

@@ -170,7 +170,7 @@ const LibraryBottomSheet: React.FC<LibraryBottomSheetProps> = ({
       indicatorStyle={{ backgroundColor: theme.primary }}
       style={[
         {
-          backgroundColor: overlay(2, theme.surface),
+          backgroundColor: overlay(2, theme.background),
           borderBottomColor: color(theme.isDark ? '#FFFFFF' : '#000000')
             .alpha(0.12)
             .string(),
@@ -207,7 +207,7 @@ const LibraryBottomSheet: React.FC<LibraryBottomSheetProps> = ({
       <BottomSheetView
         style={[
           styles.bottomSheetCtn,
-          { backgroundColor: overlay(2, theme.surface) },
+          { backgroundColor: overlay(2, theme.background) },
         ]}
       >
         <TabView

@@ -28,7 +28,9 @@ export const MoreHeader = ({
       theme={theme}
     />
     <View style={{ overflow: 'hidden', paddingBottom: 4 }}>
-      <View style={[styles.logoContainer, { backgroundColor: theme.surface }]}>
+      <View
+        style={[styles.logoContainer, { backgroundColor: theme.background }]}
+      >
         <Image
           source={require('../../../../assets/logo.png')}
           style={[styles.logo, { tintColor: theme.onSurface }]}

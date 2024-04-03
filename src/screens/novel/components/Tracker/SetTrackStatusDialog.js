@@ -29,7 +29,7 @@ const SetTrackStatusDialog = ({
       onDismiss={() => setTrackStatusDialog(false)}
       contentContainerStyle={[
         styles.containerStyle,
-        { backgroundColor: overlay(2, theme.surface) },
+        { backgroundColor: overlay(2, theme.background) },
       ]}
     >
       <Text style={[styles.dialogTitle, { color: theme.onSurface }]}>

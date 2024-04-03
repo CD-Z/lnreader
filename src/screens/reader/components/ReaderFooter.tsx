@@ -51,7 +51,7 @@ const ChapterFooter = ({
       <View
         style={[
           {
-            backgroundColor: color(theme.surface).alpha(0.9).string(),
+            backgroundColor: color(theme.background).alpha(0.9).string(),
             paddingBottom: insets.bottom,
           },
           styles.buttonsContainer,

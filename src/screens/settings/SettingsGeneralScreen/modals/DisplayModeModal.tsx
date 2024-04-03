@@ -34,7 +34,7 @@ const DisplayModeModal: React.FC<DisplayModeModalProps> = ({
         onDismiss={hideDisplayModal}
         contentContainerStyle={[
           styles.containerStyle,
-          { backgroundColor: overlay(2, theme.surface) },
+          { backgroundColor: overlay(2, theme.background) },
         ]}
       >
         <Text style={[styles.modalHeader, { color: theme.onSurface }]}>

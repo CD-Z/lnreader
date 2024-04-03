@@ -48,7 +48,7 @@ const DownloadQueue = ({ navigation }: DownloadQueueScreenProps) => {
               />
             ) : null
           }
-          contentStyle={{ backgroundColor: overlay(2, theme.surface) }}
+          contentStyle={{ backgroundColor: overlay(2, theme.background) }}
         >
           <Menu.Item
             onPress={() => {

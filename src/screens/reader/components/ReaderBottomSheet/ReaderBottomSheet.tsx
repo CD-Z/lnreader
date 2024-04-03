@@ -132,7 +132,7 @@ const ReaderBottomSheetV2: React.FC<ReaderBottomSheetV2Props> = ({
 }) => {
   const theme = useTheme();
 
-  const tabHeaderColor = overlay(2, theme.surface);
+  const tabHeaderColor = overlay(2, theme.background);
   const backgroundColor = tabHeaderColor;
 
   const renderScene = SceneMap({

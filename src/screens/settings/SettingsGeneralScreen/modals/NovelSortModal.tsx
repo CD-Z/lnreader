@@ -33,7 +33,7 @@ const NovelSortModal: React.FC<NovelSortModalProps> = ({
         onDismiss={hideNovelSortModal}
         contentContainerStyle={[
           styles.container,
-          { backgroundColor: overlay(2, theme.surface) },
+          { backgroundColor: overlay(2, theme.background) },
         ]}
       >
         <Text style={[styles.modalHeader, { color: theme.onSurface }]}>

@@ -58,7 +58,7 @@ export const ThemePicker = ({
         <View
           style={{
             height: 20,
-            backgroundColor: overlay(2, theme.surface),
+            backgroundColor: overlay(2, theme.background),
             elevation: 1,
             justifyContent: 'center',
           }}

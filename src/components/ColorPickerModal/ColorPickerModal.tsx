@@ -77,7 +77,7 @@ const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
         onDismiss={onDismiss}
         contentContainerStyle={[
           styles.modalContainer,
-          { backgroundColor: overlay(2, theme.surface) },
+          { backgroundColor: overlay(2, theme.background) },
         ]}
       >
         <Text style={[styles.modalTitle, { color: theme.onSurface }]}>

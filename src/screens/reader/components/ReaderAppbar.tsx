@@ -32,7 +32,7 @@ const ReaderAppbar = ({
     >
       <View
         style={[
-          { backgroundColor: color(theme.surface).alpha(0.9).string() },
+          { backgroundColor: color(theme.background).alpha(0.9).string() },
           styles.appbarContainer,
         ]}
       >

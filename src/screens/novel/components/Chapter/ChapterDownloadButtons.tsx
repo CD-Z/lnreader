@@ -36,7 +36,7 @@ export const DownloadButton: React.FC<DownloadButtonProps> = ({
       anchor={
         <DeleteChapterButton theme={theme} onPress={showDeleteChapterMenu} />
       }
-      contentStyle={{ backgroundColor: overlay(2, theme.surface) }}
+      contentStyle={{ backgroundColor: overlay(2, theme.background) }}
     >
       <Menu.Item
         onPress={deleteChapter}

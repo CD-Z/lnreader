@@ -47,7 +47,7 @@ export default function NovelDrawer({
     <View
       style={[
         styles.drawer,
-        { backgroundColor: theme.surface, paddingBottom: insets.bottom },
+        { backgroundColor: theme.background, paddingBottom: insets.bottom },
       ]}
     >
       <Text

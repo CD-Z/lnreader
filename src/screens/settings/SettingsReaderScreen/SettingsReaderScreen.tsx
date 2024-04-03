@@ -83,8 +83,8 @@ const SettingsReaderScreen = () => {
       --theme-tertiary: ${theme.tertiary};
       --theme-onTertiary: ${theme.onTertiary};
       --theme-onSecondary: ${theme.onSecondary};
-      --theme-surface: ${theme.surface};
-      --theme-surface-0-9: ${color(theme.surface).alpha(0.9).toString()};
+      --theme-surface: ${theme.background};
+      --theme-surface-0-9: ${color(theme.background).alpha(0.9).toString()};
       --theme-onSurface: ${theme.onSurface};
       --theme-surfaceVariant: ${theme.surfaceVariant};
       --theme-onSurfaceVariant: ${theme.onSurfaceVariant};

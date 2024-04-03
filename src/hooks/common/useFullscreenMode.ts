@@ -36,7 +36,7 @@ const useFullscreenMode = () => {
   const showStatusAndNavBar = useCallback(() => {
     StatusBar.setHidden(false);
     showNavigationBar();
-    changeNavigationBarColor(Color(theme.surface).hex(), !theme.isDark);
+    changeNavigationBarColor(Color(theme.background).hex(), !theme.isDark);
   }, []);
 
   useEffect(() => {
@@ -48,7 +48,7 @@ const useFullscreenMode = () => {
       showStatusAndNavBar();
       StatusBar.setBarStyle(theme.isDark ? 'light-content' : 'dark-content');
       changeNavigationBarColor(
-        Color(theme.surface2).hex(),
+        Color(theme.surface).hex(),
         !theme.isDark,
         true,
       );

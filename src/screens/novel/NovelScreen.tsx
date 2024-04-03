@@ -554,7 +554,7 @@ const Novel = ({ route, navigation }: NovelScreenProps) => {
                   position: 'absolute',
                   width: '100%',
                   elevation: 2,
-                  backgroundColor: theme.surface2,
+                  backgroundColor: theme.surface,
                   paddingTop: StatusBar.currentHeight || 0,
                   flexDirection: 'row',
                   alignItems: 'center',
@@ -662,7 +662,7 @@ const Novel = ({ route, navigation }: NovelScreenProps) => {
                 },
               }}
               theme={{ colors: { primary: theme.primary } }}
-              style={{ backgroundColor: theme.surface, marginBottom: 32 }}
+              style={{ backgroundColor: theme.background, marginBottom: 32 }}
             >
               <Text style={{ color: theme.onSurface }}>
                 {getString('novelScreen.deleteMessage')}

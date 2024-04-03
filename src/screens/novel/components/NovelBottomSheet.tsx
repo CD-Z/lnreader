@@ -169,7 +169,7 @@ const ChaptersSettingsSheet = ({
       {...props}
       indicatorStyle={{ backgroundColor: theme.primary }}
       style={{
-        backgroundColor: overlay(2, theme.surface),
+        backgroundColor: overlay(2, theme.background),
         borderBottomWidth: 1,
         borderBottomColor: theme.outline,
         elevation: 0,
@@ -188,7 +188,7 @@ const ChaptersSettingsSheet = ({
       <BottomSheetView
         style={[
           styles.contentContainer,
-          { backgroundColor: overlay(2, theme.surface) },
+          { backgroundColor: overlay(2, theme.background) },
         ]}
       >
         <TabView

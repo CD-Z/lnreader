@@ -3,7 +3,7 @@ import color from 'color';
 
 const getLoadingColors = (theme: ThemeColors) => {
   const highlightColor = color(theme.primary).alpha(0.08).string();
-  let backgroundColor = theme.surface;
+  let backgroundColor = theme.background;
 
   backgroundColor = color(backgroundColor).isDark()
     ? color(backgroundColor).luminosity() !== 0

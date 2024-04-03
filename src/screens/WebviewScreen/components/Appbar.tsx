@@ -36,7 +36,7 @@ const Appbar: React.FC<AppbarProps> = ({
     <View
       style={{
         paddingTop: top,
-        backgroundColor: theme.surface,
+        backgroundColor: theme.background,
         flexDirection: 'row',
       }}
     >
@@ -87,12 +87,12 @@ const Appbar: React.FC<AppbarProps> = ({
               theme={{ colors: { ...theme } }}
             />
           }
-          style={{ backgroundColor: theme.surface2 }}
-          contentStyle={{ backgroundColor: theme.surface2 }}
+          style={{ backgroundColor: theme.surface }}
+          contentStyle={{ backgroundColor: theme.surface }}
         >
           <Menu.Item
             title={getString('webview.refresh')}
-            style={{ backgroundColor: theme.surface2 }}
+            style={{ backgroundColor: theme.surface }}
             titleStyle={{ color: theme.onSurface }}
             onPress={() => {
               setMenuVisible(false);
@@ -101,7 +101,7 @@ const Appbar: React.FC<AppbarProps> = ({
           />
           <Menu.Item
             title={getString('webview.share')}
-            style={{ backgroundColor: theme.surface2 }}
+            style={{ backgroundColor: theme.surface }}
             titleStyle={{ color: theme.onSurface }}
             onPress={() => {
               setMenuVisible(false);
@@ -110,7 +110,7 @@ const Appbar: React.FC<AppbarProps> = ({
           />
           <Menu.Item
             title={getString('webview.openInBrowser')}
-            style={{ backgroundColor: theme.surface2 }}
+            style={{ backgroundColor: theme.surface }}
             titleStyle={{ color: theme.onSurface }}
             onPress={() => {
               setMenuVisible(false);
@@ -119,7 +119,7 @@ const Appbar: React.FC<AppbarProps> = ({
           />
           <Menu.Item
             title={getString('webview.clearData')}
-            style={{ backgroundColor: theme.surface2 }}
+            style={{ backgroundColor: theme.surface }}
             titleStyle={{ color: theme.onSurface }}
             onPress={() => {
               setMenuVisible(false);

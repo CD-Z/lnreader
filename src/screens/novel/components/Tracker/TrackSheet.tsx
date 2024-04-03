@@ -93,7 +93,7 @@ const TrackSheet = ({ bottomSheetRef, novel, theme }: Props) => {
         <View
           style={[
             styles.contentContainer,
-            { backgroundColor: overlay(2, theme.surface) },
+            { backgroundColor: overlay(2, theme.background) },
           ]}
         >
           {!trackedNovel ? (

@@ -51,7 +51,7 @@ export const TrackedItemCard = ({
   icon,
 }) => {
   return (
-    <View style={[styles.cardContainer, { backgroundColor: theme.surface }]}>
+    <View style={[styles.cardContainer, { backgroundColor: theme.background }]}>
       <View
         style={[styles.titleContainer, { borderBottomColor: theme.outline }]}
       >

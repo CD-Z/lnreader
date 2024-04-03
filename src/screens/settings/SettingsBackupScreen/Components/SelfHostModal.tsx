@@ -258,7 +258,7 @@ export default function SelfHostModal({
       onDismiss={closeModal}
       contentContainerStyle={[
         styles.modalContainer,
-        { backgroundColor: overlay(2, theme.surface) },
+        { backgroundColor: overlay(2, theme.background) },
       ]}
     >
       <>

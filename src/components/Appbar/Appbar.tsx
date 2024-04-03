@@ -20,7 +20,7 @@ const Appbar: React.FC<AppbarProps> = ({
   children,
 }) => (
   <PaperAppbar.Header
-    style={{ backgroundColor: theme.surface }}
+    style={{ backgroundColor: theme.background }}
     statusBarHeight={StatusBar.currentHeight}
     mode={mode}
   >

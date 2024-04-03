@@ -93,7 +93,7 @@ const TrackSearchDialog = ({
       onDismiss={() => setTrackSearchDialog(false)}
       contentContainerStyle={[
         styles.containerStyle,
-        { backgroundColor: overlay(2, theme.surface) },
+        { backgroundColor: overlay(2, theme.background) },
       ]}
       theme={{ colors: { backdrop: 'rgba(0,0,0,0.25)' } }}
     >

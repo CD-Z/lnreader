@@ -57,7 +57,7 @@ const SetCategoryModal: React.FC<SetCategoryModalProps> = ({
         }}
         contentContainerStyle={[
           styles.modalContainer,
-          { backgroundColor: overlay(2, theme.surface) },
+          { backgroundColor: overlay(2, theme.background) },
         ]}
       >
         <Text style={[styles.modalTitle, { color: theme.onSurface }]}>

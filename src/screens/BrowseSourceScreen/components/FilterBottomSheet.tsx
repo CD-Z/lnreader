@@ -76,7 +76,7 @@ const FilterItem: React.FC<FilterItemProps> = ({
                       styles.label,
                       {
                         color: isVisible ? theme.primary : theme.onSurface,
-                        backgroundColor: theme.surface,
+                        backgroundColor: theme.background,
                       },
                     ]}
                   >
@@ -282,7 +282,7 @@ const FilterBottomSheet: React.FC<BottomSheetProps> = ({
       <BottomSheetView
         style={[
           styles.container,
-          { backgroundColor: overlay(2, theme.surface) },
+          { backgroundColor: overlay(2, theme.background) },
         ]}
       >
         <BottomSheetView

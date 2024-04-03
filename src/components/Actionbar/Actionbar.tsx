@@ -37,7 +37,7 @@ export const Actionbar: React.FC<ActionbarProps> = ({
         style={[
           styles.actionbarContainer,
           {
-            backgroundColor: theme.surface2,
+            backgroundColor: theme.surface,
             minHeight: 80 + bottom,
             paddingBottom: bottom,
           },

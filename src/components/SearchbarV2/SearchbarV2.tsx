@@ -52,7 +52,7 @@ const Searchbar: React.FC<SearcbarProps> = ({
           marginTop,
           marginRight,
           marginLeft,
-          backgroundColor: theme.surface2,
+          backgroundColor: theme.surface,
         },
       ]}
     >

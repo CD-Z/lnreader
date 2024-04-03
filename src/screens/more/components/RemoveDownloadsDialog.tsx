@@ -25,7 +25,7 @@ const RemoveDownloadsDialog = ({
         onDismiss={hideDialog}
         style={{
           borderRadius: 6,
-          backgroundColor: overlay(2, theme.surface),
+          backgroundColor: overlay(2, theme.background),
         }}
       >
         <Dialog.Title

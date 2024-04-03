@@ -47,7 +47,7 @@ const CategoryCard: React.FC<CategoryCardProps> = ({
             backgroundColor:
               category.sort === 1
                 ? theme.isDark
-                  ? overlay(2, theme.surface2)
+                  ? overlay(2, theme.surface)
                   : theme.primaryContainer
                 : category.id === 2
                 ? theme.tertiaryContainer

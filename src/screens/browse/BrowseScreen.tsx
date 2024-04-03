@@ -81,7 +81,7 @@ const BrowseScreen = ({ navigation }: BrowseScreenProps) => {
             {...props}
             indicatorStyle={{ backgroundColor: theme.primary, height: 3 }}
             style={{
-              backgroundColor: theme.surface,
+              backgroundColor: theme.background,
             }}
             renderLabel={({ route, color }) => (
               <Text style={{ color, fontWeight: '600' }}>{route.title}</Text>

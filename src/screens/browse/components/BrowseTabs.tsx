@@ -144,7 +144,7 @@ export const InstalledTab = memo(
             )}
           >
             <Pressable
-              style={[styles.container, { backgroundColor: theme.surface }]}
+              style={[styles.container, { backgroundColor: theme.background }]}
               android_ripple={{ color: theme.rippleColor }}
               onPress={() => navigateToSource(item)}
             >
@@ -269,7 +269,11 @@ const AvailablePluginCard = ({
   }));
   return (
     <Animated.View
-      style={[styles.container, { backgroundColor: theme.surface }, viewStyles]}
+      style={[
+        styles.container,
+        { backgroundColor: theme.background },
+        viewStyles,
+      ]}
     >
       <Animated.View style={{ flexDirection: 'row' }}>
         <Animated.Image

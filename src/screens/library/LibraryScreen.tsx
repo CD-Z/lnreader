@@ -94,7 +94,7 @@ const LibraryScreen = ({ navigation }: LibraryScreenProps) => {
         indicatorStyle={{ backgroundColor: theme.primary, height: 3 }}
         style={[
           {
-            backgroundColor: theme.surface,
+            backgroundColor: theme.background,
             borderBottomColor: color(theme.isDark ? '#FFFFFF' : '#000000')
               .alpha(0.12)
               .string(),
