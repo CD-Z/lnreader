@@ -11,13 +11,6 @@ import Color from 'color';
 import { defaultTheme } from '@theme/md3/defaultTheme';
 import { ThemeColors } from '@theme/types';
 
-const getElevationColor = (colors: ThemeColors, elevation: number) => {
-  return Color(colors.surface)
-    .mix(Color(colors.primary), elevation)
-    .rgb()
-    .string();
-};
-
 export const useTheme = (): ThemeColors => {
   const [appTheme] = useMMKVObject<ThemeColors>('APP_THEME');
   const [isAmoledBlack] = useMMKVBoolean('AMOLED_BLACK');
@@ -47,10 +40,9 @@ export const useTheme = (): ThemeColors => {
 
     colors = {
       ...colors,
-      surface: getElevationColor(colors, 0.08),
-      overlay3: overlay(3, colors.surface),
+      overlay3: overlay(3, colors.background),
       rippleColor: Color(colors.primary).alpha(0.12).toString(),
-      surfaceReader: Color(colors.surface).alpha(0.9).toString(),
+      surfaceReader: Color(colors.background).alpha(0.9).toString(),
     };
 
     return colors;
