@@ -94,7 +94,7 @@ const MigrationNovelList = ({
             padding: 24,
             margin: 20,
             borderRadius: 28,
-            backgroundColor: theme.overlay3,
+            backgroundColor: theme.overlay,
           }}
         >
           <Text

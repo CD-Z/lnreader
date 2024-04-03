@@ -40,12 +40,13 @@ export const useTheme = (): ThemeColors => {
 
     colors = {
       ...colors,
-      overlay3: overlay(3, colors.background),
+      overlay: overlay(3, colors.background),
       rippleColor: Color(colors.primary).alpha(0.12).toString(),
       surfaceReader: Color(colors.background).alpha(0.9).toString(),
     };
 
     return colors;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [appTheme?.id, isAmoledBlack, customAccent]);
 
   return theme;

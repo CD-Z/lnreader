@@ -30,7 +30,7 @@ const DefaultCategoryDialog: React.FC<DefaultCategoryDialogProps> = ({
     <Dialog
       visible={visible}
       onDismiss={hideDialog}
-      style={{ backgroundColor: theme.overlay3 }}
+      style={{ backgroundColor: theme.overlay }}
     >
       <Dialog.Title style={{ color: theme.onSurface }}>
         {getString('categories.defaultCategory')}

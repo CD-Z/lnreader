@@ -31,7 +31,7 @@ const DeleteCategoryModal: React.FC<DeleteCategoryModalProps> = ({
         onDismiss={closeModal}
         contentContainerStyle={[
           styles.modalContainer,
-          { backgroundColor: theme.overlay3 },
+          { backgroundColor: theme.overlay },
         ]}
       >
         <Text style={[styles.modalTitle, { color: theme.onSurface }]}>

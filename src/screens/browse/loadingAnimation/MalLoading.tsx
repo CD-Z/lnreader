@@ -67,7 +67,7 @@ const createStyleSheet = (theme: ThemeColors) => {
     loadingContainer: {
       margin: 10,
       borderRadius: 8,
-      backgroundColor: theme.overlay3,
+      backgroundColor: theme.overlay,
       width: Dimensions.get('window').width - 20,
       overflow: 'hidden',
       flexDirection: 'row',

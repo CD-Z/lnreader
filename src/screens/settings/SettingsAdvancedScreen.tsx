@@ -116,7 +116,7 @@ const AdvancedSettings = ({ navigation }: AdvancedSettingsScreenProps) => {
           onDismiss={hideClearDatabaseDialog}
           style={{
             borderRadius: 28,
-            backgroundColor: theme.overlay3,
+            backgroundColor: theme.overlay,
           }}
         >
           <Dialog.Title
@@ -148,7 +148,7 @@ const AdvancedSettings = ({ navigation }: AdvancedSettingsScreenProps) => {
           onDismiss={hideClearUpdatesDialog}
           style={{
             borderRadius: 28,
-            backgroundColor: theme.overlay3,
+            backgroundColor: theme.overlay,
           }}
         >
           <Dialog.Title

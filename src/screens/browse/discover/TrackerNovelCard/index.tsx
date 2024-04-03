@@ -17,7 +17,7 @@ interface Props {
 
 const MalNovelCard: React.FC<Props> = ({ novel, onPress, theme }) => {
   return (
-    <View style={[styles.container, { backgroundColor: theme.overlay3 }]}>
+    <View style={[styles.container, { backgroundColor: theme.overlay }]}>
       <Pressable
         style={styles.pressable}
         onPress={onPress}

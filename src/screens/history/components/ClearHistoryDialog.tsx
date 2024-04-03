@@ -29,7 +29,7 @@ const ClearHistoryDialog: React.FC<ClearHistoryDialogProps> = ({
       <Dialog
         visible={visible}
         onDismiss={onDismiss}
-        style={[styles.container, { backgroundColor: theme.overlay3 }]}
+        style={[styles.container, { backgroundColor: theme.overlay }]}
       >
         <Dialog.Title style={[styles.title, { color: theme.onSurface }]}>
           {getString('historyScreen.clearHistorWarning')}

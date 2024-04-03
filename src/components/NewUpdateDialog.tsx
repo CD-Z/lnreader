@@ -30,7 +30,7 @@ const NewUpdateDialog: React.FC<NewUpdateDialogProps> = ({ newVersion }) => {
         onDismiss={() => showNewUpdateDialog(false)}
         contentContainerStyle={[
           styles.containerStyle,
-          { backgroundColor: theme.overlay3 },
+          { backgroundColor: theme.overlay },
         ]}
       >
         <Text style={[styles.modalHeader, { color: theme.onSurface }]}>

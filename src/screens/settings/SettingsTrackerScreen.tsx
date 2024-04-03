@@ -94,7 +94,7 @@ const TrackerScreen = ({ navigation }: TrackerSettingsScreenProps) => {
               padding: 20,
               margin: 20,
               borderRadius: 6,
-              backgroundColor: theme.overlay3,
+              backgroundColor: theme.overlay,
             }}
           >
             <Text

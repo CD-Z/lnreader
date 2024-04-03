@@ -53,7 +53,7 @@ const DownloadCustomChapterModal = ({
         onDismiss={onDismiss}
         contentContainerStyle={[
           styles.modalContainer,
-          { backgroundColor: theme.overlay3 },
+          { backgroundColor: theme.overlay },
         ]}
       >
         <Text style={[styles.modalTitle, { color: theme.onSurface }]}>

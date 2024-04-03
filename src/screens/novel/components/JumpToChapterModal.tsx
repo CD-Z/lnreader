@@ -154,7 +154,7 @@ const JumpToChapterModal = ({
         onDismiss={onDismiss}
         contentContainerStyle={[
           styles.modalContainer,
-          { backgroundColor: theme.overlay3 },
+          { backgroundColor: theme.overlay },
         ]}
       >
         <View style={styles.modalHeaderCtn}>
