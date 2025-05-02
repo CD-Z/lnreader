@@ -24,16 +24,18 @@ const dbName = 'lnreader.db';
 
 export const db = SQLite.openDatabaseSync(dbName);
 
+// These values are not persistent and need to be set on every app start
+db.execSync('PRAGMA busy_timeout = 5000');
+db.execSync('PRAGMA cache_size = 10000');
+db.execSync('PRAGMA foreign_keys = ON');
+
 export const createTables = () => {
   const isOnBoard = MMKVStorage.getBoolean('IS_ONBOARDED');
 
   if (!isOnBoard) {
-    db.runSync('PRAGMA journal_mode = WAL');
-    db.runSync('PRAGMA foreign_keys = ON');
-    db.runSync('PRAGMA synchronous = NORMAL');
-    db.runSync('PRAGMA cache_size = -8000');
-    db.runSync('PRAGMA temp_store = MEMORY');
-    db.runSync('PRAGMA auto_vacuum = INCREMENTAL');
+    db.execSync('PRAGMA journal_mode = WAL');
+    db.execSync('PRAGMA synchronous = NORMAL');
+    db.execSync('PRAGMA temp_store = MEMORY');
 
     db.withTransactionSync(() => {
       db.runSync(createNovelTableQuery);
