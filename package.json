@@ -10,7 +10,7 @@
     "lint": "eslint ./src --ext .js,.jsx,.ts,.tsx",
     "type-check": "tsc --noEmit",
     "prettier": "prettier --write \"./src/**/*.{js,jsx,ts,tsx}\" ./scripts",
-    "buildRelease": "node scripts/setEnvFile.cjs Release && cd android && ./gradlew clean && ./gradlew assembleRelease",
+    "buildRelease": "node scripts/setEnvFile.cjs Release && cd android && ./gradlew clean && ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a",
     "open": "open ./android/app/build/outputs/apk/release/",
     "strings": "node scripts/stringTypes.cjs",
     "prepare": "husky install",
@@ -23,7 +23,7 @@
     "android": {
       "javaPackageName": "com.lnreader.spec"
     },
-    "ios": { 
+    "ios": {
       "modulesProvider": {
         "NativeEpubUtil": "RCTNativeEpubUtil",
         "NativeFile": "RCTNativeFile",
