@@ -67,10 +67,9 @@ jobs:
       - name: Make Gradlew Executable
         run: cd android && chmod +x ./gradlew
 
-      - name: Build Android Release
+      - name: Build Android Split APKs
         run: |
           cd android && ./gradlew assembleRelease --no-daemon
-          mv app/build/outputs/apk/release/app-release.apk app/build/outputs/apk/release/LNReader.apk
 
       - name: Set Env
         run: |
@@ -78,14 +77,25 @@ jobs:
           echo "COMMIT_COUNT=$(git rev-list --count HEAD)" >> $GITHUB_ENV
           echo "COMMIT_ID=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
 
-      - name: Upload Artifact
-        env:
-          COMMIT_COUNT: ${{ env.COMMIT_COUNT }}
+      - name: Upload Split APKs
         uses: actions/upload-artifact@v4
         with:
-          name: LNReader-r${{ env.COMMIT_COUNT }}
-          path: android/app/build/outputs/apk/release/LNReader.apk
+          name: LNReader-r${{ env.COMMIT_COUNT }}-split-apks
+          path: android/app/build/outputs/apk/release/app-*-release.apk
 
+      # (Optional) Build and upload a universal APK as well
+      # - name: Build Universal APK
+      #   run: |
+      #     cd android && ./gradlew assembleRelease --no-daemon
+      #     # If universalApk true in build.gradle, it will be app-universal-release.apk
+
+      # - name: Upload Universal APK
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: LNReader-r${{ env.COMMIT_COUNT }}-universal-apk
+      #     path: android/app/build/outputs/apk/release/app-universal-release.apk
+
+      # You can keep your custom APK build/upload steps if needed
       - name: Build Custom APK
         env:
           COMMIT_COUNT: ${{ env.COMMIT_COUNT }}
