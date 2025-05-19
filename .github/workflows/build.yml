@@ -96,20 +96,24 @@ jobs:
       #     path: android/app/build/outputs/apk/release/app-universal-release.apk
 
       # You can keep your custom APK build/upload steps if needed
-      - name: Build Custom APK
+      - name: Build Custom APKs (Split)
         env:
           COMMIT_COUNT: ${{ env.COMMIT_COUNT }}
           COMMIT_ID: ${{ env.COMMIT_ID }}
         run: |
           sed -i 's/LNReader/LNReader-r${{ env.COMMIT_COUNT }}(${{ env.COMMIT_ID }})/g' android/app/src/main/res/values/strings.xml
-          cd android && ./gradlew assembleRelease --no-daemon -PcustomAppId=com.rajarsheechatterjee.LNReader.commit_${{ env.COMMIT_ID }}
-          mv app/build/outputs/apk/release/app-release.apk app/build/outputs/apk/release/LNReader-r${{ env.COMMIT_COUNT }}\(${{ env.COMMIT_ID }}\)-customID.apk
+          cd android
+          ./gradlew assembleRelease --no-daemon -PcustomAppId=com.rajarsheechatterjee.LNReader.commit_${{ env.COMMIT_ID }}
+          cd app/build/outputs/apk/release
+          for apk in app-*-release.apk; do
+            mv "$apk" "LNReader-r${{ env.COMMIT_COUNT }}(${{ env.COMMIT_ID }})-${apk}"
+          done
 
-      - name: Upload Custom APK
+      - name: Upload Custom Split APKs
         env:
           COMMIT_COUNT: ${{ env.COMMIT_COUNT }}
           COMMIT_ID: ${{ env.COMMIT_ID }}
         uses: actions/upload-artifact@v4
         with:
-          name: LNReader-r${{ env.COMMIT_COUNT }}(${{ env.COMMIT_ID }})-customID
-          path: android/app/build/outputs/apk/release/LNReader-r${{ env.COMMIT_COUNT }}(${{ env.COMMIT_ID }})-customID.apk
+          name: LNReader-r${{ env.COMMIT_COUNT }}(${{ env.COMMIT_ID }})-customID-split-apks
+          path: android/app/build/outputs/apk/release/LNReader-r${{ env.COMMIT_COUNT }}(${{ env.COMMIT_ID }})-app-*-release.apk
