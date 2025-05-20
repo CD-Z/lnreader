@@ -121,3 +121,4 @@ jobs:
           path: LNReader-r${{ env.COMMIT_COUNT }}(${{ env.COMMIT_ID }})-app-*-release.apk
           if-no-files-found: error
         working-directory: android/app/build/outputs/apk/release
+
