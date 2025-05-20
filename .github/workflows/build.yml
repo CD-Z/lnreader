@@ -81,7 +81,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: LNReader-r${{ env.COMMIT_COUNT }}-split-apks
-          path: android/app/build/outputs/apk/release/app-*-release.apk
+          path: app-*-release.apk
+          if-no-files-found: error
+        working-directory: android/app/build/outputs/apk/release
 
       # (Optional) Build and upload a universal APK as well
       # - name: Build Universal APK
@@ -116,4 +118,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: LNReader-r${{ env.COMMIT_COUNT }}(${{ env.COMMIT_ID }})-customID-split-apks
-          path: android/app/build/outputs/apk/release/LNReader-r${{ env.COMMIT_COUNT }}(${{ env.COMMIT_ID }})-app-*-release.apk
+          path: LNReader-r${{ env.COMMIT_COUNT }}(${{ env.COMMIT_ID }})-app-*-release.apk
+          if-no-files-found: error
+        working-directory: android/app/build/outputs/apk/release
