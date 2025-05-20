@@ -9,6 +9,7 @@ module.exports = function (api) {
     plugins: [
       'module:@babel/plugin-transform-export-namespace-from',
       ['babel-plugin-react-compiler', ReactCompilerConfig],
+      'lodash',
       [
         'module-resolver',
         {
@@ -31,7 +32,7 @@ module.exports = function (api) {
           },
         },
       ],
-      'react-native-reanimated/plugin',
+      ['react-native-reanimated/plugin', { disableInlineStylesWarning: true }],
       [
         'module:react-native-dotenv',
         {
