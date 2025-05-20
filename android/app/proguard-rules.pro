@@ -12,3 +12,18 @@
 -keep class com.facebook.react.turbomodule.** { *; }
 -keep class com.facebook.hermes.unicode.** { *; }
 -keep class com.facebook.jni.** { *; }
+-keep class expo.** { *; }
+
+# Keep all classes used by SQLite
+-keep class expo.modules.sqlite.** { *; }
+-keep class org.sqlite.** { *; }
+
+# Keep all React Native bridge classes
+-keep class com.facebook.react.bridge.** { *; }
+-keep class com.facebook.react.modules.** { *; }
+-keep class com.facebook.react.uimanager.** { *; }
+
+# Keep all classes with native methods
+-keepclasseswithmembers class * {
+    native <methods>;
+}
