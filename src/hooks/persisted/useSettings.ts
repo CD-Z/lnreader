@@ -29,7 +29,6 @@ export const useSettings = () => {
     CHAPTER_READER_SETTINGS,
   );
 
-
   useEffect(() => {
     if (settings === undefined) {
       _setSettings({
@@ -50,7 +49,6 @@ export const useSettings = () => {
     chapterGeneralSettings,
     chapterReaderSettings,
   ]);
-
 
   const setSettings = useCallback(
     (values: Partial<DefaultSettings>) =>
@@ -87,7 +85,7 @@ export const useSettings = () => {
   // Memoize the final settings object to provide a stable default
   const value = useMemo(
     () => ({
-      ...(settings || defaultSettings), // Use loaded settings or fall back to default
+      ...{ ...defaultSettings, ...settings }, // Use loaded settings or fall back to default
       setSettings,
       saveCustomReaderTheme,
       deleteCustomReaderTheme,
@@ -96,5 +94,4 @@ export const useSettings = () => {
   );
 
   return value;
-
 };
