@@ -23,6 +23,13 @@ declare global {
 }
 Object.typedKeys = Object.keys as any;
 
+declare global {
+  interface ObjectConstructor {
+    typedKeys<T>(obj: T): Array<keyof T>;
+  }
+}
+Object.typedKeys = Object.keys as any;
+
 Notifications.setNotificationHandler({
   handleNotification: async () => {
     return {

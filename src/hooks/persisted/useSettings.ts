@@ -17,7 +17,6 @@ export const SETTINGS = 'SETTINGS';
 export const useSettings = () => {
   const [settings, _setSettings] = useMMKVObject<DefaultSettings>(SETTINGS);
 
-  // Keep reading the partial settings
   const [appSettings] = useMMKVObject<Partial<DefaultSettings>>(APP_SETTINGS);
   const [browseSettings] =
     useMMKVObject<Partial<DefaultSettings>>(BROWSE_SETTINGS);
@@ -51,6 +50,7 @@ export const useSettings = () => {
     chapterGeneralSettings,
     chapterReaderSettings,
   ]);
+
 
   const setSettings = useCallback(
     (values: Partial<DefaultSettings>) =>
@@ -96,4 +96,5 @@ export const useSettings = () => {
   );
 
   return value;
+
 };
