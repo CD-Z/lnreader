@@ -32,7 +32,7 @@ import { showToast } from '@utils/showToast';
 import { getString } from '@strings/translations';
 import NativeVolumeButtonListener from '@specs/NativeVolumeButtonListener';
 import NativeFile from '@specs/NativeFile';
-import { useNovelContext } from '@screens/novel/NovelContext';
+import { useNovelContext } from '@screens/novel/NovelProvider';
 
 const emmiter = new NativeEventEmitter(NativeVolumeButtonListener);
 

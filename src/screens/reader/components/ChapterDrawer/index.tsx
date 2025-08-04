@@ -14,7 +14,7 @@ import { getString } from '@strings/translations';
 import { ThemeColors } from '@theme/types';
 import renderListChapter from './RenderListChapter';
 import { useChapterContext } from '@screens/reader/ChapterContext';
-import { useNovelContext } from '@screens/novel/NovelContext';
+import { useNovelContext } from '@screens/novel/NovelProvider';
 import { FlashList, ViewToken } from '@shopify/flash-list';
 import { ChapterInfo } from '@database/types';
 
