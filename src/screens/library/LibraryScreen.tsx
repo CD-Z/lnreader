@@ -28,7 +28,8 @@ import LibraryBottomSheet from './components/LibraryBottomSheet/LibraryBottomShe
 import { Banner } from './components/Banner';
 import { Actionbar } from '@components/Actionbar/Actionbar';
 
-import { useAppSettings, useHistory, useTheme } from '@hooks/persisted';
+import { useAppSettings, useHistory } from '@hooks/persisted';
+import { useTheme } from '@providers/ThemeProvider';
 import { useSearch, useBackHandler, useBoolean } from '@hooks';
 import { getString } from '@strings/translations';
 import { FAB, Portal } from 'react-native-paper';

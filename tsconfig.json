@@ -1,12 +1,7 @@
 {
-  "extends": "@react-native/typescript-config",
+  "extends": "@react-native/typescript-config/tsconfig.json",
   "include": ["**/*.ts", "**/*.tsx"],
-  "exclude": [
-    "**/node_modules",
-    "**/Pods",
-    "babel.config.js",
-    "metro.config.js"
-  ],
+  "exclude": ["node_modules", "babel.config.js", "metro.config.js"],
   "compilerOptions": {
     "baseUrl": ".",
     "noUnusedLocals": true,
@@ -24,6 +19,7 @@
       "@theme/*": ["src/theme/*"],
       "@utils/*": ["src/utils/*"],
       "@plugins/*": ["src/plugins/*"],
+      "@providers/*": ["src/providers/*"],
       "@services/*": ["src/services/*"],
       "@navigators/*": ["src/navigators/*"],
       "@native/*": ["src/native/*"],

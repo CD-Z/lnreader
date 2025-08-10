@@ -11,7 +11,8 @@ import {
   changeNavigationBarColor,
   setStatusBarColor,
 } from '@theme/utils/setBarColor';
-import { useAppSettings, usePlugins, useTheme } from '@hooks/persisted';
+import { useAppSettings, usePlugins } from '@hooks/persisted';
+import { useTheme } from '@providers/ThemeProvider';
 import { useGithubUpdateChecker } from '@hooks/common/githubUpdateChecker';
 
 /**

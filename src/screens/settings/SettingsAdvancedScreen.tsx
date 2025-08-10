@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 
 import { Portal, Text, TextInput } from 'react-native-paper';
 
-import { useTheme, useUserAgent } from '@hooks/persisted';
+import { useUserAgent } from '@hooks/persisted';
+import { useTheme } from '@providers/ThemeProvider';
 import { showToast } from '@utils/showToast';
 
 import { getString } from '@strings/translations';

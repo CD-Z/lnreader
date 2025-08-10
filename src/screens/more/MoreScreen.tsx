@@ -5,7 +5,8 @@ import { getString } from '@strings/translations';
 import { List, SafeAreaView } from '@components';
 
 import { MoreHeader } from './components/MoreHeader';
-import { useLibrarySettings, useTheme } from '@hooks/persisted';
+import { useLibrarySettings } from '@hooks/persisted';
+import { useTheme } from '@providers/ThemeProvider';
 import { MoreStackScreenProps } from '@navigators/types';
 import Switch from '@components/Switch/Switch';
 import { useMMKVObject } from 'react-native-mmkv';
