@@ -67,6 +67,7 @@
                 which
                 rsync
                 scrcpy
+                nodePackages.rock
               ]
               ++ pkgs.lib.optionals enableEmulator [
                 libglvnd
@@ -108,10 +109,11 @@
                 echo "Emulator Enabled: Yes"
                 echo ""
                 echo "--- Available Commands ---"
-                echo "  npx react-native run-android"
+                echo "  pnpm android (or rock run:android)"
+                echo "  pnpm ios (or rock run:ios)"
+                echo "  pnpm start (or rock start)"
                 echo "  adb devices"
                 echo "  scrcpy"
-                echo "  pnpm start"
                 echo "--------------------------"
               '';
             };
@@ -136,6 +138,7 @@
                 which
                 rsync
                 scrcpy
+                nodePackages.rock
               ]
               ++ pkgs.lib.optionals enableEmulator [ # This list will be empty as enableEmulator is false
                 libglvnd
@@ -168,10 +171,11 @@
                 echo "Emulator Enabled: No"
                 echo ""
                 echo "--- Available Commands ---"
-                echo "  npx react-native run-android"
+                echo "  pnpm android (or rock run:android)"
+                echo "  pnpm ios (or rock run:ios)"
+                echo "  pnpm start (or rock start)"
                 echo "  adb devices"
                 echo "  scrcpy"
-                echo "  pnpm start"
                 echo "--------------------------"
               '';
             };            
