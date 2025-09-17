@@ -1,5 +1,5 @@
 import React from 'react';
-import { Checkbox as TCheckbox, Label, XStack, Text } from 'tamagui';
+import { View, Text } from 'react-native';
 
 export interface CheckboxProps {
   status?: 'checked' | 'unchecked' | 'indeterminate';
@@ -18,24 +18,28 @@ export const Checkbox: React.FC<CheckboxProps> = ({
   const indeterminate = status === 'indeterminate';
 
   return (
-    <XStack
-      alignItems="center"
-      gap="$3"
-      onPress={onPress as any}
-      opacity={disabled ? 0.6 : 1}
+    <View
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        opacity: disabled ? 0.6 : 1,
+      }}
     >
-      <TCheckbox
-        size="$4"
-        disabled={disabled}
-        checked={checked}
-        indeterminate={indeterminate}
+      <View
+        onTouchEnd={onPress}
+        style={{
+          width: 20,
+          height: 20,
+          borderRadius: 3,
+          borderWidth: 1,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
       >
-        <TCheckbox.Indicator>
-          <Text color="$background">{indeterminate ? '–' : '✓'}</Text>
-        </TCheckbox.Indicator>
-      </TCheckbox>
-      {label ? <Label>{label}</Label> : null}
-    </XStack>
+        <Text>{indeterminate ? '–' : checked ? '✓' : ''}</Text>
+      </View>
+      {label ? <Text style={{ marginLeft: 8 }}>{label}</Text> : null}
+    </View>
   );
 };
 

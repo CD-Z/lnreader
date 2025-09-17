@@ -1,5 +1,5 @@
 import React from 'react';
-import { XStack, YStack, Text, styled, View } from 'tamagui';
+import { Text, Pressable } from 'react-native';
 
 export interface ChipProps {
   selected?: boolean;
@@ -9,14 +9,7 @@ export interface ChipProps {
   children?: React.ReactNode;
 }
 
-const Container = styled(XStack, {
-  borderRadius: 16,
-  paddingHorizontal: '$3',
-  paddingVertical: '$2',
-  alignItems: 'center',
-  gap: '$2',
-  borderWidth: 1,
-});
+//
 
 export const Chip: React.FC<ChipProps> = ({
   selected,
@@ -26,19 +19,28 @@ export const Chip: React.FC<ChipProps> = ({
   children,
 }) => {
   return (
-    <Container
-      backgroundColor={selected ? '$primary' : 'transparent'}
-      borderColor={selected ? '$primary' : '$outline'}
-      onPress={onPress as any}
+    <Pressable
+      onPress={onPress}
+      style={{
+        borderRadius: 16,
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        borderWidth: 1,
+        borderColor: selected ? '#0057ce' : '#9E9E9E',
+        backgroundColor: selected ? '#0057ce' : 'transparent',
+      }}
     >
       {icon}
-      <Text color={selected ? '$background' : '$color'}>{children}</Text>
+      <Text style={{ color: selected ? '#fff' : '#000' }}>{children}</Text>
       {onClose ? (
-        <View onPress={onClose as any}>
+        <Pressable onPress={onClose}>
           <Text>×</Text>
-        </View>
+        </Pressable>
       ) : null}
-    </Container>
+    </Pressable>
   );
 };
 

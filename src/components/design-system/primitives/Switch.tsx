@@ -1,5 +1,5 @@
 import React from 'react';
-import { Switch as TSwitch, XStack, Label } from 'tamagui';
+import { Switch as RNSwitch, View, Text } from 'react-native';
 
 export interface SwitchProps {
   value: boolean;
@@ -15,14 +15,20 @@ export const Switch: React.FC<SwitchProps> = ({
   label,
 }) => {
   return (
-    <XStack alignItems="center" gap="$3" opacity={disabled ? 0.6 : 1}>
-      <TSwitch
-        checked={value}
-        onCheckedChange={onValueChange as any}
+    <View
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        opacity: disabled ? 0.6 : 1,
+      }}
+    >
+      <RNSwitch
+        value={value}
+        onValueChange={onValueChange}
         disabled={disabled}
       />
-      {label ? <Label>{label}</Label> : null}
-    </XStack>
+      {label ? <Text style={{ marginLeft: 8 }}>{label}</Text> : null}
+    </View>
   );
 };
 

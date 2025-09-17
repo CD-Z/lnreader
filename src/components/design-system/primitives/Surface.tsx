@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, styled } from 'tamagui';
+import { View } from 'react-native';
 
 export interface SurfaceProps {
   elevation?: 0 | 1 | 2 | 3 | 4 | 5;
@@ -8,10 +8,7 @@ export interface SurfaceProps {
   style?: any;
 }
 
-const Base = styled(View, {
-  backgroundColor: '$background',
-  borderRadius: 8,
-});
+const Base = View as any;
 
 export const Surface: React.FC<SurfaceProps> = ({
   elevation = 0,

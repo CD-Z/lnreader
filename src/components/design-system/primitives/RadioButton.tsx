@@ -1,5 +1,5 @@
 import React from 'react';
-import { Label, RadioGroup, XStack, YStack, styled } from 'tamagui';
+import { View, Text } from 'react-native';
 
 export interface RadioButtonProps {
   value: string;
@@ -13,12 +13,27 @@ export const RadioButton: React.FC<RadioButtonProps> = ({
   disabled,
 }) => {
   return (
-    <XStack alignItems="center" gap="$3" opacity={disabled ? 0.6 : 1}>
-      <RadioGroup.Item value={value} disabled={disabled}>
-        <RadioGroup.Indicator />
-      </RadioGroup.Item>
-      {label ? <Label>{label}</Label> : null}
-    </XStack>
+    <View
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        opacity: disabled ? 0.6 : 1,
+      }}
+    >
+      <View
+        style={{
+          width: 18,
+          height: 18,
+          borderRadius: 9,
+          borderWidth: 1,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <View style={{ width: 10, height: 10, borderRadius: 5 }} />
+      </View>
+      {label ? <Text style={{ marginLeft: 8 }}>{label}</Text> : null}
+    </View>
   );
 };
 
@@ -33,11 +48,7 @@ export const RadioButtonGroup: React.FC<RadioButtonGroupProps> = ({
   onValueChange,
   children,
 }) => {
-  return (
-    <RadioGroup value={value} onValueChange={onValueChange}>
-      <YStack gap="$3">{children}</YStack>
-    </RadioGroup>
-  );
+  return <View>{children}</View>;
 };
 
 export default RadioButton;

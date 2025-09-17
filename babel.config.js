@@ -9,14 +9,14 @@ module.exports = function (api) {
     plugins: [
       'module:@babel/plugin-transform-export-namespace-from',
       ['babel-plugin-react-compiler', ReactCompilerConfig],
-      [
-        '@tamagui/babel-plugin',
-        {
-          components: ['tamagui'],
-          disableExtraction: process.env.NODE_ENV === 'development',
-          config: './tamagui.config.ts',
-        },
-      ],
+      // [
+      //   '@tamagui/babel-plugin',
+      //   {
+      //     components: ['tamagui'],
+      //     disableExtraction: process.env.NODE_ENV === 'development',
+      //     config: './tamagui.config.ts',
+      //   },
+      // ],
       [
         'module-resolver',
         {
