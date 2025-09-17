@@ -13,7 +13,7 @@ export interface DownloadButtonProps {
   onDownload: () => void;
 }
 
-const _DownloadButton: React.FC<DownloadButtonProps> = ({
+const DownloadButtonImpl: React.FC<DownloadButtonProps> = ({
   status,
   theme,
   onDelete,
@@ -110,7 +110,7 @@ function areEqualDownloadButton(
   );
 }
 
-export const DownloadButton = memo(_DownloadButton, areEqualDownloadButton);
+export const DownloadButton = memo(DownloadButtonImpl, areEqualDownloadButton);
 
 const styles = StyleSheet.create({
   activityIndicator: { margin: 3.5, padding: 5 },

@@ -116,7 +116,7 @@ const GeneralTab: React.FC = React.memo(() => {
   );
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={styles.flex}>
       <BottomSheetFlashList
         data={preferences}
         extraData={[settings]}
