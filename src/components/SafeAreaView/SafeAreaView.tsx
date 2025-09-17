@@ -19,6 +19,10 @@ const SafeAreaView: React.FC<SafeAreaViewProps> = ({
   const styles = StyleSheet.create({
     container: {
       flex: 1,
+      height: '100%',
+      // zIndex: -1,
+      // opacity: 0.1,
+      // backgroundColor: 'blue',
     },
     padding: {
       paddingBottom: excludeBottom ? 0 : bottom,

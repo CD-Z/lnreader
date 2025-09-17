@@ -1,12 +1,18 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View, TextInput } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
-import { Button, IconButton, Portal } from 'react-native-paper';
+import IconButtonV2 from '@components/IconButtonV2/IconButtonV2';
+import {
+  Button as DSButton,
+  TextInput as DSTextInput,
+  Text as DSText,
+} from '@components/design-system';
 import { ChapterInfo, NovelInfo } from '@database/types';
 import { getString } from '@strings/translations';
 import { Modal } from '@components';
 import { useTheme } from '@providers/Providers';
 import { useNovelChapters, useNovelState } from '@hooks/persisted/index';
+import { Portal } from 'tamagui';
 
 interface DownloadCustomChapterModalProps {
   hideModal: () => void;
@@ -48,57 +54,44 @@ const DownloadCustomChapterModal = ({
   };
 
   return (
-    <Portal>
-      <Modal visible={modalVisible} onDismiss={onDismiss}>
-        <Text style={[styles.modalTitle, { color: theme.onSurface }]}>
-          {getString('novelScreen.download.customAmount')}
-        </Text>
-        <View style={styles.row}>
-          <IconButton
-            icon="chevron-double-left"
-            animated
-            size={24}
-            iconColor={theme.primary}
-            onPress={() => text > 9 && setText(prevState => prevState - 10)}
-          />
-          <IconButton
-            icon="chevron-left"
-            animated
-            size={24}
-            iconColor={theme.primary}
-            onPress={() => text > 0 && setText(prevState => prevState - 1)}
-          />
-          <TextInput
-            value={text.toString()}
-            style={[{ color: theme.onSurface }, styles.marginHorizontal]}
-            keyboardType="numeric"
-            onChangeText={onChangeText}
-            onSubmitEditing={onSubmit}
-          />
-          <IconButton
-            icon="chevron-right"
-            animated
-            size={24}
-            iconColor={theme.primary}
-            onPress={() => setText(prevState => prevState + 1)}
-          />
-          <IconButton
-            icon="chevron-double-right"
-            animated
-            size={24}
-            iconColor={theme.primary}
-            onPress={() => setText(prevState => prevState + 10)}
-          />
-        </View>
-        <Button
-          onPress={onSubmit}
-          textColor={theme.onPrimary}
-          buttonColor={theme.primary}
-        >
-          {getString('libraryScreen.bottomSheet.display.download')}
-        </Button>
-      </Modal>
-    </Portal>
+    <Modal visible={modalVisible} onDismiss={onDismiss}>
+      <DSText style={[styles.modalTitle, { color: theme.onSurface }]}>
+        {getString('novelScreen.download.customAmount')}
+      </DSText>
+      <View style={styles.row}>
+        <IconButtonV2
+          name="chevron-double-left"
+          theme={theme}
+          onPress={() => text > 9 && setText(prevState => prevState - 10)}
+        />
+        <IconButtonV2
+          name="chevron-left"
+          theme={theme}
+          onPress={() => text > 0 && setText(prevState => prevState - 1)}
+        />
+        <DSTextInput
+          value={String(text)}
+          onChangeText={onChangeText}
+          onSubmitEditing={onSubmit as any}
+          keyboardType="numeric"
+          mode="outlined"
+          style={styles.marginHorizontal}
+        />
+        <IconButtonV2
+          name="chevron-right"
+          theme={theme}
+          onPress={() => setText(prevState => prevState + 1)}
+        />
+        <IconButtonV2
+          name="chevron-double-right"
+          theme={theme}
+          onPress={() => setText(prevState => prevState + 10)}
+        />
+      </View>
+      <DSButton onPress={onSubmit}>
+        {getString('libraryScreen.bottomSheet.display.download')}
+      </DSButton>
+    </Modal>
   );
 };
 

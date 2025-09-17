@@ -1,20 +1,21 @@
-import React, { useRef, useState } from 'react';
-import {
-  StyleSheet,
-  View,
-  Pressable,
-  TextInput as RNTextInput,
-} from 'react-native';
+import React, { useState } from 'react';
+import { StyleSheet, View, Pressable } from 'react-native';
 import { getString } from '@strings/translations';
-import { Button, Modal, SwitchItem } from '@components';
+import { Modal } from '@components';
 
-import { Portal, Text } from 'react-native-paper';
+import {
+  Text as DSText,
+  TextInput as DSTextInput,
+  Switch as DSSwitch,
+  Button as DSButton,
+} from '@components/design-system';
 import { useTheme } from '@providers/Providers';
 import { ChapterInfo } from '@database/types';
 import { NovelScreenProps } from '@navigators/types';
 import { FlashList, FlashListRef, ListRenderItem } from '@shopify/flash-list';
 import useNovelState from '@hooks/persisted/novel/useNovelState';
 import useNovelChapters from '@hooks/persisted/novel/useNovelChapters';
+import { Portal } from 'tamagui';
 
 interface JumpToChapterModalProps {
   hideModal: () => void;
@@ -41,15 +42,9 @@ const JumpToChapterModal = ({
   const [error, setError] = useState('');
   const [result, setResult] = useState<ChapterInfo[]>([]);
 
-  const inputRef = useRef<RNTextInput>(null);
-  const [inputFocused, setInputFocused] = useState(false);
-
   const onDismiss = () => {
     hideModal();
     setText('');
-    inputRef.current?.clear();
-    inputRef.current?.blur();
-    setInputFocused(false);
     setError('');
     setResult([]);
   };
@@ -95,16 +90,16 @@ const JumpToChapterModal = ({
         onPress={() => executeFunction(item)}
         style={styles.listElementContainer}
       >
-        <Text numberOfLines={1} style={{ color: theme.onSurface }}>
+        <DSText numberOfLines={1} style={{ color: theme.onSurface }}>
           {item.name}
-        </Text>
+        </DSText>
         {item?.releaseTime ? (
-          <Text
+          <DSText
             numberOfLines={1}
             style={[{ color: theme.onSurfaceVariant }, styles.dateCtn]}
           >
             {item.releaseTime}
-          </Text>
+          </DSText>
         ) : null}
       </Pressable>
     );
@@ -156,81 +151,56 @@ const JumpToChapterModal = ({
     setResult([]);
   };
 
-  const errorColor = !theme.isDark ? '#B3261E' : '#F2B8B5';
+  // const errorColor = !theme.isDark ? '#B3261E' : '#F2B8B5';
   const placeholder = mode
     ? getString('novelScreen.jumpToChapterModal.chapterName')
     : getString('novelScreen.jumpToChapterModal.chapterNumber') +
       ` (≥ ${minNumber},  ≤ ${maxNumber})`;
 
-  const borderWidth = inputFocused || error ? 2 : 1;
-  const margin = inputFocused || error ? 0 : 1;
+  // preserved variables from previous styling no longer used
   return (
-    <Portal>
-      <Modal visible={modalVisible} onDismiss={onDismiss}>
-        <View>
-          <Text style={[styles.modalTitle, { color: theme.onSurface }]}>
-            {getString('novelScreen.jumpToChapterModal.jumpToChapter')}
-          </Text>
-          <RNTextInput
-            ref={inputRef}
-            placeholder={placeholder}
-            placeholderTextColor={'grey'}
-            onChangeText={onChangeText}
-            onSubmitEditing={onSubmit}
-            keyboardType={mode ? 'default' : 'numeric'}
-            onFocus={() => setInputFocused(true)}
-            onBlur={() => setInputFocused(false)}
-            style={[
-              {
-                color: theme.onBackground,
-                backgroundColor: theme.background,
-                borderColor: error
-                  ? theme.error
-                  : inputFocused
-                  ? theme.primary
-                  : theme.outline,
-                borderWidth: borderWidth,
-                margin: margin,
-              },
-              styles.textInput,
-            ]}
-          />
-          {!!error && (
-            <Text style={[styles.errorText, { color: errorColor }]}>
-              {error}
-            </Text>
-          )}
-          <SwitchItem
-            label={getString('novelScreen.jumpToChapterModal.openChapter')}
-            value={openChapter}
-            theme={theme}
-            onPress={() => setOpenChapter(!openChapter)}
-            size={20}
-          />
-          <SwitchItem
-            label={getString('novelScreen.jumpToChapterModal.chapterName')}
-            value={mode}
-            theme={theme}
-            onPress={() => setMode(!mode)}
-            size={20}
+    <Modal visible={modalVisible} onDismiss={onDismiss}>
+      <View>
+        <DSText style={[styles.modalTitle, { color: theme.onSurface }]}>
+          {getString('novelScreen.jumpToChapterModal.jumpToChapter')}
+        </DSText>
+        <DSTextInput
+          label={placeholder}
+          mode="outlined"
+          value={text}
+          onChangeText={onChangeText}
+          onSubmitEditing={onSubmit as any}
+          keyboardType={mode ? 'default' : 'numeric'}
+          helperText={error}
+          error={!!error}
+        />
+        <View style={{ height: 8 }} />
+        <DSSwitch
+          label={getString('novelScreen.jumpToChapterModal.openChapter')}
+          value={openChapter}
+          onValueChange={setOpenChapter}
+        />
+        <DSSwitch
+          label={getString('novelScreen.jumpToChapterModal.chapterName')}
+          value={mode}
+          onValueChange={setMode}
+        />
+      </View>
+      {result.length ? (
+        <View style={[styles.flashlist, { borderColor: theme.outline }]}>
+          <FlashList
+            data={result}
+            extraData={openChapter}
+            renderItem={renderItem}
+            contentContainerStyle={styles.listContentCtn}
           />
         </View>
-        {result.length ? (
-          <View style={[styles.flashlist, { borderColor: theme.outline }]}>
-            <FlashList
-              data={result}
-              extraData={openChapter}
-              renderItem={renderItem}
-              contentContainerStyle={styles.listContentCtn}
-            />
-          </View>
-        ) : null}
-        <View style={styles.modalFooterCtn}>
-          <Button title={getString('common.submit')} onPress={onSubmit} />
-          <Button title={getString('common.cancel')} onPress={hideModal} />
-        </View>
-      </Modal>
-    </Portal>
+      ) : null}
+      <View style={styles.modalFooterCtn}>
+        <DSButton onPress={onSubmit}>{getString('common.submit')}</DSButton>
+        <DSButton onPress={hideModal}>{getString('common.cancel')}</DSButton>
+      </View>
+    </Modal>
   );
 };
 

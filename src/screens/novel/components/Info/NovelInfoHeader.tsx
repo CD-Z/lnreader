@@ -4,7 +4,7 @@ import color from 'color';
 
 import * as Clipboard from 'expo-clipboard';
 
-import { IconButton } from 'react-native-paper';
+import IconButtonV2 from '@components/IconButtonV2/IconButtonV2';
 import MaterialCommunityIcons from '@react-native-vector-icons/material-design-icons';
 
 import { showToast } from '@utils/showToast';
@@ -259,17 +259,16 @@ const NovelInfoHeader = ({
               </Text>
             </View>
             {page && Number(page) ? (
-              <IconButton
-                icon="reload"
-                iconColor={theme.onSurface}
-                size={24}
+              <IconButtonV2
+                name="reload"
+                theme={theme}
                 onPress={() => onRefreshPage(page)}
               />
             ) : null}
-            <IconButton
-              icon="filter-variant"
-              iconColor={filter ? filterColor(theme.isDark) : theme.onSurface}
-              size={24}
+            <IconButtonV2
+              name="filter-variant"
+              color={filter ? filterColor(theme.isDark) : theme.onSurface}
+              theme={theme}
               onPress={() => novelBottomSheetRef.current?.present()}
             />
           </Pressable>

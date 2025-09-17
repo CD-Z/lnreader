@@ -1,6 +1,5 @@
 import React, { memo, useCallback, useMemo, useState } from 'react';
 import { getString } from '@strings/translations';
-import { Appbar, Menu as DefaultMenu } from 'react-native-paper';
 import { ThemeColors } from '@theme/types';
 import Animated, {
   FadeIn,
@@ -12,6 +11,7 @@ import Animated, {
   useAnimatedStyle,
 } from 'react-native-reanimated';
 import EpubIconButton from './EpubIconButton';
+import { Appbar, Menu as DefaultMenu } from 'react-native-paper';
 import { Share, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 import { MaterialDesignIconName } from '@type/icon';
 import useNovelChapters from '@hooks/persisted/novel/useNovelChapters';
@@ -137,11 +137,12 @@ const NovelAppbar = ({
       return (
         <AA
           entering={FadeIn.duration(250)}
-          // delay to prevent flickering on rerenders
           exiting={FadeOut.delay(50).duration(250)}
           theme={{ colors: theme }}
-          size={24}
-          {...props}
+          size={props.size ?? 24}
+          icon={props.icon as any}
+          onPress={props.onPress}
+          style={props.style}
         />
       );
     },
@@ -187,14 +188,12 @@ const NovelAppbar = ({
     <Animated.View
       entering={SlideInUp.duration(250)}
       exiting={SlideOutUp.duration(250)}
-      style={headerOpacityStyle}
+      style={[headerOpacityStyle, styles.appbar]}
     >
       <Appbar.Header theme={{ colors: { ...theme, surface: 'transparent' } }}>
         <Appbar.BackAction onPress={goBack} />
-
         <View style={styles.row}>
           <EpubIconButton theme={theme} anchor={AppbarAction} />
-
           <AppbarAction icon="share-variant" onPress={shareNovel} />
           <AppbarAction
             icon="text-box-search-outline"
@@ -256,6 +255,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     position: 'absolute',
     right: 0,
+  },
+  appbar: {
+    position: 'absolute',
+    width: '100%',
+    zIndex: 10,
   },
 });
 

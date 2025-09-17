@@ -1,7 +1,7 @@
-import React, { useMemo } from 'react';
-import { TamaguiProvider, Theme as TTheme } from 'tamagui';
+import React from 'react';
+import { TamaguiProvider } from 'tamagui';
 import { useTheme } from './ThemeContext';
-import tamaguiConfig from '@theme/tamagui.config';
+import config from '../../../tamagui.config';
 
 /**
  * DSProvider bridges ThemeContext (MD3 colors) to Tamagui themes.
@@ -9,12 +9,10 @@ import tamaguiConfig from '@theme/tamagui.config';
  */
 export function DSProvider({ children }: { children: React.JSX.Element }) {
   const colors = useTheme();
-
   const currentThemeName = colors.isDark ? 'dark' : 'light';
 
-  // Provide Tamagui provider + Theme selection.
   return (
-    <TamaguiProvider config={tamaguiConfig} defaultTheme={currentThemeName}>
+    <TamaguiProvider config={config} defaultTheme={currentThemeName}>
       {children}
     </TamaguiProvider>
   );

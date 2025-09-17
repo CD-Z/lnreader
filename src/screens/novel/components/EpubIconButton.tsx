@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Portal } from 'react-native-paper';
+//
 import ChooseEpubLocationModal from './ChooseEpubLocationModal';
 import { StatusBar, StyleProp, ViewStyle } from 'react-native';
 import { ThemeColors } from '@theme/types';
@@ -170,13 +170,11 @@ const EpubIconButton: React.FC<EpubIconButtonProps> = ({
   return (
     <>
       <Anchor icon="book-arrow-down-outline" onPress={showModal} />
-      <Portal>
-        <ChooseEpubLocationModal
-          isVisible={isVisible}
-          hideModal={hideModal}
-          onSubmit={createEpub}
-        />
-      </Portal>
+      <ChooseEpubLocationModal
+        isVisible={isVisible}
+        hideModal={hideModal}
+        onSubmit={createEpub}
+      />
     </>
   );
 };

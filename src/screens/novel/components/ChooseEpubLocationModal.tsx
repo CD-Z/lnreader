@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { TextInput, Text } from 'react-native-paper';
-import { openDocumentTree } from 'react-native-saf-x';
+import {
+  Text as DSText,
+  TextInput as DSTextInput,
+} from '@components/design-system';
 
 import { Button, List, Modal, SwitchItem } from '@components';
 
@@ -9,7 +11,6 @@ import { useBoolean } from '@hooks';
 import { getString } from '@strings/translations';
 import { useChapterReaderSettings } from '@hooks/persisted';
 import { useTheme } from '@providers/Providers';
-import { showToast } from '@utils/showToast';
 
 interface ChooseEpubLocationModalProps {
   isVisible: boolean;
@@ -53,38 +54,30 @@ const ChooseEpubLocationModal: React.FC<ChooseEpubLocationModalProps> = ({
     hideModal();
   };
 
-  const openFolderPicker = async () => {
-    try {
-      const resultUri = await openDocumentTree(true);
-      if (resultUri) {
-        setUri(resultUri.uri);
-      }
-    } catch (error: any) {
-      showToast(error.message);
-    }
-  };
+  // const openFolderPicker = async () => {
+  //   try {
+  //     const resultUri = await openDocumentTree(true);
+  //     if (resultUri) {
+  //       setUri(resultUri.uri);
+  //     }
+  //   } catch (error: any) {
+  //     showToast(error.message);
+  //   }
+  // };
 
   return (
     <Modal visible={isVisible} onDismiss={onDismiss}>
       <View>
-        <Text style={[styles.modalTitle, { color: theme.onSurface }]}>
+        <DSText style={[styles.modalTitle, { color: theme.onSurface }]}>
           {getString('novelScreen.convertToEpubModal.chooseLocation')}
-        </Text>
-        <TextInput
+        </DSText>
+        <DSTextInput
           onChangeText={setUri}
           value={uri}
           placeholder={getString('novelScreen.convertToEpubModal.pathToFolder')}
-          onSubmitEditing={onSubmit}
+          onSubmitEditing={onSubmit as any}
           mode="outlined"
-          theme={{ colors: { ...theme } }}
-          underlineColor={theme.outline}
-          dense
-          right={
-            <TextInput.Icon
-              icon="folder-edit-outline"
-              onPress={openFolderPicker}
-            />
-          }
+          right={undefined}
         />
       </View>
       <View style={styles.settings}>

@@ -1,5 +1,5 @@
 import React, { Suspense, useCallback, useMemo, useRef, useState } from 'react';
-import { StyleSheet, View, StatusBar, Text } from 'react-native';
+import { StyleSheet, View, StatusBar } from 'react-native';
 import { Drawer } from 'react-native-drawer-layout';
 import Animated, {
   SlideInUp,
@@ -8,6 +8,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { Portal, Appbar, Snackbar } from 'react-native-paper';
+// Removed react-native-paper components in favor of new design system
 import { useDownload } from '@hooks/persisted';
 import { useTheme } from '@providers/Providers';
 import JumpToChapterModal from './components/JumpToChapterModal';
@@ -27,6 +28,12 @@ import { MaterialDesignIconName } from '@type/icon';
 import NovelScreenList from './components/NovelScreenList';
 import { ThemeColors } from '@theme/types';
 import { SafeAreaView } from '@components';
+import {
+  Surface,
+  Text as DSText,
+  Button as DSButton,
+} from '@components/design-system';
+import IconButtonV2 from '@components/IconButtonV2/IconButtonV2';
 import { FlashListRef } from '@shopify/flash-list';
 import useNovelState from '@hooks/persisted/novel/useNovelState';
 import useNovelChapters from '@hooks/persisted/novel/useNovelChapters';
@@ -237,21 +244,23 @@ const Novel = ({ route, navigation }: NovelScreenProps) => {
                 exiting={SlideOutUp.duration(250)}
                 style={styles.appbar}
               >
-                <Appbar.Action
-                  icon="close"
-                  iconColor={theme.onBackground}
+                <IconButtonV2
+                  name="close"
+                  theme={theme}
                   onPress={() => setSelected([])}
+                  style={{ marginLeft: 8 }}
                 />
-                <Appbar.Content
-                  title={`${selected.length}`}
-                  titleStyle={{ color: theme.onSurface }}
-                />
-                <Appbar.Action
-                  icon="select-all"
-                  iconColor={theme.onBackground}
+                <DSText style={{ color: theme.onSurface, fontSize: 18 }}>
+                  {selected.length}
+                </DSText>
+                <View style={{ flex: 1 }} />
+                <IconButtonV2
+                  name="select-all"
+                  theme={theme}
                   onPress={() => {
                     setSelected(chapters);
                   }}
+                  style={{ marginRight: 8 }}
                 />
               </Animated.View>
             )}
@@ -275,7 +284,6 @@ const Novel = ({ route, navigation }: NovelScreenProps) => {
               />
             </Suspense>
           </SafeAreaView>
-
           <Portal>
             <Actionbar active={selected.length > 0} actions={actions} />
             <Snackbar
@@ -290,9 +298,9 @@ const Novel = ({ route, navigation }: NovelScreenProps) => {
               theme={{ colors: theme }}
               style={styles.snackbar}
             >
-              <Text style={{ color: theme.onSurface }}>
+              <DSText style={{ color: theme.onSurface }}>
                 {getString('novelScreen.deleteMessage')}
-              </Text>
+              </DSText>
             </Snackbar>
           </Portal>
           <Portal>

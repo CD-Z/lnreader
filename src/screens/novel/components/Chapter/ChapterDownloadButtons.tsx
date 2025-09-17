@@ -26,10 +26,7 @@ const DownloadButtonImpl: React.FC<DownloadButtonProps> = ({
     [theme.primary],
   );
 
-  const menuContentStyle = useMemo(
-    () => ({ backgroundColor: overlay(2, theme.surface) }),
-    [theme.surface],
-  );
+  // removed: menuContentStyle (no longer used with Popover)
 
   if (status === 'downloading') {
     return (
@@ -63,7 +60,7 @@ const DownloadButtonImpl: React.FC<DownloadButtonProps> = ({
             </Pressable>
           </View>
         }
-        contentStyle={menuContentStyle}
+        contentStyle={{ backgroundColor: overlay(2, theme.surface) }}
       >
         <Menu.Item
           onPress={() => {

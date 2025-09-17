@@ -10,7 +10,7 @@ import {
   ImageURISource,
 } from 'react-native';
 import color from 'color';
-import { IconButton, Portal } from 'react-native-paper';
+import IconButtonV2 from '@components/IconButtonV2/IconButtonV2';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Chip } from '../../../../components';
 import { coverPlaceholderColor } from '../../../../theme/colors';
@@ -94,25 +94,27 @@ const NovelThumbnail = ({
       {!expanded ? (
         <Image source={source} style={styles.novelThumbnail} />
       ) : (
-        <Portal>
-          <IconButton
-            icon="content-save"
-            style={[
-              styles.absoluteIcon,
-              styles.zIndex,
-              { top: top + 6, right: right + 6 },
-            ]}
-            iconColor={theme.onBackground}
+        <>
+          <IconButtonV2
+            name="content-save"
+            style={{
+              position: 'absolute',
+              zIndex: 10,
+              top: top + 6,
+              right: right + 6,
+            }}
+            theme={theme}
             onPress={saveNovelCover}
           />
-          <IconButton
-            icon="pencil-outline"
-            style={[
-              styles.absoluteIcon,
-              styles.zIndex,
-              { top: top + 6, right: right + 60 },
-            ]}
-            iconColor={theme.onBackground}
+          <IconButtonV2
+            name="pencil-outline"
+            style={{
+              position: 'absolute',
+              zIndex: 10,
+              top: top + 6,
+              right: right + 60,
+            }}
+            theme={theme}
             onPress={setCustomNovelCover}
           />
           <Pressable
@@ -121,7 +123,7 @@ const NovelThumbnail = ({
           >
             <Image source={source} resizeMode="contain" style={styles.flex1} />
           </Pressable>
-        </Portal>
+        </>
       )}
     </Pressable>
   );
@@ -176,10 +178,10 @@ const FollowButton = ({
       onPress={onPress}
       style={styles.followButtonPressable}
     >
-      <IconButton
-        icon={followed ? 'heart' : 'heart-outline'}
-        iconColor={followed ? theme.primary : theme.outline}
-        size={24}
+      <IconButtonV2
+        name={followed ? 'heart' : 'heart-outline'}
+        color={followed ? theme.primary : theme.outline}
+        theme={theme}
         style={styles.iconButton}
       />
       <Text
@@ -214,10 +216,10 @@ const TrackerButton = ({
       onPress={onPress}
       style={styles.followButtonPressable}
     >
-      <IconButton
-        icon={isTracked ? 'check' : 'sync'}
-        iconColor={isTracked ? theme.primary : theme.outline}
-        size={24}
+      <IconButtonV2
+        name={isTracked ? 'check' : 'sync'}
+        color={isTracked ? theme.primary : theme.outline}
+        theme={theme}
         style={styles.iconButton}
       />
       <Text
