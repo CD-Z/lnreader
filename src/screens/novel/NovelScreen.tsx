@@ -227,44 +227,6 @@ const Novel = ({ route, navigation }: NovelScreenProps) => {
     >
       <Portal.Host>
         <View style={[styles.container, { backgroundColor: theme.background }]}>
-          <Portal>
-            {selected.length === 0 ? (
-              <NovelAppbar
-                showEditInfoModal={showEditInfoModal}
-                downloadCustomChapterModal={openDlChapterModal}
-                showJumpToChapterModal={showJumpToChapterModal}
-                theme={theme}
-                isLocal={novel?.isLocal ?? route.params?.isLocal}
-                goBack={navigation.goBack}
-                headerOpacity={headerOpacity}
-              />
-            ) : (
-              <Animated.View
-                entering={SlideInUp.duration(250)}
-                exiting={SlideOutUp.duration(250)}
-                style={styles.appbar}
-              >
-                <IconButtonV2
-                  name="close"
-                  theme={theme}
-                  onPress={() => setSelected([])}
-                  style={{ marginLeft: 8 }}
-                />
-                <DSText style={{ color: theme.onSurface, fontSize: 18 }}>
-                  {selected.length}
-                </DSText>
-                <View style={{ flex: 1 }} />
-                <IconButtonV2
-                  name="select-all"
-                  theme={theme}
-                  onPress={() => {
-                    setSelected(chapters);
-                  }}
-                  style={{ marginRight: 8 }}
-                />
-              </Animated.View>
-            )}
-          </Portal>
           <SafeAreaView excludeTop>
             <Suspense fallback={<NovelScreenLoading theme={theme} />}>
               <NovelScreenList
@@ -285,46 +247,82 @@ const Novel = ({ route, navigation }: NovelScreenProps) => {
             </Suspense>
           </SafeAreaView>
           <Portal>
-            <Actionbar active={selected.length > 0} actions={actions} />
-            <Snackbar
-              visible={deleteDownloadsSnackbar.value}
-              onDismiss={deleteDownloadsSnackbar.setFalse}
-              action={{
-                label: getString('common.delete'),
-                onPress: () => {
-                  deleteChapters(chapters.filter(c => c.isDownloaded));
-                },
-              }}
-              theme={{ colors: theme }}
-              style={styles.snackbar}
-            >
-              <DSText style={{ color: theme.onSurface }}>
-                {getString('novelScreen.deleteMessage')}
-              </DSText>
-            </Snackbar>
-          </Portal>
-          <Portal>
-            {novel && (
-              <>
-                <JumpToChapterModal
-                  modalVisible={jumpToChapterModal}
-                  hideModal={() => showJumpToChapterModal(false)}
-                  chapterListRef={chapterListRef}
-                  navigation={navigation}
-                />
-                <EditInfoModal
-                  modalVisible={editInfoModal}
-                  hideModal={() => showEditInfoModal(false)}
+            <>
+              {selected.length === 0 ? (
+                <NovelAppbar
+                  showEditInfoModal={showEditInfoModal}
+                  downloadCustomChapterModal={openDlChapterModal}
+                  showJumpToChapterModal={showJumpToChapterModal}
                   theme={theme}
+                  isLocal={novel?.isLocal ?? route.params?.isLocal}
+                  goBack={navigation.goBack}
+                  headerOpacity={headerOpacity}
                 />
-                <DownloadCustomChapterModal
-                  modalVisible={dlChapterModalVisible}
-                  hideModal={closeDlChapterModal}
-                  downloadChapters={downloadChapters}
-                />
-              </>
-            )}
+              ) : (
+                <Animated.View
+                  entering={SlideInUp.duration(250)}
+                  exiting={SlideOutUp.duration(250)}
+                  style={styles.appbar}
+                >
+                  <IconButtonV2
+                    name="close"
+                    theme={theme}
+                    onPress={() => setSelected([])}
+                    style={{ marginLeft: 8 }}
+                  />
+                  <DSText style={{ color: theme.onSurface, fontSize: 18 }}>
+                    {selected.length}
+                  </DSText>
+                  <View style={{ flex: 1 }} />
+                  <IconButtonV2
+                    name="select-all"
+                    theme={theme}
+                    onPress={() => {
+                      setSelected(chapters);
+                    }}
+                    style={{ marginRight: 8 }}
+                  />
+                </Animated.View>
+              )}
+              <Actionbar active={selected.length > 0} actions={actions} />
+              <Snackbar
+                visible={deleteDownloadsSnackbar.value}
+                onDismiss={deleteDownloadsSnackbar.setFalse}
+                action={{
+                  label: getString('common.delete'),
+                  onPress: () => {
+                    deleteChapters(chapters.filter(c => c.isDownloaded));
+                  },
+                }}
+                theme={{ colors: theme }}
+                style={styles.snackbar}
+              >
+                <DSText style={{ color: theme.onSurface }}>
+                  {getString('novelScreen.deleteMessage')}
+                </DSText>
+              </Snackbar>
+            </>
           </Portal>
+          {novel && (
+            <>
+              <JumpToChapterModal
+                modalVisible={jumpToChapterModal}
+                hideModal={() => showJumpToChapterModal(false)}
+                chapterListRef={chapterListRef}
+                navigation={navigation}
+              />
+              <EditInfoModal
+                modalVisible={editInfoModal}
+                hideModal={() => showEditInfoModal(false)}
+                theme={theme}
+              />
+              <DownloadCustomChapterModal
+                modalVisible={dlChapterModalVisible}
+                hideModal={closeDlChapterModal}
+                downloadChapters={downloadChapters}
+              />
+            </>
+          )}
         </View>
       </Portal.Host>
     </Drawer>

@@ -34,22 +34,23 @@ createTables();
 LottieSplashScreen.hide();
 
 const App = () => {
-  const navigationRef = useRef<NavigationContainerRef<RootStackParamList>>(null);
+  const navigationRef =
+    useRef<NavigationContainerRef<RootStackParamList>>(null);
 
   return (
     <GestureHandlerRootView style={styles.flex}>
-      <Providers>
-        <AppErrorBoundary>
-          <SafeAreaProvider>
+      <SafeAreaProvider>
+        <Providers>
+          <AppErrorBoundary>
             <PaperProvider>
               <BottomSheetModalProvider>
                 <StatusBar translucent={true} backgroundColor="transparent" />
                 <Main ref={navigationRef} />
               </BottomSheetModalProvider>
             </PaperProvider>
-          </SafeAreaProvider>
-        </AppErrorBoundary>
-      </Providers>
+          </AppErrorBoundary>
+        </Providers>
+      </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 };

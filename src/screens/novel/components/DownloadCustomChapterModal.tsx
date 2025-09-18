@@ -54,44 +54,46 @@ const DownloadCustomChapterModal = ({
   };
 
   return (
-    <Modal visible={modalVisible} onDismiss={onDismiss}>
-      <DSText style={[styles.modalTitle, { color: theme.onSurface }]}>
-        {getString('novelScreen.download.customAmount')}
-      </DSText>
-      <View style={styles.row}>
-        <IconButtonV2
-          name="chevron-double-left"
-          theme={theme}
-          onPress={() => text > 9 && setText(prevState => prevState - 10)}
-        />
-        <IconButtonV2
-          name="chevron-left"
-          theme={theme}
-          onPress={() => text > 0 && setText(prevState => prevState - 1)}
-        />
-        <DSTextInput
-          value={String(text)}
-          onChangeText={onChangeText}
-          onSubmitEditing={onSubmit as any}
-          keyboardType="numeric"
-          mode="outlined"
-          style={styles.marginHorizontal}
-        />
-        <IconButtonV2
-          name="chevron-right"
-          theme={theme}
-          onPress={() => setText(prevState => prevState + 1)}
-        />
-        <IconButtonV2
-          name="chevron-double-right"
-          theme={theme}
-          onPress={() => setText(prevState => prevState + 10)}
-        />
-      </View>
-      <DSButton onPress={onSubmit}>
-        {getString('libraryScreen.bottomSheet.display.download')}
-      </DSButton>
-    </Modal>
+    <Portal>
+      <Modal visible={modalVisible} onDismiss={onDismiss}>
+        <DSText style={[styles.modalTitle, { color: theme.onSurface }]}>
+          {getString('novelScreen.download.customAmount')}
+        </DSText>
+        <View style={styles.row}>
+          <IconButtonV2
+            name="chevron-double-left"
+            theme={theme}
+            onPress={() => text > 9 && setText(prevState => prevState - 10)}
+          />
+          <IconButtonV2
+            name="chevron-left"
+            theme={theme}
+            onPress={() => text > 0 && setText(prevState => prevState - 1)}
+          />
+          <DSTextInput
+            value={String(text)}
+            onChangeText={onChangeText}
+            onSubmitEditing={onSubmit as any}
+            keyboardType="numeric"
+            mode="outlined"
+            style={styles.marginHorizontal}
+          />
+          <IconButtonV2
+            name="chevron-right"
+            theme={theme}
+            onPress={() => setText(prevState => prevState + 1)}
+          />
+          <IconButtonV2
+            name="chevron-double-right"
+            theme={theme}
+            onPress={() => setText(prevState => prevState + 10)}
+          />
+        </View>
+        <DSButton onPress={onSubmit}>
+          {getString('libraryScreen.bottomSheet.display.download')}
+        </DSButton>
+      </Modal>
+    </Portal>
   );
 };
 

@@ -159,48 +159,50 @@ const JumpToChapterModal = ({
 
   // preserved variables from previous styling no longer used
   return (
-    <Modal visible={modalVisible} onDismiss={onDismiss}>
-      <View>
-        <DSText style={[styles.modalTitle, { color: theme.onSurface }]}>
-          {getString('novelScreen.jumpToChapterModal.jumpToChapter')}
-        </DSText>
-        <DSTextInput
-          label={placeholder}
-          mode="outlined"
-          value={text}
-          onChangeText={onChangeText}
-          onSubmitEditing={onSubmit as any}
-          keyboardType={mode ? 'default' : 'numeric'}
-          helperText={error}
-          error={!!error}
-        />
-        <View style={{ height: 8 }} />
-        <DSSwitch
-          label={getString('novelScreen.jumpToChapterModal.openChapter')}
-          value={openChapter}
-          onValueChange={setOpenChapter}
-        />
-        <DSSwitch
-          label={getString('novelScreen.jumpToChapterModal.chapterName')}
-          value={mode}
-          onValueChange={setMode}
-        />
-      </View>
-      {result.length ? (
-        <View style={[styles.flashlist, { borderColor: theme.outline }]}>
-          <FlashList
-            data={result}
-            extraData={openChapter}
-            renderItem={renderItem}
-            contentContainerStyle={styles.listContentCtn}
+    <Portal>
+      <Modal visible={modalVisible} onDismiss={onDismiss}>
+        <View>
+          <DSText style={[styles.modalTitle, { color: theme.onSurface }]}>
+            {getString('novelScreen.jumpToChapterModal.jumpToChapter')}
+          </DSText>
+          <DSTextInput
+            label={placeholder}
+            mode="outlined"
+            value={text}
+            onChangeText={onChangeText}
+            onSubmitEditing={onSubmit as any}
+            keyboardType={mode ? 'default' : 'numeric'}
+            helperText={error}
+            error={!!error}
+          />
+          <View style={{ height: 8 }} />
+          <DSSwitch
+            label={getString('novelScreen.jumpToChapterModal.openChapter')}
+            value={openChapter}
+            onValueChange={setOpenChapter}
+          />
+          <DSSwitch
+            label={getString('novelScreen.jumpToChapterModal.chapterName')}
+            value={mode}
+            onValueChange={setMode}
           />
         </View>
-      ) : null}
-      <View style={styles.modalFooterCtn}>
-        <DSButton onPress={onSubmit}>{getString('common.submit')}</DSButton>
-        <DSButton onPress={hideModal}>{getString('common.cancel')}</DSButton>
-      </View>
-    </Modal>
+        {result.length ? (
+          <View style={[styles.flashlist, { borderColor: theme.outline }]}>
+            <FlashList
+              data={result}
+              extraData={openChapter}
+              renderItem={renderItem}
+              contentContainerStyle={styles.listContentCtn}
+            />
+          </View>
+        ) : null}
+        <View style={styles.modalFooterCtn}>
+          <DSButton onPress={onSubmit}>{getString('common.submit')}</DSButton>
+          <DSButton onPress={hideModal}>{getString('common.cancel')}</DSButton>
+        </View>
+      </Modal>
+    </Portal>
   );
 };
 
