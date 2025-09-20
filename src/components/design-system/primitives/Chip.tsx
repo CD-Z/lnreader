@@ -1,6 +1,6 @@
 import React from 'react';
 import { Pressable } from 'react-native';
-import { Text, useTheme, XStack } from 'tamagui';
+import { Text, XStack, styled } from 'tamagui';
 
 export interface ChipProps {
   selected?: boolean;
@@ -11,47 +11,131 @@ export interface ChipProps {
   disabled?: boolean;
 }
 
-//
+const ChipFrame = styled(XStack, {
+  name: 'Chip',
+  borderRadius: '$4',
+  paddingHorizontal: '$2',
+  paddingVertical: '$1',
+  gap: '$1.5',
+  borderWidth: 1,
+  alignItems: 'center',
+  minHeight: 32,
+
+  variants: {
+    selected: {
+      true: {
+        backgroundColor: '$color9',
+        borderColor: '$color9',
+      },
+      false: {
+        backgroundColor: '$color02',
+        borderColor: '$borderColor',
+      },
+    },
+    disabled: {
+      true: {
+        opacity: 0.6,
+        backgroundColor: '$color02',
+        borderColor: '$color02',
+      },
+      false: {},
+    },
+  } as const,
+
+  defaultVariants: {
+    selected: false,
+    disabled: false,
+  },
+});
+
+const ChipText = styled(Text, {
+  name: 'ChipText',
+  fontSize: '$3',
+  fontWeight: '500',
+
+  variants: {
+    selected: {
+      true: {
+        color: '$background',
+      },
+      false: {
+        color: '$color',
+      },
+    },
+    disabled: {
+      true: {
+        color: '$color02',
+      },
+      false: {},
+    },
+  } as const,
+
+  defaultVariants: {
+    selected: false,
+    disabled: false,
+  },
+});
+
+const ChipCloseButton = styled(Pressable, {
+  name: 'ChipCloseButton',
+  padding: '$0.5',
+  borderRadius: '$3',
+
+  variants: {
+    selected: {
+      true: {
+        backgroundColor: 'rgba(255, 255, 255, 0.2)',
+      },
+      false: {
+        backgroundColor: 'rgba(0, 0, 0, 0.1)',
+      },
+    },
+  } as const,
+
+  defaultVariants: {
+    selected: false,
+  },
+});
+
+const CloseIcon = styled(Text, {
+  name: 'CloseIcon',
+  fontSize: '$4',
+  fontWeight: 'bold',
+  lineHeight: 16,
+
+  variants: {
+    selected: {
+      true: {
+        color: '$background',
+      },
+      false: {
+        color: '$color',
+      },
+    },
+    disabled: {
+      true: {
+        color: '$color02',
+      },
+      false: {},
+    },
+  } as const,
+
+  defaultVariants: {
+    selected: false,
+    disabled: false,
+  },
+});
 
 export const Chip: React.FC<ChipProps> = ({
-  selected,
+  selected = false,
   onPress,
   onClose,
   icon,
   children,
   disabled = false,
 }) => {
-  const theme = useTheme();
-
-  const getBackgroundColor = () => {
-    if (disabled) return theme.color02 as unknown as string;
-    return selected ? theme.color9 as unknown as string : theme.color02 as unknown as string;
-  };
-
-  const getBorderColor = () => {
-    if (disabled) return theme.color02 as unknown as string;
-    return selected ? theme.color9 as unknown as string : theme.borderColor as unknown as string;
-  };
-
-  const getTextColor = () => {
-    if (disabled) return theme.color02 as unknown as string;
-    return selected ? theme.background as unknown as string : theme.color as unknown as string;
-  };
-
   return (
-    <XStack
-      style={{
-        borderRadius: 16,
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        gap: 6,
-        borderWidth: 1,
-        borderColor: getBorderColor(),
-        backgroundColor: getBackgroundColor(),
-        alignItems: 'center',
-        opacity: disabled ? 0.6 : 1,
-      }}
-    >
+    <ChipFrame selected={selected} disabled={disabled}>
       {icon}
       <Pressable
         disabled={disabled}
@@ -63,41 +147,22 @@ export const Chip: React.FC<ChipProps> = ({
           gap: 6,
         }}
       >
-        <Text
-          style={{
-            color: getTextColor(),
-            fontSize: 14,
-            fontWeight: '500',
-          }}
-        >
+        <ChipText selected={selected} disabled={disabled}>
           {children}
-        </Text>
+        </ChipText>
       </Pressable>
       {onClose ? (
-        <Pressable
+        <ChipCloseButton
+          selected={selected}
           disabled={disabled}
           onPress={onClose}
-          style={{
-            padding: 2,
-            borderRadius: 12,
-            backgroundColor: selected
-              ? 'rgba(255, 255, 255, 0.2)'
-              : 'rgba(0, 0, 0, 0.1)',
-          }}
         >
-          <Text
-            style={{
-              color: getTextColor(),
-              fontSize: 16,
-              fontWeight: 'bold',
-              lineHeight: 16,
-            }}
-          >
+          <CloseIcon selected={selected} disabled={disabled}>
             ×
-          </Text>
-        </Pressable>
+          </CloseIcon>
+        </ChipCloseButton>
       ) : null}
-    </XStack>
+    </ChipFrame>
   );
 };
 

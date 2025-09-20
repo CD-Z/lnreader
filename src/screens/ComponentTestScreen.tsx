@@ -29,13 +29,13 @@ export const ComponentTestScreen: React.FC = () => {
       }}
     >
       <YStack padding="$4" gap="$6">
-        <Text size="$6" fontWeight="bold" textAlign="center">
+        <Text fontSize="$5" fontWeight="bold" textAlign="center">
           Design System Test
         </Text>
 
         {/* Buttons Section */}
         <YStack gap="$4">
-          <Text size="$5" fontWeight="bold">
+          <Text fontSize="$5" fontWeight="bold">
             Buttons
           </Text>
 
@@ -69,7 +69,7 @@ export const ComponentTestScreen: React.FC = () => {
 
         {/* TextInput Section */}
         <YStack gap="$4">
-          <Text size="$5" fontWeight="bold">
+          <Text fontSize="$5" fontWeight="bold">
             Text Inputs
           </Text>
 
@@ -106,13 +106,13 @@ export const ComponentTestScreen: React.FC = () => {
           <TextInput
             label="With Left Icon"
             placeholder="Search..."
-            left={<Text size="$5">🔍</Text>}
+            left={<Text fontSize="$5">🔍</Text>}
           />
 
           <TextInput
             label="With Right Icon"
             placeholder="Password"
-            right={<Text size="$5">👁️</Text>}
+            right={<Text fontSize="$5">👁️</Text>}
           />
 
           {/* Compound TextInput Demo */}
@@ -128,7 +128,7 @@ export const ComponentTestScreen: React.FC = () => {
 
         {/* Checkbox Section */}
         <YStack gap="$4">
-          <Text size="$5" fontWeight="bold">
+          <Text fontSize="$5" fontWeight="bold">
             Checkboxes
           </Text>
 
@@ -147,22 +147,37 @@ export const ComponentTestScreen: React.FC = () => {
 
         {/* Radio Buttons Section */}
         <YStack gap="$4">
-          <Text size="$5" fontWeight="bold">
+          <Text fontSize="$5" fontWeight="bold">
             Radio Buttons
           </Text>
 
-          <RadioButtonGroup value={radioValue} onValueChange={setRadioValue}>
-            <RadioButton value="option1" label="Option 1" />
-            <RadioButton value="option2" label="Option 2" />
-            <RadioButton value="option3" label="Option 3" />
-          </RadioButtonGroup>
+          <YStack gap="$2">
+            <RadioButton
+              value="option1"
+              label="Option 1"
+              selected={radioValue === 'option1'}
+              onPress={() => setRadioValue('option1')}
+            />
+            <RadioButton
+              value="option2"
+              label="Option 2"
+              selected={radioValue === 'option2'}
+              onPress={() => setRadioValue('option2')}
+            />
+            <RadioButton
+              value="option3"
+              label="Option 3"
+              selected={radioValue === 'option3'}
+              onPress={() => setRadioValue('option3')}
+            />
+          </YStack>
 
           <RadioButton value="disabled" label="Disabled option" disabled />
         </YStack>
 
         {/* Switch Section */}
         <YStack gap="$4">
-          <Text size="$5" fontWeight="bold">
+          <Text fontSize="$5" fontWeight="bold">
             Switches
           </Text>
 
@@ -179,7 +194,7 @@ export const ComponentTestScreen: React.FC = () => {
 
         {/* Chips Section */}
         <YStack gap="$4">
-          <Text size="$5" fontWeight="bold">
+          <Text fontSize="$5" fontWeight="bold">
             Chips
           </Text>
 
@@ -203,7 +218,7 @@ export const ComponentTestScreen: React.FC = () => {
 
         {/* Surface Section */}
         <YStack gap="$4">
-          <Text size="$5" fontWeight="bold">
+          <Text fontSize="$5" fontWeight="bold">
             Surfaces
           </Text>
 
@@ -234,7 +249,7 @@ export const ComponentTestScreen: React.FC = () => {
 
         {/* Size Variants Demo */}
         <YStack gap="$4">
-          <Text size="$5" fontWeight="bold">
+          <Text fontSize="$5" fontWeight="bold">
             Size Variants
           </Text>
 
@@ -262,7 +277,7 @@ export const ComponentTestScreen: React.FC = () => {
 
         {/* Theme Demo */}
         <YStack gap="$4">
-          <Text size="$5" fontWeight="bold">
+          <Text fontSize="$5" fontWeight="bold">
             Theme Demo
           </Text>
           <Text>

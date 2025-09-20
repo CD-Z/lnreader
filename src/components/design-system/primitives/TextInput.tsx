@@ -2,6 +2,7 @@ import React from 'react';
 import {
   GetProps,
   Input,
+  Label,
   SizeTokens,
   Text,
   YStack,
@@ -16,6 +17,7 @@ export const TextInputContext = createStyledContext({
   size: '$md' as SizeTokens,
   mode: 'outlined' as Mode,
   error: false,
+  focus: false,
   editable: true,
 });
 
@@ -41,12 +43,13 @@ export const TextInputFrame = styled(YStack, {
   },
 });
 
-export const TextInputLabel = styled(Text, {
+export const TextInputLabel = styled(Label, {
   name: 'TextInputLabel',
   context: TextInputContext,
 
   color: '$color',
   fontWeight: '400',
+  lineHeight: 14,
 
   variants: {
     size: {
@@ -104,6 +107,13 @@ export const TextInputInput = styled(Input, {
       },
       false: {},
     },
+    focus: {
+      true: {
+        borderColor: '$borderColorFocus',
+        borderWidth: 2,
+      },
+      false: {},
+    },
     size: {
       '...fontSize': (name, { font }) => ({
         fontSize: font?.size[name],
@@ -114,6 +124,7 @@ export const TextInputInput = styled(Input, {
   defaultVariants: {
     mode: 'outlined',
     error: false,
+    focus: false,
     size: '$md',
   },
 });
@@ -145,11 +156,16 @@ const TextInputAdornment = styled(YStack, {
   context: TextInputContext,
 
   position: 'absolute',
+  height: '100%',
+  display: 'flex',
 });
 
 type TextInputProps = GetProps<typeof TextInputFrame> & {
   label?: string;
   helperText?: string;
+  mode?: Mode;
+  error?: boolean;
+  editable?: boolean;
   left?: React.ReactNode;
   right?: React.ReactNode;
 };
@@ -164,22 +180,35 @@ const TextInputComponent = TextInputFrame.styleable<TextInputProps>(
       mode = 'outlined',
       error = false,
       editable = true,
+      id,
       ...props
     },
     ref,
   ) => {
+    const [isFocused, setIsFocused] = React.useState(false);
+
     return (
       <TextInputFrame ref={ref} editable={editable} {...props}>
-        {label && <TextInputLabel>{label}</TextInputLabel>}
+        {label && (
+          <TextInputLabel
+            htmlFor={id ?? label.replace(' ', '-')}
+            onPress={() => {
+              // Focus the input when label is pressed
+              // We'll add a ref later if needed
+            }}
+            pressStyle={{ opacity: 0.7 }}
+          >
+            {label}
+          </TextInputLabel>
+        )}
 
         <TextInputInputFrame>
           {left && (
             <TextInputAdornment
               style={{
                 left: 12,
-                top: '50%',
-                transform: 'translateY(-50%)',
-                zIndex: 1,
+                alignItems: 'center',
+                justifyContent: 'center',
               }}
             >
               {left}
@@ -188,21 +217,30 @@ const TextInputComponent = TextInputFrame.styleable<TextInputProps>(
 
           <TextInputInput
             {...(props as any)}
+            id={id ?? label?.replace(' ', '-')}
             editable={editable}
-            paddingLeft={left ? '$8' : '$3'}
-            paddingRight={right ? '$8' : '$3'}
+            paddingLeft={left ? '$9' : '$3'}
+            paddingRight={right ? '$9' : '$3'}
             style={{ minHeight: 48 }}
             mode={mode}
             error={error}
+            focus={isFocused}
+            onFocus={e => {
+              setIsFocused(true);
+              props.onFocus?.(e);
+            }}
+            onBlur={e => {
+              setIsFocused(false);
+              props.onBlur?.(e);
+            }}
           />
 
           {right && (
             <TextInputAdornment
               style={{
                 right: 12,
-                top: '50%',
-                transform: 'translateY(-50%)',
-                zIndex: 1,
+                alignItems: 'center',
+                justifyContent: 'center',
               }}
             >
               {right}

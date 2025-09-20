@@ -1,6 +1,5 @@
 import React from 'react';
-import { Switch as RNSwitch, View } from 'react-native';
-import { Text, useTheme } from 'tamagui';
+import { Switch as TamaguiSwitch, Text, View, styled } from 'tamagui';
 
 export interface SwitchProps {
   value: boolean;
@@ -9,49 +8,66 @@ export interface SwitchProps {
   label?: string;
 }
 
+const SwitchFrame = styled(View, {
+  name: 'SwitchFrame',
+  display: 'flex',
+  flexDirection: 'row',
+  alignItems: 'center',
+  gap: '$2',
+
+  variants: {
+    disabled: {
+      true: {
+        opacity: 0.6,
+      },
+      false: {},
+    },
+  } as const,
+
+  defaultVariants: {
+    disabled: false,
+  },
+});
+
+const SwitchLabel = styled(Text, {
+  name: 'SwitchLabel',
+
+  variants: {
+    disabled: {
+      true: {
+        color: '$color02',
+      },
+      false: {
+        color: '$color',
+      },
+    },
+  } as const,
+
+  defaultVariants: {
+    disabled: false,
+  },
+});
+
 export const Switch: React.FC<SwitchProps> = ({
   value,
   onValueChange,
-  disabled,
+  disabled = false,
   label,
 }) => {
-  const theme = useTheme();
-
   return (
-    <View
-      style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        opacity: disabled ? 0.6 : 1,
-        gap: 8,
-      }}
-    >
-      <RNSwitch
-        value={value}
-        onValueChange={onValueChange}
+    <SwitchFrame disabled={disabled}>
+      <TamaguiSwitch
+        checked={value}
+        onCheckedChange={onValueChange}
         disabled={disabled}
-        trackColor={{
-          false: theme.color02 as unknown as string,
-          true: theme.color9 as unknown as string,
-        }}
-        thumbColor={
-          value
-            ? (theme.background as unknown as string)
-            : (theme.borderColor as unknown as string)
-        }
-      />
-      {label ? (
-        <Text
-          style={{
-            color: disabled
-              ? (theme.color02 as unknown as string)
-              : (theme.color as unknown as string),
-          }}
-        >
-          {label}
-        </Text>
-      ) : null}
-    </View>
+        size="$4"
+        color
+        native // Use native switch on mobile
+      >
+        <TamaguiSwitch.Thumb />
+      </TamaguiSwitch>
+      {label ? <SwitchLabel disabled={disabled}>{label}</SwitchLabel> : null}
+    </SwitchFrame>
   );
 };
 

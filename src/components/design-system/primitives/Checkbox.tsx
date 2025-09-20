@@ -1,6 +1,6 @@
 import React from 'react';
 import { Pressable, View } from 'react-native';
-import { Text, useTheme } from 'tamagui';
+import { Text, styled } from 'tamagui';
 
 export interface CheckboxProps {
   status?: 'checked' | 'unchecked' | 'indeterminate';
@@ -9,79 +9,136 @@ export interface CheckboxProps {
   label?: string;
 }
 
+const CheckboxFrame = styled(View, {
+  name: 'Checkbox',
+  flexDirection: 'row',
+  alignItems: 'center',
+  gap: '$2',
+
+  variants: {
+    disabled: {
+      true: {
+        opacity: 0.6,
+      },
+      false: {},
+    },
+  } as const,
+
+  defaultVariants: {
+    disabled: false,
+  },
+});
+
+const CheckboxBox = styled(Pressable, {
+  name: 'CheckboxBox',
+  width: 20,
+  height: 20,
+  borderRadius: '$1',
+  borderWidth: 1,
+  alignItems: 'center',
+  justifyContent: 'center',
+
+  variants: {
+    status: {
+      checked: {
+        backgroundColor: '$color9',
+        borderColor: '$color9',
+      },
+      unchecked: {
+        backgroundColor: 'transparent',
+        borderColor: '$borderColor',
+      },
+      indeterminate: {
+        backgroundColor: '$color9',
+        borderColor: '$color9',
+      },
+    },
+    disabled: {
+      true: {
+        backgroundColor: '$color02',
+        borderColor: '$color02',
+      },
+      false: {},
+    },
+  } as const,
+
+  defaultVariants: {
+    status: 'unchecked',
+    disabled: false,
+  },
+});
+
+const CheckIcon = styled(Text, {
+  name: 'CheckIcon',
+  fontSize: '$3',
+  fontWeight: 'bold',
+  lineHeight: 14,
+
+  variants: {
+    status: {
+      checked: {
+        color: '$background',
+      },
+      unchecked: {
+        color: 'transparent',
+      },
+      indeterminate: {
+        color: '$background',
+      },
+    },
+    disabled: {
+      true: {
+        color: '$color02',
+      },
+      false: {},
+    },
+  } as const,
+
+  defaultVariants: {
+    status: 'unchecked',
+    disabled: false,
+  },
+});
+
+const CheckboxLabel = styled(Text, {
+  name: 'CheckboxLabel',
+
+  variants: {
+    disabled: {
+      true: {
+        color: '$color02',
+      },
+      false: {
+        color: '$color',
+      },
+    },
+  } as const,
+
+  defaultVariants: {
+    disabled: false,
+  },
+});
+
 export const Checkbox: React.FC<CheckboxProps> = ({
   status = 'unchecked',
-  disabled,
+  disabled = false,
   onPress,
   label,
 }) => {
-  const theme = useTheme();
-
-  const checked = status === 'checked';
-  const indeterminate = status === 'indeterminate';
-
-  const getBorderColor = () => {
-    if (disabled) return theme.color02; // Disabled/muted color
-    return checked || indeterminate
-      ? theme.color9 // Primary color
-      : theme.borderColor;
-  };
-
-  const getBackgroundColor = () => {
-    if (disabled) return theme.color02; // Disabled background
-    return checked || indeterminate ? theme.color9 : 'transparent'; // Primary color
-  };
-
-  const getCheckmarkColor = () => {
-    if (disabled) return theme.color02; // Disabled text
-    return theme.background; // Light color on primary background
-  };
+  const icon =
+    status === 'indeterminate' ? '−' : status === 'checked' ? '✓' : '';
 
   return (
-    <View
-      style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        opacity: disabled ? 0.6 : 1,
-        gap: 8,
-      }}
-    >
-      <Pressable
-        disabled={disabled}
-        onPress={onPress}
-        style={{
-          width: 20,
-          height: 20,
-          borderRadius: 3,
-          borderWidth: 1,
-          borderColor: getBorderColor() as unknown as string,
-          backgroundColor: getBackgroundColor() as unknown as string,
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <Text
-          style={{
-            color: getCheckmarkColor() as unknown as string,
-            fontSize: 14,
-            fontWeight: 'bold',
-          }}
-        >
-          {indeterminate ? '−' : checked ? '✓' : ''}
-        </Text>
-      </Pressable>
+    <CheckboxFrame disabled={disabled}>
+      <CheckboxBox status={status} disabled={disabled} onPress={onPress}>
+        <CheckIcon status={status} disabled={disabled}>
+          {icon}
+        </CheckIcon>
+      </CheckboxBox>
       {label ? (
-        <Text
-          style={{
-            color: disabled
-              ? (theme.color02 as unknown as string)
-              : (theme.color as unknown as string),
-          }}
-        >
-          {label}
-        </Text>
+        <CheckboxLabel disabled={disabled}>{label}</CheckboxLabel>
       ) : null}
-    </View>
+    </CheckboxFrame>
   );
 };
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Button as TamaguiButton, Text, useTheme } from 'tamagui';
+import { Button as TamaguiButton, Text, styled } from 'tamagui';
 
 type Mode = 'text' | 'contained' | 'outlined';
 
@@ -11,8 +11,82 @@ export interface ButtonProps {
   disabled?: boolean;
   loading?: boolean;
   onPress?: () => void;
-  style?: any;
 }
+
+const StyledButton = styled(TamaguiButton, {
+  name: 'Button',
+  borderRadius: '$2',
+  paddingVertical: '$3',
+  paddingHorizontal: '$4',
+  minHeight: 44, // Minimum touch target
+  alignItems: 'center',
+  justifyContent: 'center',
+
+  variants: {
+    mode: {
+      text: {
+        backgroundColor: 'transparent',
+        borderWidth: 0,
+      },
+      outlined: {
+        backgroundColor: 'transparent',
+        borderWidth: 1,
+        borderColor: '$borderColor',
+      },
+      contained: {
+        backgroundColor: '$color9',
+        borderWidth: 0,
+      },
+    },
+    compact: {
+      true: {
+        paddingVertical: '$2',
+        paddingHorizontal: '$3',
+      },
+      false: {
+        paddingVertical: '$3',
+        paddingHorizontal: '$4',
+      },
+    },
+  } as const,
+
+  defaultVariants: {
+    mode: 'text',
+    compact: false,
+  },
+});
+
+const ButtonText = styled(Text, {
+  name: 'ButtonText',
+  fontWeight: '500',
+
+  variants: {
+    mode: {
+      text: {
+        color: '$color',
+      },
+      outlined: {
+        color: '$color',
+      },
+      contained: {
+        color: '$background',
+      },
+    },
+    compact: {
+      true: {
+        fontSize: '$3',
+      },
+      false: {
+        fontSize: '$4',
+      },
+    },
+  } as const,
+
+  defaultVariants: {
+    mode: 'text',
+    compact: false,
+  },
+});
 
 export const Button: React.FC<ButtonProps> = ({
   mode = 'text',
@@ -22,84 +96,30 @@ export const Button: React.FC<ButtonProps> = ({
   disabled = false,
   loading = false,
   onPress,
-  style,
   ...props
 }) => {
-  const theme = useTheme();
-
-  const getButtonStyles = () => {
-    const baseStyles = {
-      borderRadius: 8,
-      paddingVertical: compact ? 4 : 8,
-      paddingHorizontal: compact ? 12 : 16,
-      alignItems: 'center' as const,
-      justifyContent: 'center' as const,
-    };
-
-    switch (mode) {
-      case 'text':
-        return {
-          ...baseStyles,
-          backgroundColor: 'transparent',
-          borderWidth: 0,
-        };
-      case 'outlined':
-        return {
-          ...baseStyles,
-          backgroundColor: 'transparent',
-          borderWidth: 1,
-          borderColor: theme.borderColor,
-        };
-      case 'contained':
-        return {
-          ...baseStyles,
-          backgroundColor: theme.color9, // Brighter color for contained buttons
-          borderWidth: 0,
-        };
-      default:
-        return baseStyles;
-    }
-  };
-
-  const getTextColor = () => {
-    if (disabled) return theme.color02; // Muted/disabled text
-    switch (mode) {
-      case 'text':
-      case 'outlined':
-        return theme.color; // Primary text color
-      case 'contained':
-        return theme.background; // Light text on colored background
-      default:
-        return theme.color;
-    }
-  };
-
   const textTransform = uppercase ? 'uppercase' : 'none';
 
   return (
-    <TamaguiButton
+    <StyledButton
+      mode={mode}
+      compact={compact}
       disabled={disabled || loading}
       onPress={onPress}
-      style={[getButtonStyles(), style]}
       pressStyle={{
         opacity: 0.8,
         ...(mode === 'text' || mode === 'outlined'
           ? {
-              backgroundColor: theme.color7, // Light accent background
+              backgroundColor: '$color7', // Light accent background
             }
           : {}),
       }}
       {...props}
     >
-      <Text
-        style={{ color: getTextColor() as unknown as string }}
-        fontSize={compact ? 14 : 16}
-        fontWeight="500"
-        textTransform={textTransform}
-      >
+      <ButtonText mode={mode} compact={compact} textTransform={textTransform}>
         {loading ? 'Loading...' : children}
-      </Text>
-    </TamaguiButton>
+      </ButtonText>
+    </StyledButton>
   );
 };
 

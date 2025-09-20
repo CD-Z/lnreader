@@ -2,6 +2,10 @@ import React from 'react';
 import { TamaguiProvider } from 'tamagui';
 import { useTheme } from './ThemeContext';
 import config from '../../../tamagui.config';
+import {
+  midnightDuskLightTheme,
+  midnightDuskDarkTheme,
+} from '../../theme/md3/midnightDuskTheme';
 
 /**
  * DSProvider provides Tamagui themes generated from midnightDusk MD3 colors.
@@ -10,9 +14,9 @@ import config from '../../../tamagui.config';
 export function DSProvider({ children }: { children: React.JSX.Element }) {
   const colors = useTheme();
 
-  // Use the generated themes from midnightDusk colors
+  // Use the themes directly
   const themeName = colors.isDark ? 'dark' : 'light';
-
+  console.log('themeName', config);
   return (
     <TamaguiProvider config={config} defaultTheme={themeName}>
       {children}

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Pressable, View } from 'react-native';
-import { Text, useTheme } from 'tamagui';
+import { Text, styled } from 'tamagui';
 
 export interface RadioButtonProps {
   value: string;
@@ -10,67 +10,121 @@ export interface RadioButtonProps {
   onPress?: () => void;
 }
 
+const RadioButtonFrame = styled(Pressable, {
+  name: 'RadioButton',
+  flexDirection: 'row',
+  alignItems: 'center',
+  paddingVertical: '$1',
+  gap: '$2',
+
+  variants: {
+    disabled: {
+      true: {
+        opacity: 0.6,
+      },
+      false: {},
+    },
+  } as const,
+
+  defaultVariants: {
+    disabled: false,
+  },
+});
+
+const RadioCircle = styled(View, {
+  name: 'RadioCircle',
+  width: 20,
+  height: 20,
+  borderRadius: 10,
+  borderWidth: 2,
+  alignItems: 'center',
+  justifyContent: 'center',
+
+  variants: {
+    selected: {
+      true: {
+        borderColor: '$color9',
+      },
+      false: {
+        borderColor: '$borderColor',
+      },
+    },
+    disabled: {
+      true: {
+        borderColor: '$color02',
+      },
+      false: {},
+    },
+  } as const,
+
+  defaultVariants: {
+    selected: false,
+    disabled: false,
+  },
+});
+
+const RadioDot = styled(View, {
+  name: 'RadioDot',
+  width: 10,
+  height: 10,
+  borderRadius: 5,
+
+  variants: {
+    selected: {
+      true: {
+        backgroundColor: '$color9',
+      },
+      false: {
+        backgroundColor: 'transparent',
+      },
+    },
+    disabled: {
+      true: {
+        backgroundColor: '$color02',
+      },
+      false: {},
+    },
+  } as const,
+
+  defaultVariants: {
+    selected: false,
+    disabled: false,
+  },
+});
+
+const RadioLabel = styled(Text, {
+  name: 'RadioLabel',
+
+  variants: {
+    disabled: {
+      true: {
+        color: '$color02',
+      },
+      false: {
+        color: '$color',
+      },
+    },
+  } as const,
+
+  defaultVariants: {
+    disabled: false,
+  },
+});
+
 export const RadioButton: React.FC<RadioButtonProps> = ({
   value: _value,
   label,
-  disabled,
+  disabled = false,
   selected = false,
   onPress,
 }) => {
-  const theme = useTheme();
-
-  const getBorderColor = () => {
-    if (disabled) return theme.color02 as unknown as string;
-    return selected ? theme.color9 as unknown as string : theme.borderColor as unknown as string;
-  };
-
-  const getDotColor = () => {
-    if (disabled) return theme.color02 as unknown as string;
-    return selected ? theme.color9 as unknown as string : 'transparent';
-  };
-
   return (
-    <Pressable
-      disabled={disabled}
-      onPress={onPress}
-      style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        opacity: disabled ? 0.6 : 1,
-        paddingVertical: 4,
-        gap: 8,
-      }}
-    >
-      <View
-        style={{
-          width: 20,
-          height: 20,
-          borderRadius: 10,
-          borderWidth: 2,
-          borderColor: getBorderColor(),
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <View
-          style={{
-            width: 10,
-            height: 10,
-            borderRadius: 5,
-            backgroundColor: getDotColor(),
-          }}
-        />
-      </View>
-      {label ? (
-        <Text
-          style={{
-            color: disabled ? theme.color02 as unknown as string : theme.color as unknown as string,
-          }}
-        >
-          {label}
-        </Text>
-      ) : null}
-    </Pressable>
+    <RadioButtonFrame disabled={disabled} onPress={onPress}>
+      <RadioCircle selected={selected} disabled={disabled}>
+        <RadioDot selected={selected} disabled={disabled} />
+      </RadioCircle>
+      {label ? <RadioLabel disabled={disabled}>{label}</RadioLabel> : null}
+    </RadioButtonFrame>
   );
 };
 

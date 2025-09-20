@@ -1,7 +1,10 @@
 import { createTamagui } from 'tamagui';
 import { defaultConfig } from '@tamagui/config/v4';
 import { createFont, createTokens } from 'tamagui';
-import { themes } from './src/theme/md3/themes-out';
+import {
+  midnightDuskDarkTheme,
+  midnightDuskLightTheme,
+} from '@theme/md3/midnightDuskTheme';
 
 const bodyFont = createFont({
   family: 'System',
@@ -68,8 +71,6 @@ const tokens = createTokens({
   },
   zIndex: { 0: 0, 1: 1, 2: 2, 3: 3, 4: 4, 5: 5 },
 });
-// console.log('themes', themes);
-
 export const config = createTamagui({
   ...defaultConfig,
   tokens,
@@ -77,7 +78,10 @@ export const config = createTamagui({
     ...defaultConfig.fonts,
     body: bodyFont,
   },
-  themes,
+  themes: {
+    light: { ...defaultConfig.themes.light, ...midnightDuskLightTheme },
+    dark: { ...defaultConfig.themes.dark, ...midnightDuskDarkTheme },
+  },
 });
 
 export type OurConfig = typeof config;
