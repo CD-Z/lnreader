@@ -92,7 +92,7 @@ export const Button: React.FC<ButtonProps> = ({
       {...props}
     >
       <Text
-        style={{ color: getTextColor() }}
+        style={{ color: getTextColor() as unknown as string }}
         fontSize={compact ? 14 : 16}
         fontWeight="500"
         textTransform={textTransform}

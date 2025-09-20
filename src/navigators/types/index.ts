@@ -70,6 +70,7 @@ export type MoreStackParamList = {
   Downloads: undefined;
   Categories: undefined;
   Statistics: undefined;
+  ComponentTest: undefined;
 };
 
 export type SettingsStackParamList = {

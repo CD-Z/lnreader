@@ -54,15 +54,15 @@ export const Checkbox: React.FC<CheckboxProps> = ({
           height: 20,
           borderRadius: 3,
           borderWidth: 1,
-          borderColor: getBorderColor(),
-          backgroundColor: getBackgroundColor(),
+          borderColor: getBorderColor() as unknown as string,
+          backgroundColor: getBackgroundColor() as unknown as string,
           alignItems: 'center',
           justifyContent: 'center',
         }}
       >
         <Text
           style={{
-            color: getCheckmarkColor(),
+            color: getCheckmarkColor() as unknown as string,
             fontSize: 14,
             fontWeight: 'bold',
           }}
@@ -73,7 +73,9 @@ export const Checkbox: React.FC<CheckboxProps> = ({
       {label ? (
         <Text
           style={{
-            color: disabled ? theme.color02 : theme.color,
+            color: disabled
+              ? (theme.color02 as unknown as string)
+              : (theme.color as unknown as string),
           }}
         >
           {label}

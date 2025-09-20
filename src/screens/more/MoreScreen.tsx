@@ -166,6 +166,16 @@ const MoreScreen = ({ navigation }: MoreStackScreenProps) => {
             }
             theme={theme}
           />
+          <List.Item
+            title="Component Test"
+            icon="palette"
+            onPress={() =>
+              navigation.navigate('MoreStack', {
+                screen: 'ComponentTest',
+              })
+            }
+            theme={theme}
+          />
           <List.Divider theme={theme} />
           <List.Item
             title={getString('common.settings')}

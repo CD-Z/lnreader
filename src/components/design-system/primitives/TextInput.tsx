@@ -9,7 +9,6 @@ import {
   styled,
   withStaticProperties,
 } from 'tamagui';
-import { TextInputProps as RNTextInputProps } from 'react-native';
 
 type Mode = 'flat' | 'outlined';
 
@@ -86,8 +85,6 @@ export const TextInputInput = styled(Input, {
 
   color: '$color',
   placeholderTextColor: '$color02',
-  borderRadius: '$2',
-  minHeight: 48,
 
   variants: {
     mode: {
@@ -148,9 +145,6 @@ const TextInputAdornment = styled(YStack, {
   context: TextInputContext,
 
   position: 'absolute',
-  top: '50%',
-  transform: 'translateY(-50%)',
-  zIndex: 1,
 });
 
 type TextInputProps = GetProps<typeof TextInputFrame> & {
@@ -178,22 +172,39 @@ const TextInputComponent = TextInputFrame.styleable<TextInputProps>(
       <TextInputFrame ref={ref} editable={editable} {...props}>
         {label && <TextInputLabel>{label}</TextInputLabel>}
 
-        <TextInputInputFrame mode={mode as Mode}>
+        <TextInputInputFrame>
           {left && (
-            <TextInputAdornment style={{ left: 12 }}>{left}</TextInputAdornment>
+            <TextInputAdornment
+              style={{
+                left: 12,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                zIndex: 1,
+              }}
+            >
+              {left}
+            </TextInputAdornment>
           )}
 
           <TextInputInput
             {...(props as any)}
-            mode={mode}
-            error={error}
             editable={editable}
             paddingLeft={left ? '$8' : '$3'}
             paddingRight={right ? '$8' : '$3'}
+            style={{ minHeight: 48 }}
+            mode={mode}
+            error={error}
           />
 
           {right && (
-            <TextInputAdornment style={{ right: 12 }}>
+            <TextInputAdornment
+              style={{
+                right: 12,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                zIndex: 1,
+              }}
+            >
               {right}
             </TextInputAdornment>
           )}
