@@ -57,6 +57,7 @@
     "@rozenite/react-navigation-plugin": "1.0.0-alpha.14",
     "@shopify/flash-list": "2.0.2",
     "@tamagui/config": "^1.132.24",
+    "@tamagui/theme-builder": "^1.133.0",
     "cheerio": "1.0.0-rc.12",
     "color": "^5.0.2",
     "dayjs": "^1.11.18",

@@ -5,14 +5,16 @@ import config from '../../../tamagui.config';
 
 /**
  * DSProvider bridges ThemeContext (MD3 colors) to Tamagui themes.
- * It picks light/dark theme based on `isDark` and exposes it via Tamagui.
+ * It selects the appropriate predefined theme based on the current MD3 theme.
  */
 export function DSProvider({ children }: { children: React.JSX.Element }) {
   const colors = useTheme();
-  const currentThemeName = colors.isDark ? 'dark' : 'light';
+
+  // For now, use the default theme (index 0)
+  const themeName = colors.isDark ? 'dark-0' : 'light-0';
 
   return (
-    <TamaguiProvider config={config} defaultTheme={currentThemeName}>
+    <TamaguiProvider config={config} defaultTheme={themeName}>
       {children}
     </TamaguiProvider>
   );
