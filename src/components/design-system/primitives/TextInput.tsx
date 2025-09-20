@@ -3,8 +3,8 @@ import {
   TextInput as RNTextInput,
   TextInputProps as RNTextInputProps,
   View,
-  Text,
 } from 'react-native';
+import { Text, useTheme, YStack } from 'tamagui';
 
 type Mode = 'flat' | 'outlined';
 
@@ -17,9 +17,6 @@ export interface TextInputProps extends Omit<RNTextInputProps, 'onChange'> {
   error?: boolean;
 }
 
-const Container = View as any;
-const Field = View as any;
-
 export const TextInput: React.FC<TextInputProps> = ({
   label,
   mode = 'outlined',
@@ -31,45 +28,67 @@ export const TextInput: React.FC<TextInputProps> = ({
   style,
   ...inputProps
 }) => {
-  const borderColor = error
-    ? '#B00020'
-    : mode === 'outlined'
-    ? '#9E9E9E'
-    : 'transparent';
-  const bg = mode === 'flat' ? 'transparent' : 'transparent';
-  const opacity = editable ? 1 : 0.6;
+  const theme = useTheme();
+
+  const getBorderColor = () => {
+    if (error) return theme.error?.toString() || '#B00020';
+    if (mode === 'outlined') return theme.outline?.toString() || '#9E9E9E';
+    return 'transparent';
+  };
+
+  const getHelperTextColor = () => {
+    return error
+      ? theme.error?.toString() || '#B00020'
+      : theme.onSurfaceVariant?.toString() || '#9E9E9E';
+  };
+
+  const containerOpacity = editable ? 1 : 0.6;
 
   return (
-    <Container style={{ gap: 8 }}>
-      {label ? <Text>{label}</Text> : null}
-      <Field
+    <YStack style={{ gap: 8, opacity: containerOpacity }}>
+      {label ? (
+        <Text
+          style={{ color: theme.onSurface?.toString() }}
+          fontSize={16}
+          fontWeight="400"
+        >
+          {label}
+        </Text>
+      ) : null}
+      <View
         style={[
           {
-            opacity,
-            backgroundColor: bg,
-            borderColor,
-            borderWidth: 1,
+            backgroundColor: 'transparent',
+            borderColor: getBorderColor(),
+            borderWidth: mode === 'outlined' ? 1 : 0,
             borderRadius: 6,
             paddingHorizontal: 12,
             flexDirection: 'row',
             alignItems: 'center',
+            minHeight: 48,
           },
           style,
         ]}
       >
         {left}
         <RNTextInput
-          style={{ flex: 1, paddingVertical: 12 }}
+          style={{
+            flex: 1,
+            paddingVertical: 12,
+            color: theme.onSurface?.toString(),
+            fontSize: 16,
+          }}
+          placeholderTextColor={theme.onSurfaceVariant?.toString()}
           {...(inputProps as any)}
         />
         {right}
-      </Field>
+      </View>
       {helperText ? (
-        <Text style={{ color: error ? '#B00020' : '#9E9E9E', fontSize: 12 }}>
+        <Text style={{ color: getHelperTextColor() }} fontSize={12}>
           {helperText}
         </Text>
       ) : null}
-    </Container>
+    </YStack>
   );
 };
 

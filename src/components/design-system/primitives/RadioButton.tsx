@@ -1,39 +1,78 @@
 import React from 'react';
-import { View, Text } from 'react-native';
+import { Pressable, View } from 'react-native';
+import { Text, useTheme } from 'tamagui';
 
 export interface RadioButtonProps {
   value: string;
   label?: string;
   disabled?: boolean;
+  selected?: boolean;
+  onPress?: () => void;
 }
 
 export const RadioButton: React.FC<RadioButtonProps> = ({
-  value,
+  value: _value,
   label,
   disabled,
+  selected = false,
+  onPress,
 }) => {
+  const theme = useTheme();
+
+  const getBorderColor = () => {
+    if (disabled) return theme.onSurfaceDisabled?.toString();
+    return selected ? theme.primary?.toString() : theme.outline?.toString();
+  };
+
+  const getDotColor = () => {
+    if (disabled) return theme.onSurfaceDisabled?.toString();
+    return selected ? theme.primary?.toString() : 'transparent';
+  };
+
   return (
-    <View
+    <Pressable
+      disabled={disabled}
+      onPress={onPress}
       style={{
         flexDirection: 'row',
         alignItems: 'center',
         opacity: disabled ? 0.6 : 1,
+        paddingVertical: 4,
+        gap: 8,
       }}
     >
       <View
         style={{
-          width: 18,
-          height: 18,
-          borderRadius: 9,
-          borderWidth: 1,
+          width: 20,
+          height: 20,
+          borderRadius: 10,
+          borderWidth: 2,
+          borderColor: getBorderColor(),
           alignItems: 'center',
           justifyContent: 'center',
         }}
       >
-        <View style={{ width: 10, height: 10, borderRadius: 5 }} />
+        <View
+          style={{
+            width: 10,
+            height: 10,
+            borderRadius: 5,
+            backgroundColor: getDotColor(),
+          }}
+        />
       </View>
-      {label ? <Text style={{ marginLeft: 8 }}>{label}</Text> : null}
-    </View>
+      {label ? (
+        <Text
+          style={{
+            color: disabled
+              ? theme.onSurfaceDisabled?.toString()
+              : theme.onSurface?.toString(),
+          }}
+        >
+          {label}
+        </Text>
+      ) : null}
+    </Pressable>
   );
 };
 
@@ -48,7 +87,21 @@ export const RadioButtonGroup: React.FC<RadioButtonGroupProps> = ({
   onValueChange,
   children,
 }) => {
-  return <View>{children}</View>;
+  // Clone children and add selected/onPress props
+  const enhancedChildren = React.Children.map(children, child => {
+    if (
+      React.isValidElement<RadioButtonProps>(child) &&
+      child.type === RadioButton
+    ) {
+      return React.cloneElement(child, {
+        selected: child.props.value === value,
+        onPress: () => onValueChange(child.props.value),
+      } as Partial<RadioButtonProps>);
+    }
+    return child;
+  });
+
+  return <View>{enhancedChildren}</View>;
 };
 
 export default RadioButton;

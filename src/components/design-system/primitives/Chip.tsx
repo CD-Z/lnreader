@@ -1,5 +1,6 @@
 import React from 'react';
-import { Text, Pressable } from 'react-native';
+import { Pressable } from 'react-native';
+import { Text, useTheme, XStack } from 'tamagui';
 
 export interface ChipProps {
   selected?: boolean;
@@ -7,6 +8,7 @@ export interface ChipProps {
   onClose?: () => void;
   icon?: React.ReactNode;
   children?: React.ReactNode;
+  disabled?: boolean;
 }
 
 //
@@ -17,30 +19,89 @@ export const Chip: React.FC<ChipProps> = ({
   onClose,
   icon,
   children,
+  disabled = false,
 }) => {
+  const theme = useTheme();
+
+  const getBackgroundColor = () => {
+    if (disabled) return theme.surfaceDisabled?.toString();
+    return selected
+      ? theme.primary?.toString()
+      : theme.surfaceVariant?.toString();
+  };
+
+  const getBorderColor = () => {
+    if (disabled) return theme.outlineVariant?.toString();
+    return selected ? theme.primary?.toString() : theme.outline?.toString();
+  };
+
+  const getTextColor = () => {
+    if (disabled) return theme.onSurfaceDisabled?.toString();
+    return selected
+      ? theme.onPrimary?.toString()
+      : theme.onSurfaceVariant?.toString();
+  };
+
   return (
-    <Pressable
-      onPress={onPress}
+    <XStack
       style={{
         borderRadius: 16,
         paddingHorizontal: 12,
         paddingVertical: 6,
-        flexDirection: 'row',
-        alignItems: 'center',
         gap: 6,
         borderWidth: 1,
-        borderColor: selected ? '#0057ce' : '#9E9E9E',
-        backgroundColor: selected ? '#0057ce' : 'transparent',
+        borderColor: getBorderColor(),
+        backgroundColor: getBackgroundColor(),
+        alignItems: 'center',
+        opacity: disabled ? 0.6 : 1,
       }}
     >
       {icon}
-      <Text style={{ color: selected ? '#fff' : '#000' }}>{children}</Text>
+      <Pressable
+        disabled={disabled}
+        onPress={onPress}
+        style={{
+          flex: 1,
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 6,
+        }}
+      >
+        <Text
+          style={{
+            color: getTextColor(),
+            fontSize: 14,
+            fontWeight: '500',
+          }}
+        >
+          {children}
+        </Text>
+      </Pressable>
       {onClose ? (
-        <Pressable onPress={onClose}>
-          <Text>×</Text>
+        <Pressable
+          disabled={disabled}
+          onPress={onClose}
+          style={{
+            padding: 2,
+            borderRadius: 12,
+            backgroundColor: selected
+              ? 'rgba(255, 255, 255, 0.2)'
+              : 'rgba(0, 0, 0, 0.1)',
+          }}
+        >
+          <Text
+            style={{
+              color: getTextColor(),
+              fontSize: 16,
+              fontWeight: 'bold',
+              lineHeight: 16,
+            }}
+          >
+            ×
+          </Text>
         </Pressable>
       ) : null}
-    </Pressable>
+    </XStack>
   );
 };
 

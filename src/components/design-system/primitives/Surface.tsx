@@ -1,5 +1,6 @@
 import React from 'react';
 import { View } from 'react-native';
+import { useTheme } from 'tamagui';
 
 export interface SurfaceProps {
   elevation?: 0 | 1 | 2 | 3 | 4 | 5;
@@ -8,14 +9,14 @@ export interface SurfaceProps {
   style?: any;
 }
 
-const Base = View as any;
-
 export const Surface: React.FC<SurfaceProps> = ({
   elevation = 0,
   children,
   padding,
   style,
 }) => {
+  const theme = useTheme();
+
   // Basic shadow for Android/iOS; Tamagui keeps platform differences minimal here.
   const shadow = elevation
     ? {
@@ -26,10 +27,23 @@ export const Surface: React.FC<SurfaceProps> = ({
         shadowOffset: { width: 0, height: 0.5 + elevation * 0.5 },
       }
     : undefined;
+
+  const backgroundColor = theme.surface?.toString();
+
   return (
-    <Base padding={padding} style={[shadow, style]}>
+    <View
+      style={[
+        {
+          backgroundColor,
+          borderRadius: 4,
+        },
+        shadow,
+        padding !== undefined && { padding },
+        style,
+      ]}
+    >
       {children}
-    </Base>
+    </View>
   );
 };
 
