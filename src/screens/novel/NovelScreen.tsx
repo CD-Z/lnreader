@@ -10,7 +10,7 @@ import Animated, {
 import { Portal, Snackbar } from 'react-native-paper';
 // Removed react-native-paper components in favor of new design system
 import { useDownload } from '@hooks/persisted';
-import { useTheme } from '@providers/Providers';
+import { useTheme as useThemeHook } from '@providers/Providers';
 import JumpToChapterModal from './components/JumpToChapterModal';
 import { Actionbar } from '../../components/Actionbar/Actionbar';
 import EditInfoModal from './components/EditInfoModal';
@@ -34,6 +34,7 @@ import { FlashListRef } from '@shopify/flash-list';
 import useNovelState from '@hooks/persisted/novel/useNovelState';
 import useNovelChapters from '@hooks/persisted/novel/useNovelChapters';
 import useNovelPages from '@hooks/persisted/novel/useNovelPages';
+import { useTheme } from 'tamagui';
 
 const Novel = ({ route, navigation }: NovelScreenProps) => {
   const { novel, loading } = useNovelState();
@@ -51,8 +52,10 @@ const Novel = ({ route, navigation }: NovelScreenProps) => {
     deleteChapters,
   } = useNovelChapters();
   const { pageIndex, pages, openPage } = useNovelPages();
+  const { ...t } = useTheme();
+  console.log(t);
 
-  const theme = useTheme();
+  const theme = useThemeHook();
   const { downloadChapters } = useDownload();
 
   const [selected, setSelected] = useState<ChapterInfo[]>([]);

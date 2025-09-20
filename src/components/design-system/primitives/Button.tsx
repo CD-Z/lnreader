@@ -48,12 +48,12 @@ export const Button: React.FC<ButtonProps> = ({
           ...baseStyles,
           backgroundColor: 'transparent',
           borderWidth: 1,
-          borderColor: theme.outline?.toString(),
+          borderColor: theme.borderColor,
         };
       case 'contained':
         return {
           ...baseStyles,
-          backgroundColor: theme.primary?.toString(),
+          backgroundColor: theme.color9, // Brighter color for contained buttons
           borderWidth: 0,
         };
       default:
@@ -62,15 +62,15 @@ export const Button: React.FC<ButtonProps> = ({
   };
 
   const getTextColor = () => {
-    if (disabled) return theme.onSurfaceDisabled?.toString();
+    if (disabled) return theme.color02; // Muted/disabled text
     switch (mode) {
       case 'text':
       case 'outlined':
-        return theme.primary?.toString();
+        return theme.color; // Primary text color
       case 'contained':
-        return theme.onPrimary?.toString();
+        return theme.background; // Light text on colored background
       default:
-        return theme.primary?.toString();
+        return theme.color;
     }
   };
 
@@ -85,7 +85,7 @@ export const Button: React.FC<ButtonProps> = ({
         opacity: 0.8,
         ...(mode === 'text' || mode === 'outlined'
           ? {
-              backgroundColor: theme.primaryContainer?.toString(),
+              backgroundColor: theme.color7, // Light accent background
             }
           : {}),
       }}

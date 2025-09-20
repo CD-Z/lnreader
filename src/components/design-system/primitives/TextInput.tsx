@@ -1,95 +1,220 @@
 import React from 'react';
 import {
-  TextInput as RNTextInput,
-  TextInputProps as RNTextInputProps,
-  View,
-} from 'react-native';
-import { Text, useTheme, YStack } from 'tamagui';
+  GetProps,
+  Input,
+  SizeTokens,
+  Text,
+  YStack,
+  createStyledContext,
+  styled,
+  withStaticProperties,
+} from 'tamagui';
+import { TextInputProps as RNTextInputProps } from 'react-native';
 
 type Mode = 'flat' | 'outlined';
 
-export interface TextInputProps extends Omit<RNTextInputProps, 'onChange'> {
+export const TextInputContext = createStyledContext({
+  size: '$md' as SizeTokens,
+  mode: 'outlined' as Mode,
+  error: false,
+  editable: true,
+});
+
+export const TextInputFrame = styled(YStack, {
+  name: 'TextInput',
+  context: TextInputContext,
+
+  gap: '$2',
+
+  variants: {
+    editable: {
+      true: {
+        opacity: 1,
+      },
+      false: {
+        opacity: 0.6,
+      },
+    },
+  } as const,
+
+  defaultVariants: {
+    editable: true,
+  },
+});
+
+export const TextInputLabel = styled(Text, {
+  name: 'TextInputLabel',
+  context: TextInputContext,
+
+  color: '$color',
+  fontWeight: '400',
+
+  variants: {
+    size: {
+      '...fontSize': (name, { font }) => ({
+        fontSize: font?.size[name],
+      }),
+    },
+  } as const,
+
+  defaultVariants: {
+    size: '$md',
+  },
+});
+
+export const TextInputInputFrame = styled(YStack, {
+  name: 'TextInputInputFrame',
+  context: TextInputContext,
+
+  position: 'relative',
+
+  variants: {
+    mode: {
+      outlined: {},
+      flat: {},
+    },
+  } as const,
+
+  defaultVariants: {
+    mode: 'outlined',
+  },
+});
+
+export const TextInputInput = styled(Input, {
+  name: 'TextInputInput',
+  context: TextInputContext,
+
+  color: '$color',
+  placeholderTextColor: '$color02',
+  borderRadius: '$2',
+  minHeight: 48,
+
+  variants: {
+    mode: {
+      outlined: {
+        borderWidth: 1,
+        borderColor: '$borderColor',
+        backgroundColor: 'transparent',
+      },
+      flat: {
+        borderWidth: 0,
+        backgroundColor: '$background',
+      },
+    },
+    error: {
+      true: {
+        borderColor: '$color5',
+      },
+      false: {},
+    },
+    size: {
+      '...fontSize': (name, { font }) => ({
+        fontSize: font?.size[name],
+      }),
+    },
+  } as const,
+
+  defaultVariants: {
+    mode: 'outlined',
+    error: false,
+    size: '$md',
+  },
+});
+
+export const TextInputHelper = styled(Text, {
+  name: 'TextInputHelper',
+  context: TextInputContext,
+
+  fontSize: '$3',
+
+  variants: {
+    error: {
+      true: {
+        color: '$color5',
+      },
+      false: {
+        color: '$color02',
+      },
+    },
+  } as const,
+
+  defaultVariants: {
+    error: false,
+  },
+});
+
+const TextInputAdornment = styled(YStack, {
+  name: 'TextInputAdornment',
+  context: TextInputContext,
+
+  position: 'absolute',
+  top: '50%',
+  transform: 'translateY(-50%)',
+  zIndex: 1,
+});
+
+type TextInputProps = GetProps<typeof TextInputFrame> & {
   label?: string;
-  mode?: Mode;
   helperText?: string;
   left?: React.ReactNode;
   right?: React.ReactNode;
-  error?: boolean;
-}
-
-export const TextInput: React.FC<TextInputProps> = ({
-  label,
-  mode = 'outlined',
-  helperText,
-  left,
-  right,
-  error,
-  editable = true,
-  style,
-  ...inputProps
-}) => {
-  const theme = useTheme();
-
-  const getBorderColor = () => {
-    if (error) return theme.error?.toString() || '#B00020';
-    if (mode === 'outlined') return theme.outline?.toString() || '#9E9E9E';
-    return 'transparent';
-  };
-
-  const getHelperTextColor = () => {
-    return error
-      ? theme.error?.toString() || '#B00020'
-      : theme.onSurfaceVariant?.toString() || '#9E9E9E';
-  };
-
-  const containerOpacity = editable ? 1 : 0.6;
-
-  return (
-    <YStack style={{ gap: 8, opacity: containerOpacity }}>
-      {label ? (
-        <Text
-          style={{ color: theme.onSurface?.toString() }}
-          fontSize={16}
-          fontWeight="400"
-        >
-          {label}
-        </Text>
-      ) : null}
-      <View
-        style={[
-          {
-            backgroundColor: 'transparent',
-            borderColor: getBorderColor(),
-            borderWidth: mode === 'outlined' ? 1 : 0,
-            borderRadius: 6,
-            paddingHorizontal: 12,
-            flexDirection: 'row',
-            alignItems: 'center',
-            minHeight: 48,
-          },
-          style,
-        ]}
-      >
-        {left}
-        <RNTextInput
-          style={{
-            flex: 1,
-            paddingVertical: 12,
-            color: theme.onSurface?.toString(),
-            fontSize: 16,
-          }}
-          placeholderTextColor={theme.onSurfaceVariant?.toString()}
-          {...(inputProps as any)}
-        />
-        {right}
-      </View>
-      {helperText ? (
-        <Text style={{ color: getHelperTextColor() }} fontSize={12}>
-          {helperText}
-        </Text>
-      ) : null}
-    </YStack>
-  );
 };
+
+const TextInputComponent = TextInputFrame.styleable<TextInputProps>(
+  (
+    {
+      label,
+      helperText,
+      left,
+      right,
+      mode = 'outlined',
+      error = false,
+      editable = true,
+      ...props
+    },
+    ref,
+  ) => {
+    return (
+      <TextInputFrame ref={ref} editable={editable} {...props}>
+        {label && <TextInputLabel>{label}</TextInputLabel>}
+
+        <TextInputInputFrame mode={mode as Mode}>
+          {left && (
+            <TextInputAdornment style={{ left: 12 }}>{left}</TextInputAdornment>
+          )}
+
+          <TextInputInput
+            {...(props as any)}
+            mode={mode}
+            error={error}
+            editable={editable}
+            paddingLeft={left ? '$8' : '$3'}
+            paddingRight={right ? '$8' : '$3'}
+          />
+
+          {right && (
+            <TextInputAdornment style={{ right: 12 }}>
+              {right}
+            </TextInputAdornment>
+          )}
+        </TextInputInputFrame>
+
+        {helperText && (
+          <TextInputHelper error={error as boolean}>
+            {helperText}
+          </TextInputHelper>
+        )}
+      </TextInputFrame>
+    );
+  },
+);
+
+export const TextInput = withStaticProperties(TextInputComponent, {
+  Props: TextInputContext.Provider,
+  Label: TextInputLabel,
+  Input: TextInputInput,
+  Helper: TextInputHelper,
+  Adornment: TextInputAdornment,
+});
 
 export default TextInput;

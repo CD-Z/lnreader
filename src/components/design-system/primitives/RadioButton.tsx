@@ -20,13 +20,13 @@ export const RadioButton: React.FC<RadioButtonProps> = ({
   const theme = useTheme();
 
   const getBorderColor = () => {
-    if (disabled) return theme.onSurfaceDisabled?.toString();
-    return selected ? theme.primary?.toString() : theme.outline?.toString();
+    if (disabled) return theme.color02;
+    return selected ? theme.color9 : theme.borderColor;
   };
 
   const getDotColor = () => {
-    if (disabled) return theme.onSurfaceDisabled?.toString();
-    return selected ? theme.primary?.toString() : 'transparent';
+    if (disabled) return theme.color02;
+    return selected ? theme.color9 : 'transparent';
   };
 
   return (
@@ -64,9 +64,7 @@ export const RadioButton: React.FC<RadioButtonProps> = ({
       {label ? (
         <Text
           style={{
-            color: disabled
-              ? theme.onSurfaceDisabled?.toString()
-              : theme.onSurface?.toString(),
+            color: disabled ? theme.color02 : theme.color,
           }}
         >
           {label}

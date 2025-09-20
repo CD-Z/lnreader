@@ -31,19 +31,15 @@ export const Switch: React.FC<SwitchProps> = ({
         onValueChange={onValueChange}
         disabled={disabled}
         trackColor={{
-          false: theme.surfaceVariant?.toString(),
-          true: theme.primary?.toString(),
+          false: theme.color02,
+          true: theme.color9,
         }}
-        thumbColor={
-          value ? theme.onPrimary?.toString() : theme.outline?.toString()
-        }
+        thumbColor={value ? theme.background : theme.borderColor}
       />
       {label ? (
         <Text
           style={{
-            color: disabled
-              ? theme.onSurfaceDisabled?.toString()
-              : theme.onSurface?.toString(),
+            color: disabled ? theme.color02 : theme.color,
           }}
         >
           {label}

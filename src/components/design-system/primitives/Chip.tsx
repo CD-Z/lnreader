@@ -24,22 +24,18 @@ export const Chip: React.FC<ChipProps> = ({
   const theme = useTheme();
 
   const getBackgroundColor = () => {
-    if (disabled) return theme.surfaceDisabled?.toString();
-    return selected
-      ? theme.primary?.toString()
-      : theme.surfaceVariant?.toString();
+    if (disabled) return theme.color02;
+    return selected ? theme.color9 : theme.color02;
   };
 
   const getBorderColor = () => {
-    if (disabled) return theme.outlineVariant?.toString();
-    return selected ? theme.primary?.toString() : theme.outline?.toString();
+    if (disabled) return theme.color02;
+    return selected ? theme.color9 : theme.borderColor;
   };
 
   const getTextColor = () => {
-    if (disabled) return theme.onSurfaceDisabled?.toString();
-    return selected
-      ? theme.onPrimary?.toString()
-      : theme.onSurfaceVariant?.toString();
+    if (disabled) return theme.color02;
+    return selected ? theme.background : theme.color;
   };
 
   return (

@@ -28,7 +28,7 @@ export const Surface: React.FC<SurfaceProps> = ({
       }
     : undefined;
 
-  const backgroundColor = theme.surface?.toString();
+  const backgroundColor = theme.background;
 
   return (
     <View

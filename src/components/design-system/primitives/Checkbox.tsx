@@ -21,20 +21,20 @@ export const Checkbox: React.FC<CheckboxProps> = ({
   const indeterminate = status === 'indeterminate';
 
   const getBorderColor = () => {
-    if (disabled) return theme.onSurfaceDisabled?.toString();
+    if (disabled) return theme.color02; // Disabled/muted color
     return checked || indeterminate
-      ? theme.primary?.toString()
-      : theme.outline?.toString();
+      ? theme.color9 // Primary color
+      : theme.borderColor;
   };
 
   const getBackgroundColor = () => {
-    if (disabled) return theme.surfaceDisabled?.toString();
-    return checked || indeterminate ? theme.primary?.toString() : 'transparent';
+    if (disabled) return theme.color02; // Disabled background
+    return checked || indeterminate ? theme.color9 : 'transparent'; // Primary color
   };
 
   const getCheckmarkColor = () => {
-    if (disabled) return theme.onSurfaceDisabled?.toString();
-    return theme.onPrimary?.toString();
+    if (disabled) return theme.color02; // Disabled text
+    return theme.background; // Light color on primary background
   };
 
   return (
@@ -73,9 +73,7 @@ export const Checkbox: React.FC<CheckboxProps> = ({
       {label ? (
         <Text
           style={{
-            color: disabled
-              ? theme.onSurfaceDisabled?.toString()
-              : theme.onSurface?.toString(),
+            color: disabled ? theme.color02 : theme.color,
           }}
         >
           {label}
