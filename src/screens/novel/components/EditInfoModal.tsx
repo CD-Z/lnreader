@@ -4,22 +4,24 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text,
   View,
 } from 'react-native';
-
-import MaterialCommunityIcons from '@react-native-vector-icons/material-design-icons';
-import { TextInput } from 'react-native-paper';
 import { updateNovelInfo } from '@database/queries/NovelQueries';
 
 import { getString } from '@strings/translations';
-import { Button, Modal } from '@components';
+import { Modal } from '@components';
 import { Portal } from 'tamagui';
 import { ThemeColors } from '@theme/types';
 import { NovelStatus } from '@plugins/types';
 import { translateNovelStatus } from '@utils/translateEnum';
 import useNovelState from '@hooks/persisted/novel/useNovelState';
 import { NovelInfo } from '@database/types';
+import {
+  Button as DSButton,
+  TextInput as DSTextInput,
+  Text as DSText,
+  Chip as DSChip,
+} from '@components/design-system';
 
 interface EditInfoModalProps {
   theme: ThemeColors;
@@ -80,13 +82,13 @@ const EditInfoModal = ({
   return (
     <Portal>
       <Modal visible={modalVisible} onDismiss={hideModal}>
-        <Text style={[styles.modalTitle, getModalTitleColor(theme)]}>
+        <DSText style={[styles.modalTitle, getModalTitleColor(theme)]}>
           {getString('novelScreen.edit.info')}
-        </Text>
+        </DSText>
         <View style={styles.statusRow}>
-          <Text style={getStatusLabelColor(theme)}>
+          <DSText style={getStatusLabelColor(theme)}>
             {getString('novelScreen.edit.status')}
-          </Text>
+          </DSText>
           <ScrollView
             style={getScrollViewStyle()}
             horizontal
@@ -104,17 +106,17 @@ const EditInfoModal = ({
                   }}
                   onPress={() => setNovelInfo({ ...novel, status: item })}
                 >
-                  <Text
+                  <DSText
                     style={getStatusChipText(novelInfo.status === item, theme)}
                   >
                     {translateNovelStatus(item)}
-                  </Text>
+                  </DSText>
                 </Pressable>
               </View>
             ))}
           </ScrollView>
         </View>
-        <TextInput
+        <DSTextInput
           defaultValue={initialNovelInfo.name}
           value={novelInfo.name}
           placeholder={getString('novelScreen.edit.title', {
@@ -122,12 +124,10 @@ const EditInfoModal = ({
           })}
           numberOfLines={1}
           mode="outlined"
-          theme={{ colors: { ...theme } }}
           onChangeText={text => setNovelInfo({ ...novel, name: text })}
-          dense
           style={styles.inputWrapper}
         />
-        <TextInput
+        <DSTextInput
           defaultValue={initialNovelInfo.author ?? ''}
           value={novelInfo.author}
           placeholder={getString('novelScreen.edit.author', {
@@ -135,23 +135,19 @@ const EditInfoModal = ({
           })}
           numberOfLines={1}
           mode="outlined"
-          theme={{ colors: { ...theme } }}
           onChangeText={text => setNovelInfo({ ...novel, author: text })}
-          dense
           style={styles.inputWrapper}
         />
-        <TextInput
+        <DSTextInput
           defaultValue={initialNovelInfo.artist}
           value={novelInfo.artist}
           placeholder={'Artist: ' + novel.artist}
           numberOfLines={1}
           mode="outlined"
-          theme={{ colors: { ...theme } }}
           onChangeText={text => setNovelInfo({ ...novel, artist: text })}
-          dense
           style={styles.inputWrapper}
         />
-        <TextInput
+        <DSTextInput
           defaultValue={initialNovelInfo.summary}
           value={novelInfo.summary}
           placeholder={getString('novelScreen.edit.summary', {
@@ -160,12 +156,10 @@ const EditInfoModal = ({
           numberOfLines={1}
           mode="outlined"
           onChangeText={text => setNovelInfo({ ...novel, summary: text })}
-          theme={{ colors: { ...theme } }}
-          dense
           style={styles.inputWrapper}
         />
 
-        <TextInput
+        <DSTextInput
           value={newGenre}
           placeholder={getString('novelScreen.edit.addTag')}
           numberOfLines={1}
@@ -186,8 +180,6 @@ const EditInfoModal = ({
             }));
             setNewGenre('');
           }}
-          theme={{ colors: { ...theme } }}
-          dense
           style={styles.inputWrapper}
         />
 
@@ -198,24 +190,26 @@ const EditInfoModal = ({
             data={novelInfo.genres?.split(',')}
             keyExtractor={(_, index) => 'novelTag' + index}
             renderItem={({ item }) => (
-              <GenreChip theme={theme} onPress={() => removeTag(item)}>
+              <DSChip key={item} onClose={() => removeTag(item)}>
                 {item}
-              </GenreChip>
+              </DSChip>
             )}
             showsHorizontalScrollIndicator={false}
           />
         ) : null}
         <View style={getButtonRowStyle()}>
-          <Button
+          <DSButton
+            mode="outlined"
             onPress={() => {
               setNovelInfo(initialNovelInfo);
               updateNovelInfo(initialNovelInfo);
             }}
           >
             {getString('common.reset')}
-          </Button>
+          </DSButton>
           <View style={getFlex1()} />
-          <Button
+          <DSButton
+            mode="contained"
             onPress={() => {
               setNovel(novelInfo);
               updateNovelInfo(novelInfo);
@@ -223,8 +217,10 @@ const EditInfoModal = ({
             }}
           >
             {getString('common.save')}
-          </Button>
-          <Button onPress={hideModal}>{getString('common.cancel')}</Button>
+          </DSButton>
+          <DSButton mode="text" onPress={hideModal}>
+            {getString('common.cancel')}
+          </DSButton>
         </View>
       </Modal>
     </Portal>
@@ -233,45 +229,7 @@ const EditInfoModal = ({
 
 export default EditInfoModal;
 
-// --- GenreChip with split styles ---
-const getGenreChipContainer = (theme: ThemeColors) => ({
-  backgroundColor: theme.secondaryContainer,
-});
-const getGenreChipText = (theme: ThemeColors) => ({
-  color: theme.onSecondaryContainer,
-});
-const getGenreChipIcon = (theme: ThemeColors) => ({
-  color: theme.onSecondaryContainer,
-});
-
-const GenreChip = ({
-  children,
-  theme,
-  onPress,
-}: {
-  children: React.ReactNode;
-  theme: ThemeColors;
-  onPress: () => void;
-}) => (
-  <View style={[styles.genreChipContainer, getGenreChipContainer(theme)]}>
-    <Text style={[styles.genreChipText, getGenreChipText(theme)]}>
-      {children}
-    </Text>
-    <MaterialCommunityIcons
-      name="close"
-      size={18}
-      onPress={onPress}
-      style={styles.genreChipIcon}
-      {...getGenreChipIcon(theme)}
-    />
-  </View>
-);
-
 const styles = StyleSheet.create({
-  errorText: {
-    color: '#FF0033',
-    paddingTop: 8,
-  },
   inputWrapper: {
     fontSize: 14,
     marginBottom: 12,
@@ -304,23 +262,5 @@ const styles = StyleSheet.create({
   },
   flex1: {
     flex: 1,
-  },
-  genreChipContainer: {
-    flex: 1,
-    flexDirection: 'row',
-    borderRadius: 8,
-    paddingVertical: 6,
-    paddingHorizontal: 16,
-    marginBottom: 4,
-    marginRight: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  genreChipText: {
-    fontSize: 12,
-    textTransform: 'capitalize',
-  },
-  genreChipIcon: {
-    marginLeft: 4,
   },
 });

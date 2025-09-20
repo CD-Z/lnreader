@@ -7,7 +7,7 @@ import Animated, {
   useSharedValue,
 } from 'react-native-reanimated';
 
-import { Portal, Appbar, Snackbar } from 'react-native-paper';
+import { Portal, Snackbar } from 'react-native-paper';
 // Removed react-native-paper components in favor of new design system
 import { useDownload } from '@hooks/persisted';
 import { useTheme } from '@providers/Providers';
@@ -28,11 +28,7 @@ import { MaterialDesignIconName } from '@type/icon';
 import NovelScreenList from './components/NovelScreenList';
 import { ThemeColors } from '@theme/types';
 import { SafeAreaView } from '@components';
-import {
-  Surface,
-  Text as DSText,
-  Button as DSButton,
-} from '@components/design-system';
+import { Text as DSText } from '@components/design-system';
 import IconButtonV2 from '@components/IconButtonV2/IconButtonV2';
 import { FlashListRef } from '@shopify/flash-list';
 import useNovelState from '@hooks/persisted/novel/useNovelState';

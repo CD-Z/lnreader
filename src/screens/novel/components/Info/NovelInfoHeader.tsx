@@ -1,5 +1,5 @@
 import React, { memo, useMemo } from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { View, StyleSheet, Pressable } from 'react-native';
 import color from 'color';
 
 import * as Clipboard from 'expo-clipboard';
@@ -8,6 +8,7 @@ import IconButtonV2 from '@components/IconButtonV2/IconButtonV2';
 import MaterialCommunityIcons from '@react-native-vector-icons/material-design-icons';
 
 import { showToast } from '@utils/showToast';
+import { Text as DSText } from '@components/design-system';
 
 import {
   CoverImage,
@@ -246,17 +247,17 @@ const NovelInfoHeader = ({
           >
             <View style={styles.flex}>
               {page || novel.totalPages ? (
-                <Text
+                <DSText
                   numberOfLines={2}
                   style={[{ color: theme.onSurface }, styles.pageTitle]}
                 >
                   Page: {page ?? ''}
-                </Text>
+                </DSText>
               ) : null}
 
-              <Text style={[{ color: theme.onSurface }, styles.chapters]}>
+              <DSText style={[{ color: theme.onSurface }, styles.chapters]}>
                 {chapterText}
-              </Text>
+              </DSText>
             </View>
             {page && Number(page) ? (
               <IconButtonV2

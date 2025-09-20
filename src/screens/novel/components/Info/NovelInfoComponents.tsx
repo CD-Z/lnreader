@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import {
   FlatList,
   StyleSheet,
-  Text,
   View,
   Pressable,
   ImageBackground,
@@ -17,6 +16,7 @@ import { coverPlaceholderColor } from '../../../../theme/colors';
 import { ThemeColors } from '@theme/types';
 import { getString } from '@strings/translations';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Text as DSText } from '@components/design-system';
 
 interface CoverImageProps {
   children: React.ReactNode;
@@ -135,14 +135,14 @@ const NovelTitle = ({
   onLongPress,
   onPress,
 }: NovelTitleProps) => (
-  <Text
+  <DSText
     onLongPress={onLongPress}
     onPress={onPress}
     style={[{ color: theme.onBackground }, styles.novelTitle]}
     numberOfLines={4}
   >
     {children}
-  </Text>
+  </DSText>
 );
 
 const NovelInfo = ({
@@ -152,12 +152,12 @@ const NovelInfo = ({
   theme: ThemeColors;
   children: React.ReactNode;
 }) => (
-  <Text
+  <DSText
     style={[{ color: theme.onSurfaceVariant }, styles.novelInfo]}
     numberOfLines={1}
   >
     {children}
-  </Text>
+  </DSText>
 );
 
 const FollowButton = ({
@@ -184,7 +184,7 @@ const FollowButton = ({
         theme={theme}
         style={styles.iconButton}
       />
-      <Text
+      <DSText
         style={[
           { color: followed ? theme.primary : theme.outline },
           styles.followButtonText,
@@ -193,7 +193,7 @@ const FollowButton = ({
         {followed
           ? getString('novelScreen.inLibaray')
           : getString('novelScreen.addToLibaray')}
-      </Text>
+      </DSText>
     </Pressable>
   </View>
 );
@@ -222,7 +222,7 @@ const TrackerButton = ({
         theme={theme}
         style={styles.iconButton}
       />
-      <Text
+      <DSText
         style={[
           { color: isTracked ? theme.primary : theme.outline },
           styles.followButtonText,
@@ -231,7 +231,7 @@ const TrackerButton = ({
         {isTracked
           ? getString('novelScreen.tracked')
           : getString('novelScreen.tracking')}
-      </Text>
+      </DSText>
     </Pressable>
   </View>
 );

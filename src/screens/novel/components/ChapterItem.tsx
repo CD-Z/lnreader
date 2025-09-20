@@ -1,10 +1,11 @@
 import React, { memo, ReactNode, useCallback, useMemo } from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { View, StyleSheet, Pressable } from 'react-native';
 import { DownloadButton } from './Chapter/ChapterDownloadButtons';
 import { ChapterInfo } from '@database/types';
 import { getString } from '@strings/translations';
 import { useTheme } from '@providers/Providers';
 import { ChapterBookmarkButton } from './Chapter/ChapterBookmark';
+import { Text as DSText } from '@components/design-system';
 
 interface ChapterItemProps {
   isDownloading?: boolean;
@@ -164,9 +165,9 @@ const ChapterItem: React.FC<ChapterItemProps> = ({
 
       <View style={styles.flex1}>
         {isUpdateCard && (
-          <Text style={updateTitleStyle} numberOfLines={1}>
+          <DSText style={updateTitleStyle} numberOfLines={1}>
             {novelName}
-          </Text>
+          </DSText>
         )}
         <View style={styles.rowCenter}>
           {unread ? (
@@ -175,23 +176,23 @@ const ChapterItem: React.FC<ChapterItemProps> = ({
             />
           ) : null}
 
-          <Text style={titleStyle} numberOfLines={1} ellipsizeMode="tail">
+          <DSText style={titleStyle} numberOfLines={1} ellipsizeMode="tail">
             {titleText}
-          </Text>
+          </DSText>
         </View>
 
         <View style={styles.rowCenter}>
           {releaseTime && !isUpdateCard ? (
-            <Text style={metaStyle} numberOfLines={1}>
+            <DSText style={metaStyle} numberOfLines={1}>
               {releaseTime}
-            </Text>
+            </DSText>
           ) : null}
 
           {!isUpdateCard && (progress ?? 0) > 0 && unread ? (
-            <Text style={progressStyle} numberOfLines={1}>
+            <DSText style={progressStyle} numberOfLines={1}>
               {releaseTime ? '•  ' : ''}
               {progressText}
-            </Text>
+            </DSText>
           ) : null}
         </View>
       </View>
