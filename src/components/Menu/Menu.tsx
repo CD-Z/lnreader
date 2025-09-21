@@ -48,7 +48,7 @@ const Menu: React.FC<MenuProps> & { Item: React.FC<MenuItemProps> } = ({
     shadowColor: theme.isDark ? '#000' : theme.shadow,
     position: 'absolute' as const,
     left: Math.max(16, Math.min(anchorLayout.x, screenWidth - 220)),
-    top: anchorLayout.y + anchorLayout.height + 8,
+    top: anchorLayout.y + anchorLayout.height ,
     width: Math.min(200, screenWidth - 32),
     zIndex: 1001,
   }));
