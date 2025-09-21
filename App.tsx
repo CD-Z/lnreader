@@ -44,18 +44,19 @@ const App = () => {
 
   return (
     <GestureHandlerRootView style={styles.flex}>
-      <Providers>
-        <AppErrorBoundary>
-          <SafeAreaProvider>
-            <PaperProvider>
-              <BottomSheetModalProvider>
-                <StatusBar translucent={true} backgroundColor="transparent" />
-                <Main ref={navigationRef} />
-              </BottomSheetModalProvider>
-            </PaperProvider>
-          </SafeAreaProvider>
-        </AppErrorBoundary>
-      </Providers>
+
+        <Providers>
+          <AppErrorBoundary>
+            <SafeAreaProvider>
+              <PaperProvider>
+                <BottomSheetModalProvider>
+                  <StatusBar translucent={true} backgroundColor="transparent" />
+                  <Main ref={navigationRef} />
+                </BottomSheetModalProvider>
+              </PaperProvider>
+            </SafeAreaProvider>
+          </AppErrorBoundary>
+        </Providers>
     </GestureHandlerRootView>
   );
 };
