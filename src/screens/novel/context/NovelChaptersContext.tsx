@@ -156,18 +156,20 @@ export function NovelChaptersContextProvider({
         const novelId = passedNovel?.id ?? (novel.id as number);
         let newChapters: ChapterInfo[] = [];
 
+        const pageToLoad = currentPage || '1'; // Default to page 1 if currentPage not available
+
         const config = [
           novelId,
           novelName,
           novelSettings.sort,
           novelSettings.filter,
-          currentPage,
+          pageToLoad,
           state.batchInformation.batch,
         ] as const;
 
         let chapterCount = getChapterCount(
           novelId,
-          currentPage,
+          pageToLoad,
           novelSettings.filter,
         );
 
@@ -180,19 +182,19 @@ export function NovelChaptersContextProvider({
           }
         }
         // Fetch next page if no chapters
-        else if (Number(currentPage)) {
-          const sourcePage = await fetchPage(pluginId, path, currentPage);
+        else if (Number(pageToLoad)) {
+          const sourcePage = await fetchPage(pluginId, path, pageToLoad);
           const sourceChapters = sourcePage.chapters.map(ch => {
             return {
               ...ch,
-              page: currentPage,
+              page: pageToLoad,
             };
           });
           await insertChapters(novelId, sourceChapters);
           newChapters = await _getPageChapters(...config);
           chapterCount = getChapterCount(
             novelId,
-            currentPage,
+            pageToLoad,
             novelSettings.filter,
           );
         }
@@ -246,11 +248,17 @@ export function NovelChaptersContextProvider({
   }, [mutateChapters]);
 
   useEffect(() => {
+    // Only load chapters if novel is loaded and we have a valid currentPage
+    if (loading || !currentPage) return;
+
     let cancelled = false;
 
     (async () => {
       try {
-        const nov = await getNovel();
+        let nov: NovelInfo | undefined = novel && typeof novel.id === 'number' ? novel as NovelInfo : undefined;
+        if (!nov) {
+          nov = await getNovel();
+        }
         if (!nov || cancelled) {
           throw new Error(getString('updatesScreen.unableToGetNovel'));
         }
@@ -267,7 +275,7 @@ export function NovelChaptersContextProvider({
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [novelSettings.filter, novelSettings.sort]);
+  }, [novelSettings.filter, novelSettings.sort, currentPage || 'default', loading]);
 
   const contextValue = useMemo(
     () => ({

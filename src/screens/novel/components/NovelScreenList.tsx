@@ -39,7 +39,7 @@ type NovelScreenListProps = {
   headerOpacity: SharedValue<number>;
   listRef: React.RefObject<FlashListRef<ChapterInfo> | null>;
   navigation: any;
-  openDrawer: () => void;
+  onPageChange: (index: number) => void;
   selected: ChapterInfo[];
   setSelected: React.Dispatch<React.SetStateAction<ChapterInfo[]>>;
   getNextChapterBatch: () => void;
@@ -59,7 +59,7 @@ const NovelScreenList = ({
   headerOpacity,
   listRef,
   navigation,
-  openDrawer,
+  onPageChange,
   routeBaseNovel,
   selected,
   deleteDownloadsSnackbar,
@@ -329,25 +329,24 @@ const NovelScreenList = ({
   const renderHeader = useMemo(() => {
     const props = {
       deleteDownloadsSnackbar,
-      filter,
       lastRead,
       navigateToChapter,
       navigation,
-      novelBottomSheetRef,
+      _novelBottomSheetRef: novelBottomSheetRef,
       onRefreshPage,
-      openDrawer,
+      onPageChange,
       totalChapters: batchInformation.totalChapters,
       trackerSheetRef,
     };
     return <NovelInfoHeader {...props} />;
   }, [
     deleteDownloadsSnackbar,
-    filter,
     lastRead,
     navigateToChapter,
     navigation,
+    novelBottomSheetRef,
     onRefreshPage,
-    openDrawer,
+    onPageChange,
     batchInformation.totalChapters,
   ]);
 
