@@ -20,6 +20,7 @@ interface NovelPaginationProps {
   totalChapters?: number;
   onPageChange: (index: number) => void;
   onRefreshPage?: (page: string) => void;
+  onFilterPress?: () => void;
 }
 
 const NovelPagination: React.FC<NovelPaginationProps> = ({
@@ -30,6 +31,7 @@ const NovelPagination: React.FC<NovelPaginationProps> = ({
   totalChapters,
   onPageChange,
   onRefreshPage,
+  onFilterPress,
 }) => {
   const theme = useTheme();
   const [showPageModal, setShowPageModal] = useState(false);
@@ -44,10 +46,13 @@ const NovelPagination: React.FC<NovelPaginationProps> = ({
     setShowPageModal(false);
   }, []);
 
-  const handlePageSelect = useCallback((index: number) => {
-    onPageChange(index);
-    setShowPageModal(false);
-  }, [onPageChange]);
+  const handlePageSelect = useCallback(
+    (index: number) => {
+      onPageChange(index);
+      setShowPageModal(false);
+    },
+    [onPageChange],
+  );
 
   let chapterText = '';
   if (totalChapters !== undefined) {
@@ -91,7 +96,7 @@ const NovelPagination: React.FC<NovelPaginationProps> = ({
           icon="filter-variant"
           iconColor={theme.onSurface}
           size={24}
-          onPress={() => {}} // This will be handled by the parent
+          onPress={onFilterPress}
         />
       </Pressable>
 
@@ -154,7 +159,7 @@ const PageSelectionModal: React.FC<PageSelectionModalProps> = ({
       onClose();
     };
 
-    translateY.value = withTiming(40, { duration: 250 }, (finished) => {
+    translateY.value = withTiming(40, { duration: 250 }, finished => {
       if (finished) {
         runOnJS(onAnimationComplete)();
       }
@@ -164,10 +169,13 @@ const PageSelectionModal: React.FC<PageSelectionModalProps> = ({
   }, [translateY, opacity, backdropOpacity, onClose]);
 
   // Handle page selection
-  const handlePageSelect = useCallback((index: number) => {
-    onPageSelect(index);
-    handleClose();
-  }, [onPageSelect, handleClose]);
+  const handlePageSelect = useCallback(
+    (index: number) => {
+      onPageSelect(index);
+      handleClose();
+    },
+    [onPageSelect, handleClose],
+  );
 
   if (!isVisible) return null;
 
@@ -179,7 +187,11 @@ const PageSelectionModal: React.FC<PageSelectionModalProps> = ({
         <Pressable style={StyleSheet.absoluteFill} onPress={handleClose} />
       </Animated.View>
       <Animated.View
-        style={[styles.modalContent, { backgroundColor: theme.surface }, animatedStyle]}
+        style={[
+          styles.modalContent,
+          { backgroundColor: theme.surface },
+          animatedStyle,
+        ]}
       >
         <Text style={[styles.modalTitle, { color: theme.onSurface }]}>
           Pages
@@ -215,7 +227,12 @@ const PageSelectionModal: React.FC<PageSelectionModalProps> = ({
                 {pageName}
               </Text>
               {index === currentPageIndex && (
-                <View style={[styles.currentIndicator, { backgroundColor: theme.primary }]} />
+                <View
+                  style={[
+                    styles.currentIndicator,
+                    { backgroundColor: theme.primary },
+                  ]}
+                />
               )}
             </Pressable>
           ))}

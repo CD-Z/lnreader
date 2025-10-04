@@ -102,7 +102,6 @@ const NovelInfoHeader = ({
     showToast('Not available while loading');
   };
 
-
   return (
     <>
       <CoverImage
@@ -232,6 +231,7 @@ const NovelInfoHeader = ({
             totalChapters={totalChapters}
             onPageChange={onPageChange}
             onRefreshPage={onRefreshPage}
+            onFilterPress={() => _novelBottomSheetRef.current?.present()}
           />
         )}
       </>
