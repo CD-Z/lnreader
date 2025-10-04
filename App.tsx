@@ -19,6 +19,14 @@ import Main from './src/navigators/Main';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { Providers } from './src/providers/Providers';
 
+// Rozenite DevTools
+import { useReactNavigationDevTools } from '@rozenite/react-navigation-plugin';
+import { useNetworkActivityDevTools } from '@rozenite/network-activity-plugin';
+import { usePerformanceMonitorDevTools } from '@rozenite/performance-monitor-plugin';
+import { useMMKVDevTools } from '@rozenite/mmkv-plugin';
+import { store } from '@plugins/helpers/storage';
+import { MMKVStorage } from '@utils/mmkv/mmkv';
+
 declare global {
   interface ObjectConstructor {
     typedKeys<T>(obj: T): Array<keyof T>;
@@ -41,22 +49,28 @@ createTables();
 const App = () => {
   const navigationRef =
     useRef<NavigationContainerRef<RootStackParamList>>(null);
+  // Enable React Navigation DevTools in development
+  useReactNavigationDevTools({ ref: navigationRef });
+  useNetworkActivityDevTools();
+  usePerformanceMonitorDevTools();
+  useMMKVDevTools({
+    storages: [store, MMKVStorage],
+  });
 
   return (
     <GestureHandlerRootView style={styles.flex}>
-
-        <Providers>
-          <AppErrorBoundary>
-            <SafeAreaProvider>
-              <PaperProvider>
-                <BottomSheetModalProvider>
-                  <StatusBar translucent={true} backgroundColor="transparent" />
-                  <Main ref={navigationRef} />
-                </BottomSheetModalProvider>
-              </PaperProvider>
-            </SafeAreaProvider>
-          </AppErrorBoundary>
-        </Providers>
+      <Providers>
+        <AppErrorBoundary>
+          <SafeAreaProvider>
+            <PaperProvider>
+              <BottomSheetModalProvider>
+                <StatusBar translucent={true} backgroundColor="transparent" />
+                <Main ref={navigationRef} />
+              </BottomSheetModalProvider>
+            </PaperProvider>
+          </SafeAreaProvider>
+        </AppErrorBoundary>
+      </Providers>
     </GestureHandlerRootView>
   );
 };
