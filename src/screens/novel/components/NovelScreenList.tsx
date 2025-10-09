@@ -69,8 +69,7 @@ const NovelScreenList = ({
   const { getNovel, novel, loading } = useNovelState();
   const { chapters, deleteChapter, fetching, batchInformation } =
     useNovelChapters();
-  const { novelSettings, sortAndFilterChapters, setShowChapterTitles } =
-    useNovelSettings();
+  const { novelSettings } = useNovelSettings();
   const { lastRead } = useNovelLastRead();
 
   const { pluginId } = routeBaseNovel;
@@ -79,17 +78,12 @@ const NovelScreenList = ({
 
   const {
     useFabForContinueReading,
-    defaultChapterSort,
     disableHapticFeedback,
     downloadNewChapters,
     refreshNovelMetadata,
   } = useSettingsContext();
 
-  const {
-    sort = defaultChapterSort,
-    filter = '',
-    showChapterTitles = false,
-  } = novelSettings;
+  const { showChapterTitles = false } = novelSettings;
 
   const theme = useTheme();
   const { top: topInset, bottom: bottomInset } = useSafeAreaInsets();
@@ -371,12 +365,7 @@ const NovelScreenList = ({
         <>
           <NovelBottomSheet
             bottomSheetRef={novelBottomSheetRef}
-            sortAndFilterChapters={sortAndFilterChapters}
-            setShowChapterTitles={setShowChapterTitles}
-            sort={sort}
             theme={theme}
-            filter={filter}
-            showChapterTitles={showChapterTitles}
           />
           <TrackSheet
             bottomSheetRef={trackerSheetRef}

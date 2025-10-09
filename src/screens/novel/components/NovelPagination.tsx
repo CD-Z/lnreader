@@ -6,7 +6,6 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withTiming,
-  runOnJS,
 } from 'react-native-reanimated';
 import { useTheme } from '@providers/Providers';
 import { getString } from '@strings/translations';
@@ -49,7 +48,7 @@ const NovelPagination: React.FC<NovelPaginationProps> = ({
   const handlePageSelect = useCallback(
     (index: number) => {
       onPageChange(index);
-      setShowPageModal(false);
+      // Modal will handle closing with animation
     },
     [onPageChange],
   );
@@ -84,7 +83,7 @@ const NovelPagination: React.FC<NovelPaginationProps> = ({
             {chapterText}
           </Text>
         </View>
-        {page && Number(page) && onRefreshPage ? (
+        {page && onRefreshPage ? (
           <IconButton
             icon="reload"
             iconColor={theme.onSurface}
@@ -150,31 +149,39 @@ const PageSelectionModal: React.FC<PageSelectionModalProps> = ({
     translateY.value = withTiming(0, { duration: 300 }); // Slide up to final position
     opacity.value = withTiming(1, { duration: 250 }); // Fade in
     backdropOpacity.value = withTiming(1, { duration: 150 }); // Backdrop fade in
-  }, []);
+  }, [translateY, opacity, backdropOpacity]);
 
   // Handle modal closing
   const handleClose = useCallback(() => {
-    const onAnimationComplete = () => {
-      setIsVisible(false);
-      onClose();
-    };
-
-    translateY.value = withTiming(40, { duration: 250 }, finished => {
-      if (finished) {
-        runOnJS(onAnimationComplete)();
-      }
-    });
+    // Start exit animations
+    translateY.value = withTiming(40, { duration: 250 });
     opacity.value = withTiming(0, { duration: 200 }); // Fade out
     backdropOpacity.value = withTiming(0, { duration: 150 }); // Backdrop fade out
+    // Close after animations complete (max duration 250ms)
+    const timeout = setTimeout(() => {
+      setIsVisible(false);
+      onClose();
+    }, 260);
+    return () => clearTimeout(timeout);
   }, [translateY, opacity, backdropOpacity, onClose]);
 
   // Handle page selection
   const handlePageSelect = useCallback(
     (index: number) => {
+      // Update page immediately so UI reflects the change
       onPageSelect(index);
-      handleClose();
+      // Start exit animations
+      translateY.value = withTiming(40, { duration: 250 });
+      opacity.value = withTiming(0, { duration: 200 }); // Fade out
+      backdropOpacity.value = withTiming(0, { duration: 150 }); // Backdrop fade out
+      // Close after animations complete
+      const timeout = setTimeout(() => {
+        setIsVisible(false);
+        onClose();
+      }, 260);
+      return () => clearTimeout(timeout);
     },
-    [onPageSelect, handleClose],
+    [onPageSelect, translateY, opacity, backdropOpacity, onClose],
   );
 
   if (!isVisible) return null;
@@ -197,45 +204,41 @@ const PageSelectionModal: React.FC<PageSelectionModalProps> = ({
           Pages
         </Text>
         <ScrollView showsVerticalScrollIndicator={false}>
-          {pages.map((pageName, index) => (
-            <Pressable
-              key={pageName}
-              style={[
-                styles.pageListItem,
-                {
-                  backgroundColor:
-                    index === currentPageIndex
-                      ? color(theme.primary).alpha(0.12).string()
-                      : 'transparent',
-                },
-              ]}
-              onPress={() => handlePageSelect(index)}
-              android_ripple={{ color: theme.rippleColor }}
-            >
-              <Text
-                style={[
-                  styles.pageListItemText,
-                  {
-                    color:
-                      index === currentPageIndex
-                        ? theme.primary
-                        : theme.onSurface,
-                  },
-                ]}
-                numberOfLines={1}
+          {pages.map((pageName, index) => {
+            const isSelected = index === currentPageIndex;
+            const backgroundColor = isSelected
+              ? color(theme.primary).alpha(0.12).string()
+              : 'transparent';
+
+            return (
+              <Pressable
+                key={pageName}
+                style={[styles.pageListItem, { backgroundColor }]}
+                onPress={() => handlePageSelect(index)}
+                android_ripple={{ color: theme.rippleColor }}
               >
-                {pageName}
-              </Text>
-              {index === currentPageIndex && (
-                <View
+                <Text
                   style={[
-                    styles.currentIndicator,
-                    { backgroundColor: theme.primary },
+                    styles.pageListItemText,
+                    {
+                      color: isSelected ? theme.primary : theme.onSurface,
+                    },
                   ]}
-                />
-              )}
-            </Pressable>
-          ))}
+                  numberOfLines={1}
+                >
+                  {pageName}
+                </Text>
+                {isSelected && (
+                  <View
+                    style={[
+                      styles.currentIndicator,
+                      { backgroundColor: theme.primary },
+                    ]}
+                  />
+                )}
+              </Pressable>
+            );
+          })}
         </ScrollView>
       </Animated.View>
     </View>
