@@ -374,18 +374,18 @@ export function NovelChaptersContextProvider({
     // Fall back to async path
     (async () => {
       try {
-        let nov: NovelInfo | undefined =
+        let novelInfo: NovelInfo | undefined =
           novel && typeof novel.id === 'number'
             ? (novel as NovelInfo)
             : undefined;
-        if (!nov) {
-          nov = await getNovel();
+        if (!novelInfo) {
+          novelInfo = await getNovel();
         }
-        if (!nov || cancelled) {
+        if (!novelInfo || cancelled) {
           throw new Error(getString('updatesScreen.unableToGetNovel'));
         }
 
-        await getChapters(nov);
+        await getChapters(novelInfo);
       } catch (e: any) {
         // eslint-disable-next-line no-console
         if (__DEV__) console.error(e);

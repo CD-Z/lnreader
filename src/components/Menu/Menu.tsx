@@ -1,10 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import {
-  Pressable,
-  StyleSheet,
-  View,
-  Dimensions,
-} from 'react-native';
+import { Pressable, StyleSheet, View, Dimensions } from 'react-native';
 import { Portal } from 'react-native-paper';
 import Animated, {
   FadeIn,
@@ -41,14 +36,19 @@ const Menu: React.FC<MenuProps> & { Item: React.FC<MenuItemProps> } = ({
 }) => {
   const theme = useTheme();
   const anchorRef = useRef<View>(null);
-  const [anchorLayout, setAnchorLayout] = useState({ x: 0, y: 0, width: 0, height: 0 });
+  const [anchorLayout, setAnchorLayout] = useState({
+    x: 0,
+    y: 0,
+    width: 0,
+    height: 0,
+  });
   const [isMeasured, setIsMeasured] = useState(false);
 
   const menuAnimatedStyle = useAnimatedStyle(() => ({
     shadowColor: theme.isDark ? '#000' : theme.shadow,
     position: 'absolute' as const,
     left: Math.max(16, Math.min(anchorLayout.x, screenWidth - 220)),
-    top: anchorLayout.y + anchorLayout.height ,
+    top: anchorLayout.y + anchorLayout.height,
     width: Math.min(200, screenWidth - 32),
     zIndex: 1001,
   }));
@@ -86,7 +86,6 @@ const Menu: React.FC<MenuProps> & { Item: React.FC<MenuItemProps> } = ({
     setTimeout(measureAnchor, 0);
   }, [measureAnchor]);
 
-
   if (!visible) {
     return (
       <View ref={anchorRef} collapsable={false} onLayout={measureAnchor}>
@@ -94,6 +93,10 @@ const Menu: React.FC<MenuProps> & { Item: React.FC<MenuItemProps> } = ({
       </View>
     );
   }
+
+  const backdropColor = theme.isDark
+    ? 'rgba(0, 0, 0, 0.2)'
+    : 'rgba(0, 0, 0, 0.1)';
 
   return (
     <>
@@ -109,7 +112,7 @@ const Menu: React.FC<MenuProps> & { Item: React.FC<MenuItemProps> } = ({
               style={[
                 styles.backdrop,
                 {
-                  backgroundColor: theme.isDark ? 'rgba(0, 0, 0, 0.2)' : 'rgba(0, 0, 0, 0.1)',
+                  backgroundColor: backdropColor,
                 },
               ]}
               entering={backdropEntering}
