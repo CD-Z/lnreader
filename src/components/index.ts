@@ -19,5 +19,4 @@ export { default as Modal } from './Modal/Modal';
 export { SegmentedControl } from './SegmentedControl';
 export { DialogTitle } from './DialogTitle';
 export { default as BottomTabBar } from './BottomTabBar';
-// export { default as CustomBottomTabBar } from './CustomBottomTabBar/CustomBottomTabBar';
 export { default as Menu } from './Menu';
