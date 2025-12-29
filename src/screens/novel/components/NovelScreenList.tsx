@@ -102,7 +102,7 @@ const NovelScreenList = ({
 
   const {
     sort = defaultChapterSort,
-    filter = '',
+    filter,
     showChapterTitles = false,
   } = novelSettings;
 
