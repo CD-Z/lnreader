@@ -377,12 +377,12 @@ const FilterBottomSheet: React.FC<BottomSheetProps> = ({
     >
       <BottomSheetFlatList
         data={filters && Object.entries(filters)}
-        keyExtractor={item => 'filter' + item[0]}
-        renderItem={({ item }) => (
+        keyExtractor={(item: [string, unknown]) => 'filter' + item[0]}
+        renderItem={({ item }: { item: [string, Filters[string]] }) => (
           <FilterItem
             theme={theme}
             filter={item[1]}
-            filterKey={item[0]}
+            filterKey={item[0] as keyof Filters}
             selectedFilters={selectedFilters}
             setSelectedFilters={setSelectedFilters}
           />

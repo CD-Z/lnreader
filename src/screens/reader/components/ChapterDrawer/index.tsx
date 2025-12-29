@@ -39,7 +39,7 @@ const ChapterDrawer = () => {
   const styles = createStylesheet(theme, insets);
 
   const { sort = defaultChapterSort } = novelSettings;
-  const listAscending = sort === 'ORDER BY position ASC';
+  const listAscending = sort.endsWith('Asc');
 
   const defaultButtonLayout: ButtonsProperties = useMemo(
     () => ({
@@ -56,7 +56,7 @@ const ChapterDrawer = () => {
   );
 
   useEffect(() => {
-    let pageIndex = pages.indexOf(chapter.page);
+    let pageIndex = pages.indexOf(chapter.page ?? '');
     if (pageIndex === -1) {
       pageIndex = 0;
     }
