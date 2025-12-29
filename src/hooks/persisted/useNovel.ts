@@ -46,6 +46,7 @@ export const LAST_READ_PREFIX = 'LAST_READ_PREFIX';
 
 const defaultNovelSettings: NovelSettings = {
   showChapterTitles: true,
+  filter: [],
 };
 const defaultPageIndex = 0;
 
@@ -54,7 +55,7 @@ const defaultPageIndex = 0;
 
 export interface NovelSettings {
   sort?: ChapterOrderKey;
-  filter?: ChapterFilterKey;
+  filter: ChapterFilterKey[];
   showChapterTitles?: boolean;
 }
 
@@ -90,7 +91,7 @@ export const useNovel = (novelOrPath: string | NovelInfo, pluginId: string) => {
   const [lastRead, setLastRead] = useMMKVObject<ChapterInfo>(
     `${LAST_READ_PREFIX}_${pluginId}_${novelPath}`,
   );
-  const [novelSettings = defaultNovelSettings, setNovelSettings] =
+  const [novelSettings = defaultNovelSettings, _setNovelSettings] =
     useMMKVObject<NovelSettings>(
       `${NOVEL_SETTINSG_PREFIX}_${pluginId}_${novelPath}`,
     );
@@ -107,7 +108,11 @@ export const useNovel = (novelOrPath: string | NovelInfo, pluginId: string) => {
 
   const settingsSort: ChapterOrderKey =
     novelSettings.sort || defaultChapterSort;
-  const settingsFilter: ChapterFilterKey | undefined = novelSettings.filter;
+  const settingsFilter: ChapterFilterKey[] = useMemo(
+    () => novelSettings.filter ?? [],
+    [novelSettings.filter],
+  );
+
   // #endregion
   // #region setters
 
@@ -189,26 +194,6 @@ export const useNovel = (novelOrPath: string | NovelInfo, pluginId: string) => {
       _setChapters(prev => prev.concat(transformChapters(chs)));
     },
     [transformChapters],
-  );
-
-  const sortAndFilterChapters = useCallback(
-    async (sort?: ChapterOrderKey, filter?: ChapterFilterKey) => {
-      if (novel) {
-        setNovelSettings({
-          showChapterTitles: novelSettings?.showChapterTitles,
-          sort,
-          filter,
-        });
-      }
-    },
-    [novel, novelSettings?.showChapterTitles, setNovelSettings],
-  );
-
-  const setShowChapterTitles = useCallback(
-    (v: boolean) => {
-      setNovelSettings({ ...novelSettings, showChapterTitles: v });
-    },
-    [novelSettings, setNovelSettings],
   );
 
   const followNovel = useCallback(() => {
@@ -327,9 +312,9 @@ export const useNovel = (novelOrPath: string | NovelInfo, pluginId: string) => {
     batchInformation,
     extendChapters,
     novel,
-    novelSettings.filter,
     pageIndex,
     pages,
+    settingsFilter,
     settingsSort,
   ]);
 
@@ -634,7 +619,7 @@ export const useNovel = (novelOrPath: string | NovelInfo, pluginId: string) => {
       openPage,
       setNovel,
       setLastRead,
-      sortAndFilterChapters,
+
       followNovel,
       bookmarkChapters,
       markPreviouschaptersRead,
@@ -642,7 +627,7 @@ export const useNovel = (novelOrPath: string | NovelInfo, pluginId: string) => {
       markChaptersRead,
       markPreviousChaptersUnread,
       markChaptersUnread,
-      setShowChapterTitles,
+
       refreshChapters,
       updateChapter,
       updateChapterProgress,
@@ -666,7 +651,6 @@ export const useNovel = (novelOrPath: string | NovelInfo, pluginId: string) => {
       setPageIndex,
       openPage,
       setLastRead,
-      sortAndFilterChapters,
       followNovel,
       bookmarkChapters,
       markPreviouschaptersRead,
@@ -674,7 +658,6 @@ export const useNovel = (novelOrPath: string | NovelInfo, pluginId: string) => {
       markChaptersRead,
       markPreviousChaptersUnread,
       markChaptersUnread,
-      setShowChapterTitles,
       refreshChapters,
       updateChapter,
       updateChapterProgress,
