@@ -118,7 +118,7 @@ export const useNovel = (novelOrPath: string | NovelInfo, pluginId: string) => {
 
   async function calculatePages(tmpNovel: NovelInfo) {
     let tmpPages: string[];
-    if (tmpNovel.totalPages > 0) {
+    if ((tmpNovel.totalPages ?? 0) > 0) {
       tmpPages = Array(tmpNovel.totalPages)
         .fill(0)
         .map((_, idx) => String(idx + 1));

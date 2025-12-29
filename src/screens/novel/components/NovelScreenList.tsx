@@ -47,7 +47,7 @@ type NovelScreenListProps = {
     name: string;
     path: string;
     pluginId: string;
-    cover?: string;
+    cover?: string | null;
   };
 };
 
@@ -497,7 +497,7 @@ const NovelScreenList = ({
               chapter={item}
               isDownloading={downloadingChapterIds.has(item.id)}
               isBookmarked={!!item.bookmark}
-              isLocal={novel.isLocal}
+              isLocal={novel.isLocal ?? false}
               theme={theme}
               showChapterTitles={showChapterTitles}
               isSelected={selectedIds.has(item.id)}
