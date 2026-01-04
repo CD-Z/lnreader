@@ -43,7 +43,7 @@ export const useLibrary = (): UseLibraryReturnType => {
   const [searchText, setSearchText] = useState('');
 
   const refreshCategories = useCallback(async () => {
-    const dbCategories = getCategoriesFromDb();
+    const dbCategories = await getCategoriesFromDb();
 
     const res = dbCategories.map((c, i) => ({
       ...c,

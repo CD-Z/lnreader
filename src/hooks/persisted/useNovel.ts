@@ -123,7 +123,7 @@ export const useNovel = (novelOrPath: string | NovelInfo, pluginId: string) => {
         .fill(0)
         .map((_, idx) => String(idx + 1));
     } else {
-      tmpPages = getCustomPages(tmpNovel.id)
+      tmpPages = (await getCustomPages(tmpNovel.id))
         .map(c => c.page)
         .filter((page): page is string => page !== null);
     }
