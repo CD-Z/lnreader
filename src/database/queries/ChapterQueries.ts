@@ -598,7 +598,5 @@ export const isChapterDownloaded = (chapterId: number): boolean => {
       ),
   );
 
-  console.info(result);
-
   return !!result;
 };
