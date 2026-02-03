@@ -8,6 +8,12 @@
     "metro.config.js"
   ],
   "compilerOptions": {
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "jsx": "react-native",
     "baseUrl": ".",
     "noUnusedLocals": true,
     "module": "ES2022",
