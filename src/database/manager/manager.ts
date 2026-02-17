@@ -4,7 +4,7 @@ import { DbTaskQueue } from './queue';
 import { Schema } from '../schema';
 import { useEffect, useState } from 'react';
 import { GetSelectTableName } from 'drizzle-orm/query-builders/select.types';
-import { Placeholder, Query, sql } from 'drizzle-orm';
+import { AnyColumn, Placeholder, Query, sql } from 'drizzle-orm';
 import { SQLitePreparedQuery } from 'drizzle-orm/sqlite-core';
 
 type DrizzleDb = typeof drizzleDb;
@@ -19,6 +19,10 @@ interface ExecutableSelect<TResult = any> {
 }
 
 let _dbManager: DbManager;
+
+export function castInt(value: number | string | AnyColumn) {
+  return sql`CAST(${value} AS INTEGER)`;
+}
 
 class DbManager implements IDbManager {
   private readonly db: DrizzleDb;
@@ -61,8 +65,8 @@ class DbManager implements IDbManager {
   public getSync<T extends ExecutableSelect>(
     query: T,
   ): Awaited<ReturnType<T['get']>> {
-    const { sql, params } = query.toSQL();
-    return db.executeSync(sql, params as any[]).rows[0] as Awaited<
+    const { sql: sqlString, params } = query.toSQL();
+    return db.executeSync(sqlString, params as any[]).rows[0] as Awaited<
       ReturnType<T['get']>
     >;
   }
@@ -70,8 +74,8 @@ class DbManager implements IDbManager {
   public async allSync<T extends ExecutableSelect>(
     query: T,
   ): Promise<Awaited<ReturnType<T['all']>>> {
-    const { sql, params } = query.toSQL();
-    return db.executeSync(sql, params as any[]).rows as Awaited<
+    const { sql: sqlString, params } = query.toSQL();
+    return db.executeSync(sqlString, params as any[]).rows as Awaited<
       ReturnType<T['all']>
     >;
   }
@@ -133,13 +137,13 @@ export function useLiveQuery<T extends ExecutableSelect>(
   fireOn: FireOn,
 ) {
   type ReturnValue = Awaited<ReturnType<T['all']>>;
-  const { sql, params } = query.toSQL();
+  const { sql: sqlString, params } = query.toSQL();
   const [data, setData] = useState<ReturnValue | []>(
-    db.executeSync(sql, params as any[]).rows as ReturnValue,
+    db.executeSync(sqlString, params as any[]).rows as ReturnValue,
   );
 
   const unsub = db.reactiveExecute({
-    query: sql,
+    query: sqlString,
     arguments: params,
     fireOn,
     callback: result => {

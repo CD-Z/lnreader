@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 export interface FilterOption {
   readonly label: string;
   readonly value: string;

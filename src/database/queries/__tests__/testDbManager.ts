@@ -6,6 +6,8 @@
 import type { IDbManager } from '@database/manager/manager.d';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import Database from 'better-sqlite3';
+import { Placeholder, sql } from 'drizzle-orm';
+import { SQLitePreparedQuery } from 'drizzle-orm/sqlite-core';
 
 interface ExecutableSelect<TResult = any> {
   toSQL(): { sql: string; params: unknown[] };
@@ -99,21 +101,20 @@ export function createTestDbManager(
       return results;
     },
 
-    async batch(commands: [[string, unknown[] | unknown[][]]]) {
-      // better-sqlite3 doesn't have executeBatch, so we execute sequentially
-      const transaction = sqlite.transaction((cmds: typeof commands) => {
-        for (const cmd of cmds) {
-          const stmt = sqlite.prepare(cmd[0]);
-          if (Array.isArray(cmd[1])) {
-            for (const arg of cmd[1]) {
-              stmt.run(arg as any[]);
-            }
-          } else {
-            stmt.run(cmd[1] as any[]);
-          }
+    async batch<T extends Record<string, unknown>>(
+      data: T[],
+      fn: (
+        tx: TransactionParameter,
+        ph: (arg: Extract<keyof T, string>) => Placeholder,
+      ) => SQLitePreparedQuery<any>,
+    ) {
+      const ph = (arg: Extract<keyof T, string>) => sql.placeholder(arg);
+      await this.write(async tx => {
+        const prep = fn(tx, ph);
+        for (let index = 0; index < data.length; index++) {
+          prep.run(data[index]);
         }
       });
-      transaction(commands);
     },
 
     // better-sqlite3 can't handle an async transaction function

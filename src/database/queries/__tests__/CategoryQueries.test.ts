@@ -158,6 +158,7 @@ describe('CategoryQueries', () => {
         });
 
         // Should show toast and not delete
+        // eslint-disable-next-line jest/no-conditional-expect
         expect(showToast).toHaveBeenCalled();
       }
     });
@@ -202,6 +203,7 @@ describe('CategoryQueries', () => {
           .from(novelCategorySchema)
           .where(eq(novelCategorySchema.novelId, novelId))
           .all();
+        // eslint-disable-next-line jest/no-conditional-expect
         expect(
           associations.some(a => a.categoryId === defaultCategory.id),
         ).toBe(true);

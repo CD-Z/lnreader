@@ -163,10 +163,12 @@ export interface UpdateNovelOptions {
 }
 
 const getStoredTotalPages = async (novelId: number): Promise<number> => {
-  const result = await db.getFirstAsync<{ totalPages: number }>(
-    'SELECT totalPages FROM Novel WHERE id = ?',
-    novelId,
-  );
+  const result = await dbManager
+    .select({ totalPages: novelSchema.totalPages })
+    .from(novelSchema)
+    .where(eq(novelSchema.id, novelId))
+    .get();
+
   return result?.totalPages ?? 0;
 };
 

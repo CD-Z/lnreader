@@ -194,11 +194,10 @@ describe('NovelQueries', () => {
         .all();
 
       expect(associations.length).toBeGreaterThan(0);
-      if (defaultCategory) {
-        expect(
-          associations.some(a => a.categoryId === defaultCategory.id),
-        ).toBe(true);
-      }
+
+      expect(
+        associations.some(a => a.categoryId === (defaultCategory?.id ?? -1)),
+      ).toBe(!!defaultCategory);
     });
   });
 

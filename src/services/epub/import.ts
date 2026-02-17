@@ -129,7 +129,7 @@ export const importEpub = async (
     NativeFile.getConstants().ExternalCachesDirectoryPath + '/novel.epub';
   try {
     NativeFile.copyFile(uri, epubFilePath);
-  } catch (error) {
+  } catch {
     throw new Error(
       `Failed to read EPUB file "${filename}". The file may have been moved or deleted. Please try importing again.`,
     );

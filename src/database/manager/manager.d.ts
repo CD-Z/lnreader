@@ -1,33 +1,5 @@
 // db-manager.types.ts
-import type {
-  BaseSQLiteDatabase,
-  SQLiteCountBuilder,
-  SQLiteSelectBuilder,
-} from 'drizzle-orm/sqlite-core'; // Adjust this import based on your actual Drizzle setup (e.g., 'drizzle-orm/pg-core', 'drizzle-orm/mysql-core')
-import type {
-  DrizzleTypeError,
-  ExtractTablesWithRelations,
-  RelationalSchemaConfig,
-  SelectedFields,
-  SQLiteTransaction,
-  SQLiteTransactionConfig,
-  TablesRelationalConfig,
-} from 'drizzle-orm';
-import type { ColumnsSelection, SQL, SQLWrapper } from 'drizzle-orm/sql';
-import type {
-  WithSubquery,
-  WithSubqueryWithSelection,
-} from 'drizzle-orm/subquery';
-import type {
-  QueryBuilder,
-  RelationalQueryBuilder,
-  SQLiteDeleteBase,
-  SQLiteInsertBuilder,
-  SQLiteTable,
-  SQLiteUpdateBuilder,
-  SQLiteViewBase,
-} from 'drizzle-orm/sqlite-core'; // Adjust based on your adapter
-import type { DBResult, Result } from 'drizzle-orm/session'; // This might vary slightly based on your adapter's session
+import type { SQLiteTransaction, TablesRelationalConfig } from 'drizzle-orm';
 
 // Define the TransactionParameter type based on your DrizzleDb
 export type TransactionParameter = SQLiteTransaction<

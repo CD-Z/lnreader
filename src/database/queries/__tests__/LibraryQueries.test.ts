@@ -1,16 +1,16 @@
 import './mockDb';
-import { clearAllTables, insertTestNovel } from './testData';
+import {
+  clearAllTables,
+  insertTestNovel,
+  insertTestChapter,
+  insertTestNovelCategory,
+} from './testData';
 import {
   getLibraryNovelsFromDb,
   getLibraryWithCategory,
 } from '../LibraryQueries';
-import { TestDb, createTestDb } from './testDb';
-import {
-  categorySchema,
-  novelSchema,
-  novelCategorySchema,
-} from '@database/schema';
-import { insertTestChapter, insertTestNovelCategory } from './testData';
+import { TestDb } from './testDb';
+import { categorySchema } from '@database/schema';
 import { setupTestDatabase, teardownTestDatabase } from './setup';
 
 describe('LibraryQueries', () => {

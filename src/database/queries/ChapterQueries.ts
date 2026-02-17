@@ -10,6 +10,9 @@ import {
   asc,
   count,
   like,
+  or,
+  gt,
+  lt,
 } from 'drizzle-orm';
 import { showToast } from '@utils/showToast';
 import { ChapterInfo, DownloadedChapter, Update } from '../types';
@@ -22,6 +25,7 @@ import { chapterSchema, novelSchema } from '@database/schema';
 import NativeFile from '@specs/NativeFile';
 import { ChapterFilterKey, ChapterOrderKey } from '@database/constants';
 import { chapterFilterToSQL, chapterOrderToSQL } from '@database/utils/parser';
+import { castInt } from '@database/manager/manager';
 
 // #region Mutations
 
@@ -297,6 +301,7 @@ export const getCustomPages = async (novelId: number) => {
     .selectDistinct({ page: chapterSchema.page })
     .from(chapterSchema)
     .where(eq(chapterSchema.novelId, novelId))
+    .orderBy(asc(castInt(chapterSchema.page)))
     .all();
 };
 
@@ -439,16 +444,23 @@ export const getNovelChaptersByNumber = async (
 
 export const getFirstUnreadChapter = (
   novelId: number,
-  filter?: string,
+  filter?: ChapterFilterKey[],
   page?: string,
 ) =>
-  db.getFirstAsync<ChapterInfo>(
-    `SELECT * FROM Chapter WHERE novelId = ? AND page = ? AND unread = 1 ${
-      filter || ''
-    } ORDER BY position ASC LIMIT 1`,
-    novelId,
-    page || '1',
-  );
+  dbManager
+    .select()
+    .from(chapterSchema)
+    .where(
+      and(
+        eq(chapterSchema.novelId, novelId),
+        eq(chapterSchema.page, page || '1'),
+        eq(chapterSchema.unread, true),
+        chapterFilterToSQL(filter),
+      ),
+    )
+    .orderBy(asc(chapterSchema.position))
+    .limit(1)
+    .get();
 
 export const getNovelChaptersByName = async (
   novelId: number,
@@ -477,10 +489,19 @@ export const getPrevChapter = async (
     .where(
       and(
         eq(chapterSchema.novelId, novelId),
-        sql`((position < ${chapterPosition} AND page = ${page}) OR page < ${page})`,
+        or(
+          and(
+            eq(chapterSchema.page, castInt(page)),
+            lt(chapterSchema.position, castInt(chapterPosition)),
+          ),
+          lt(chapterSchema.page, castInt(page)),
+        ),
       ),
     )
-    .orderBy(desc(chapterSchema.position), desc(chapterSchema.page))
+    .orderBy(
+      desc(castInt(chapterSchema.page)),
+      desc(castInt(chapterSchema.position)),
+    )
     .get();
 
 export const getNextChapter = async (
@@ -494,10 +515,22 @@ export const getNextChapter = async (
     .where(
       and(
         eq(chapterSchema.novelId, novelId),
-        sql`((page = ${page} AND position > ${chapterPosition}) OR (position = 0 AND page > ${page}))`,
+        or(
+          and(
+            eq(chapterSchema.page, castInt(page)),
+            gt(chapterSchema.position, castInt(chapterPosition)),
+          ),
+          and(
+            gt(chapterSchema.page, castInt(page)),
+            eq(chapterSchema.position, 0),
+          ),
+        ),
       ),
     )
-    .orderBy(asc(chapterSchema.position), asc(chapterSchema.page))
+    .orderBy(
+      asc(castInt(chapterSchema.page)),
+      asc(castInt(chapterSchema.position)),
+    )
     .get();
 
 const getReadDownloadedChapters = async () =>

@@ -773,6 +773,26 @@ describe('ChapterQueries', () => {
       expect(result).toBeDefined();
       expect(result?.page).toBe('1');
     });
+    it('should return previous chapter from the same page and not the previous one', async () => {
+      const testDb = getTestDb();
+      const novelId = await insertTestNovel(testDb, { inLibrary: true });
+      await insertTestChapter(testDb, novelId, {
+        page: '1',
+        position: 0,
+      });
+      const chapterId2 = await insertTestChapter(testDb, novelId, {
+        page: '1',
+        position: 1,
+      });
+      await insertTestChapter(testDb, novelId, {
+        page: '2',
+        position: 1,
+      });
+
+      const result = await getPrevChapter(novelId, 1, '2');
+
+      expect(result?.id).toBe(chapterId2);
+    });
   });
 
   describe('getNextChapter', () => {
@@ -803,6 +823,46 @@ describe('ChapterQueries', () => {
       });
       const chapterId2 = await insertTestChapter(testDb, novelId, {
         page: '2',
+        position: 0,
+      });
+
+      const result = await getNextChapter(novelId, 0, '1');
+
+      expect(result?.id).toBe(chapterId2);
+    });
+    it('should return next chapter from the same page and not the next one', async () => {
+      const testDb = getTestDb();
+      const novelId = await insertTestNovel(testDb, { inLibrary: true });
+      await insertTestChapter(testDb, novelId, {
+        page: '1',
+        position: 0,
+      });
+      const chapterId2 = await insertTestChapter(testDb, novelId, {
+        page: '1',
+        position: 1,
+      });
+      await insertTestChapter(testDb, novelId, {
+        page: '2',
+        position: 0,
+      });
+
+      const result = await getNextChapter(novelId, 0, '1');
+
+      expect(result?.id).toBe(chapterId2);
+    });
+    it('should return next chapter from the same page and not the 10th one', async () => {
+      const testDb = getTestDb();
+      const novelId = await insertTestNovel(testDb, { inLibrary: true });
+      await insertTestChapter(testDb, novelId, {
+        page: '1',
+        position: 0,
+      });
+      const chapterId2 = await insertTestChapter(testDb, novelId, {
+        page: '2',
+        position: 0,
+      });
+      await insertTestChapter(testDb, novelId, {
+        page: '10',
         position: 0,
       });
 
