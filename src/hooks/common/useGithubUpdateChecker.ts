@@ -61,7 +61,7 @@ export const useGithubUpdateChecker = (): GithubUpdate => {
 
       setLatestRelease(release);
       setChecking(false);
-    } catch (error) {
+    } catch {
       // Silently fail in offline mode or on network errors
       setChecking(false);
     }
