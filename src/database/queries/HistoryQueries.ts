@@ -1,4 +1,4 @@
-import { eq, sql, isNotNull, desc, getTableColumns } from 'drizzle-orm';
+import { eq, sql, isNotNull, desc, getColumns } from 'drizzle-orm';
 import { showToast } from '@utils/showToast';
 import { getString } from '@strings/translations';
 import { dbManager } from '@database/db';
@@ -11,7 +11,7 @@ import { chapterSchema, novelSchema } from '@database/schema';
 export const getHistoryFromDb = async () => {
   return dbManager
     .select({
-      ...getTableColumns(chapterSchema),
+      ...getColumns(chapterSchema),
       pluginId: novelSchema.pluginId,
       novelName: novelSchema.name,
       novelPath: novelSchema.path,

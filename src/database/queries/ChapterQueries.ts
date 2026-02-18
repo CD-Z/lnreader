@@ -1,6 +1,6 @@
 import {
   eq,
-  getTableColumns,
+  getColumns,
   sql,
   inArray,
   and,
@@ -553,7 +553,7 @@ const getReadDownloadedChapters = async () =>
 export const getDownloadedChapters = async () =>
   dbManager
     .select({
-      ...getTableColumns(chapterSchema),
+      ...getColumns(chapterSchema),
       pluginId: novelSchema.pluginId,
       novelName: novelSchema.name,
       novelCover: novelSchema.cover,
@@ -614,7 +614,7 @@ export const getDetailedUpdatesFromDb = async (
 ): Promise<Update[]> => {
   return dbManager
     .select({
-      ...getTableColumns(chapterSchema),
+      ...getColumns(chapterSchema),
       pluginId: novelSchema.pluginId,
       novelId: novelSchema.id,
       novelName: novelSchema.name,
