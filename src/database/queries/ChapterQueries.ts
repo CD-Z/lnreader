@@ -186,6 +186,10 @@ export const deleteChapters = async (
   });
 };
 
+// TODO: Remove the need for the chapters array, as it could lead to not deleting the downloaded files but just marking them as not downloaded
+/*
+  Deletes all downloaded chapters from the database
+*/
 export const deleteDownloads = async (
   chapters: DownloadedChapter[],
 ): Promise<void> => {

@@ -1,6 +1,7 @@
-import { eq, sql, and, like, or, inArray } from 'drizzle-orm';
+import { eq, gt, sql, and, like, or, inArray } from 'drizzle-orm';
 import { dbManager } from '@database/db';
 import { novelSchema, novelCategorySchema } from '@database/schema';
+import { castInt } from '@database/manager/manager';
 
 /**
  * Get library novels with optional filtering and sorting using Drizzle ORM
@@ -22,7 +23,7 @@ export const getLibraryNovelsFromDb = (
         filter ? sql.raw(filter) : undefined,
         downloadedOnlyMode
           ? or(
-              eq(novelSchema.chaptersDownloaded, 1),
+              gt(novelSchema.chaptersDownloaded, castInt(0)),
               eq(novelSchema.isLocal, true),
             )
           : undefined,

@@ -8,7 +8,7 @@ import { novelSchema, chapterSchema } from '@database/schema';
  * Get library statistics (novel count and distinct sources) using Drizzle ORM
  */
 export const getLibraryStatsFromDb = async (): Promise<LibraryStats> => {
-  const result = dbManager
+  const result = await dbManager
     .select({
       novelsCount: count(),
       sourcesCount: sql<number>`COUNT(DISTINCT ${novelSchema.pluginId})`,
@@ -17,28 +17,28 @@ export const getLibraryStatsFromDb = async (): Promise<LibraryStats> => {
     .where(eq(novelSchema.inLibrary, true))
     .get();
 
-  return (result as LibraryStats) ?? { novelsCount: 0, sourcesCount: 0 };
+  return result ?? { novelsCount: 0, sourcesCount: 0 };
 };
 
 /**
  * Get total chapters count for all novels in library
  */
 export const getChaptersTotalCountFromDb = async (): Promise<LibraryStats> => {
-  const result = dbManager
+  const result = await dbManager
     .select({ chaptersCount: count() })
     .from(chapterSchema)
     .innerJoin(novelSchema, eq(chapterSchema.novelId, novelSchema.id))
     .where(eq(novelSchema.inLibrary, true))
     .get();
 
-  return (result as LibraryStats) ?? { chaptersCount: 0 };
+  return result ?? { chaptersCount: 0 };
 };
 
 /**
  * Get total read chapters count for all novels in library
  */
 export const getChaptersReadCountFromDb = async (): Promise<LibraryStats> => {
-  const result = dbManager
+  const result = await dbManager
     .select({ chaptersRead: count() })
     .from(chapterSchema)
     .innerJoin(novelSchema, eq(chapterSchema.novelId, novelSchema.id))
@@ -47,21 +47,21 @@ export const getChaptersReadCountFromDb = async (): Promise<LibraryStats> => {
     )
     .get();
 
-  return (result as LibraryStats) ?? { chaptersRead: 0 };
+  return result ?? { chaptersRead: 0 };
 };
 
 /**
  * Get total unread chapters count for all novels in library
  */
 export const getChaptersUnreadCountFromDb = async (): Promise<LibraryStats> => {
-  const result = dbManager
+  const result = await dbManager
     .select({ chaptersUnread: count() })
     .from(chapterSchema)
     .innerJoin(novelSchema, eq(chapterSchema.novelId, novelSchema.id))
     .where(and(eq(novelSchema.inLibrary, true), eq(chapterSchema.unread, true)))
     .get();
 
-  return (result as LibraryStats) ?? { chaptersUnread: 0 };
+  return result ?? { chaptersUnread: 0 };
 };
 
 /**
@@ -69,7 +69,7 @@ export const getChaptersUnreadCountFromDb = async (): Promise<LibraryStats> => {
  */
 export const getChaptersDownloadedCountFromDb =
   async (): Promise<LibraryStats> => {
-    const result = dbManager
+    const result = await dbManager
       .select({ chaptersDownloaded: count() })
       .from(chapterSchema)
       .innerJoin(novelSchema, eq(chapterSchema.novelId, novelSchema.id))
@@ -81,7 +81,7 @@ export const getChaptersDownloadedCountFromDb =
       )
       .get();
 
-    return (result as LibraryStats) ?? { chaptersDownloaded: 0 };
+    return result ?? { chaptersDownloaded: 0 };
   };
 
 /**
