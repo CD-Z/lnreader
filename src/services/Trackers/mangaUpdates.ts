@@ -149,7 +149,7 @@ export const mangaUpdatesTracker: Tracker = {
           const ratingData = await ratingResponse.json();
           score = ratingData.rating || 0;
         }
-      } catch (e) {
+      } catch {
         /* Rating might not exist yet */
       }
 
@@ -158,7 +158,7 @@ export const mangaUpdatesTracker: Tracker = {
         progress,
         score,
       };
-    } catch (error) {
+    } catch {
       return {
         status: 'CURRENT',
         progress: 0,
@@ -257,7 +257,7 @@ export const mangaUpdatesTracker: Tracker = {
         progress: Math.round(payload.progress || 0),
         score: payload.score !== undefined ? payload.score : 0,
       };
-    } catch (error) {
+    } catch {
       throw new Error('Failed to update MangaUpdates entry');
     }
   },

@@ -393,7 +393,7 @@ export const kitsuTracker: Tracker<KitsuAuthMeta> = {
           coverImage: hit.posterImage?.original || '',
           totalChapters: hit.chapterCount || undefined,
         }));
-    } catch (error) {
+    } catch {
       return [];
     }
   },
@@ -420,7 +420,7 @@ export const kitsuTracker: Tracker<KitsuAuthMeta> = {
         progress: 0,
         score: 0,
       };
-    } catch (error) {
+    } catch {
       return {
         status: 'CURRENT',
         progress: 0,
@@ -482,7 +482,7 @@ export const kitsuTracker: Tracker<KitsuAuthMeta> = {
         progress,
         score: payload.score || 0,
       };
-    } catch (error) {
+    } catch {
       throw new Error('Failed to update Kitsu entry');
     }
   },

@@ -47,7 +47,7 @@ type NovelScreenListProps = {
     name: string;
     path: string;
     pluginId: string;
-    cover?: string;
+    cover?: string | null;
   };
 };
 
@@ -102,7 +102,7 @@ const NovelScreenList = ({
 
   const {
     sort = defaultChapterSort,
-    filter = '',
+    filter,
     showChapterTitles = false,
   } = novelSettings;
 
@@ -269,7 +269,7 @@ const NovelScreenList = ({
     async (page: string) => {
       if (novel.id !== 'NO_ID') {
         setUpdating(true);
-        updateNovelPage(pluginId, novel.path, novel.id, page, {
+        updateNovelPage(pluginId, novel.path, novel.path, novel.id, page, {
           downloadNewChapters,
         })
           .then(() => getNovel())
@@ -497,7 +497,7 @@ const NovelScreenList = ({
               chapter={item}
               isDownloading={downloadingChapterIds.has(item.id)}
               isBookmarked={!!item.bookmark}
-              isLocal={novel.isLocal}
+              isLocal={novel.isLocal ?? false}
               theme={theme}
               showChapterTitles={showChapterTitles}
               isSelected={selectedIds.has(item.id)}

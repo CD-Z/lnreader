@@ -45,7 +45,7 @@ const ChapterItem: React.FC<ChapterItemProps> = ({
   const { id, name, unread, releaseTime, bookmark, chapterNumber, progress } =
     chapter;
 
-  isBookmarked ??= bookmark;
+  isBookmarked ??= bookmark ?? false;
 
   const handlePress = useCallback(
     () => onSelectPress(chapter),
@@ -83,8 +83,8 @@ const ChapterItem: React.FC<ChapterItemProps> = ({
       !unread
         ? theme.outline
         : bookmark
-          ? theme.primary
-          : theme.onSurfaceVariant,
+        ? theme.primary
+        : theme.onSurfaceVariant,
     [unread, bookmark, theme.outline, theme.primary, theme.onSurfaceVariant],
   );
 
@@ -145,10 +145,7 @@ const ChapterItem: React.FC<ChapterItemProps> = ({
             <View style={styles.metaRow}>
               {releaseTime && !isUpdateCard ? (
                 <Text
-                  style={[
-                    { color: releaseColor, marginTop: 4 },
-                    styles.text,
-                  ]}
+                  style={[{ color: releaseColor, marginTop: 4 }, styles.text]}
                   numberOfLines={1}
                 >
                   {releaseTime}
@@ -176,7 +173,7 @@ const ChapterItem: React.FC<ChapterItemProps> = ({
         {!isLocal ? (
           <DownloadButton
             isDownloading={isDownloading}
-            isDownloaded={chapter.isDownloaded}
+            isDownloaded={chapter.isDownloaded ?? false}
             theme={theme}
             deleteChapter={handleDelete}
             downloadChapter={handleDownload}

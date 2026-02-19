@@ -49,12 +49,13 @@ import { LinearGradient } from 'expo-linear-gradient';
 import useLoadingColors from '@components/Skeleton/useLoadingColors';
 
 const AnimatedLinearGradient = Animated.createAnimatedComponent(LinearGradient);
+import { ChapterFilterKey } from '@database/constants';
 
 interface NovelInfoHeaderProps {
   chapters: ChapterInfo[];
   deleteDownloadsSnackbar: UseBooleanReturnType;
   fetching: boolean;
-  filter: string;
+  filter?: ChapterFilterKey[];
   firstUnreadChapter?: ChapterInfo;
   isLoading: boolean;
   lastRead?: ChapterInfo;

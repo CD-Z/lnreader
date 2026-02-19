@@ -25,16 +25,15 @@ import { defaultCover } from '@plugins/helpers/constants';
 import { ActivityIndicator } from 'react-native-paper';
 
 interface UnreadBadgeProps {
-  chaptersDownloaded: number;
-  chaptersUnread: number;
   showDownloadBadges: boolean;
+  chaptersDownloaded: number | null;
+  chaptersUnread: number;
   theme: ThemeColors;
 }
-
 interface DownloadBadgeProps {
-  chaptersDownloaded: number;
-  chaptersUnread: number;
   showUnreadBadges: boolean;
+  chaptersDownloaded: number;
+  chaptersUnread: number | null;
   theme: ThemeColors;
 }
 
@@ -176,7 +175,9 @@ function NovelCover<
           {libraryStatus ? <InLibraryBadge theme={theme} /> : null}
           {isFromDB(item) ? (
             <>
-              {showDownloadBadges && item.chaptersDownloaded > 0 ? (
+              {showDownloadBadges &&
+              item.chaptersDownloaded &&
+              item.chaptersDownloaded > 0 ? (
                 <DownloadBadge
                   showUnreadBadges={showUnreadBadges}
                   chaptersDownloaded={item.chaptersDownloaded}
@@ -184,7 +185,9 @@ function NovelCover<
                   theme={theme}
                 />
               ) : null}
-              {showUnreadBadges && item.chaptersUnread > 0 ? (
+              {showUnreadBadges &&
+              item.chaptersUnread &&
+              item.chaptersUnread > 0 ? (
                 <UnreadBadge
                   theme={theme}
                   chaptersDownloaded={item.chaptersDownloaded}
@@ -322,18 +325,6 @@ const InActivityBadge = ({ theme }: { theme: ThemeColors }) => (
     <ActivityIndicator animating={true} size={10} color={theme.onPrimary} />
   </View>
 );
-
-interface BadgeProps {
-  chaptersDownloaded: number;
-  chaptersUnread: number;
-  theme: ThemeColors;
-}
-interface UnreadBadgeProps extends BadgeProps {
-  showDownloadBadges: boolean;
-}
-interface DownloadBadgeProps extends BadgeProps {
-  showUnreadBadges: boolean;
-}
 
 const UnreadBadge: React.FC<UnreadBadgeProps> = ({
   chaptersDownloaded,

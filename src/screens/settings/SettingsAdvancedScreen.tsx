@@ -20,7 +20,6 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import { getUserAgentSync } from 'react-native-device-info';
 import CookieManager from '@react-native-cookies/cookies';
 import { store } from '@plugins/helpers/storage';
-import { recreateDatabaseIndexes } from '@database/db';
 
 const AdvancedSettings = ({ navigation }: AdvancedSettingsScreenProps) => {
   const theme = useTheme();
@@ -55,12 +54,6 @@ const AdvancedSettings = ({ navigation }: AdvancedSettingsScreenProps) => {
     setFalse: hideUserAgentModal,
   } = useBoolean();
 
-  const {
-    value: recreateDatabaseIndexesDialog,
-    setTrue: showRecreateDBIndexDialog,
-    setFalse: hideRecreateDBIndexDialog,
-  } = useBoolean();
-
   return (
     <SafeAreaView excludeTop>
       <Appbar
@@ -79,14 +72,6 @@ const AdvancedSettings = ({ navigation }: AdvancedSettingsScreenProps) => {
               'advancedSettingsScreen.clearCachedNovelsDesc',
             )}
             onPress={showClearDatabaseDialog}
-            theme={theme}
-          />
-          <List.Item
-            title={getString('advancedSettingsScreen.recreateDBIndexes')}
-            description={getString(
-              'advancedSettingsScreen.recreateDBIndexesDesc',
-            )}
-            onPress={showRecreateDBIndexDialog}
             theme={theme}
           />
           <List.Item
@@ -123,20 +108,6 @@ const AdvancedSettings = ({ navigation }: AdvancedSettingsScreenProps) => {
           visible={deleteReadChaptersDialog}
           onSubmit={deleteReadChaptersFromDb}
           onDismiss={hideDeleteReadChaptersDialog}
-          theme={theme}
-        />
-        <ConfirmationDialog
-          message={getString(
-            'advancedSettingsScreen.recreateDBIndexesDialogTitle',
-          )}
-          visible={recreateDatabaseIndexesDialog}
-          onSubmit={() => {
-            recreateDatabaseIndexes();
-            showToast(
-              getString('advancedSettingsScreen.recreateDBIndexesToast'),
-            );
-          }}
-          onDismiss={hideRecreateDBIndexDialog}
           theme={theme}
         />
         <ConfirmationDialog
