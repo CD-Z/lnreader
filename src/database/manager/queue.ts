@@ -21,13 +21,13 @@ export class DbTaskQueue {
   constructor(options?: Partial<QueueOptions>) {
     this.options = {
       concurrency: 1,
+      ...options,
       retry: {
         maxRetries: 2,
         backoffMs: 50,
         retryOnMessageIncludes: DEFAULT_RETRY_ON,
         ...options?.retry,
       },
-      ...options,
     };
   }
 
