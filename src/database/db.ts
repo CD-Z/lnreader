@@ -15,7 +15,7 @@ import {
   createNovelTriggerQueryInsert,
   createNovelTriggerQueryUpdate,
 } from './queryStrings/triggers';
-import { useRef, useState } from 'react';
+import { useEffect, useReducer } from 'react';
 
 class MyLogger implements Logger {
   logQuery(_query: string, _params: unknown[]): void {
@@ -82,42 +82,61 @@ export const runDatabaseBootstrap = (executor: SqlExecutor) => {
 };
 
 type InitDbState = {
-  success: boolean;
+  success?: boolean;
   error?: Error;
 };
 
-const initDatabase = async (): Promise<InitDbState> => {
-  const res: InitDbState = { success: false, error: undefined };
-  console.count('Using migrations');
-  try {
-    setPragmas(_db);
-
-    await migrate(drizzleDb, migrations);
-
-    createDbTriggers(_db);
-
-    populateDatabase(_db);
-    res.success = true;
-  } catch (e) {
-    console.error(e);
-    res.error = e as Error;
-  }
-
-  return res;
-};
 export const useInitDatabase = () => {
-  const started = useRef(false);
-  const [res, setRes] = useState<InitDbState>({
+  const initialState = {
     success: false,
     error: undefined,
-  });
-  if (started.current) return res;
-  started.current = true;
-  initDatabase().then(r => {
-    setRes(r);
-  });
-
-  return res;
+  };
+  const fetchReducer = (
+    state$1: InitDbState,
+    action:
+      | {
+          type: 'migrating' | 'migrated';
+          payload?: boolean | undefined;
+        }
+      | {
+          type: 'error';
+          payload: Error;
+        },
+  ) => {
+    switch (action.type) {
+      case 'migrating':
+        return { ...initialState };
+      case 'migrated':
+        return {
+          ...initialState,
+          success: action.payload,
+        };
+      case 'error':
+        return {
+          ...initialState,
+          error: action.payload,
+        };
+      default:
+        return state$1;
+    }
+  };
+  const [state, dispatch] = useReducer(fetchReducer, initialState);
+  useEffect(() => {
+    dispatch({ type: 'migrating' });
+    migrate(drizzleDb, migrations)
+      .then(() => {
+        runDatabaseBootstrap(_db);
+        dispatch({
+          type: 'migrated',
+          payload: true,
+        });
+      })
+      .catch((error: Error) => {
+        dispatch({
+          type: 'error',
+          payload: error,
+        });
+      });
+  }, []);
+  return state;
 };
-
-export const recreateDatabaseIndexes = () => {};

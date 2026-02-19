@@ -15,6 +15,5 @@ jest.mock('@database/db', () => {
       return mockGetTestDb().dbManager;
     },
     useInitDatabase: jest.fn(),
-    recreateDatabaseIndexes: jest.fn(),
   };
 });
