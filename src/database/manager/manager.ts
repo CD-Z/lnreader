@@ -137,24 +137,27 @@ export function useLiveQuery<T extends ExecutableSelect>(
   fireOn: FireOn,
 ) {
   type ReturnValue = Awaited<ReturnType<T['all']>>;
+
   const { sql: sqlString, params } = query.toSQL();
-  const [data, setData] = useState<ReturnValue | []>(
-    db.executeSync(sqlString, params as any[]).rows as ReturnValue,
+  const paramsKey = JSON.stringify(params);
+  const fireOnKey = JSON.stringify(fireOn);
+
+  const [data, setData] = useState<ReturnValue>(
+    () => db.executeSync(sqlString, params as any[]).rows as ReturnValue,
   );
 
-  const unsub = db.reactiveExecute({
-    query: sqlString,
-    arguments: params,
-    fireOn,
-    callback: result => {
-      setData(result.rows);
-    },
-  });
-
   useEffect(() => {
-    return () => {
-      unsub();
-    };
-  }, [unsub]);
+    const unsub = db.reactiveExecute({
+      query: sqlString,
+      arguments: params as any[],
+      fireOn,
+      callback: (result: { rows: ReturnValue }) => {
+        setData(result.rows);
+      },
+    });
+    return unsub;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sqlString, paramsKey, fireOnKey]);
+
   return data;
 }
