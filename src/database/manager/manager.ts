@@ -20,6 +20,12 @@ interface ExecutableSelect<TResult = any> {
 
 let _dbManager: DbManager;
 
+/**
+ * Produces a SQL expression that casts the given value to INTEGER.
+ *
+ * @param value - A literal value, string, or SQL column/expression to cast to integer
+ * @returns A SQL fragment representing `CAST(value AS INTEGER)`
+ */
 export function castInt(value: number | string | AnyColumn) {
   return sql`CAST(${value} AS INTEGER)`;
 }
@@ -132,6 +138,15 @@ export const createDbManager = (dbInstance: DrizzleDb) => {
 type TableNames = GetSelectTableName<Schema[keyof Schema]>;
 type FireOn = Array<{ table: TableNames; ids?: number[] }>;
 
+/**
+ * Subscribes to a query and returns its current result set, updating when the database signals relevant changes.
+ *
+ * Initializes state with a synchronous execution of `query`, then registers a reactive subscription that updates the returned rows when records for the specified tables/IDs change.
+ *
+ * @param query - An executable select query whose results will be observed.
+ * @param fireOn - Array of triggers specifying table names and optional ID lists that should cause the query to refresh when modified.
+ * @returns The current rows produced by `query.all()`; updates automatically when matching database changes occur.
+ */
 export function useLiveQuery<T extends ExecutableSelect>(
   query: T,
   fireOn: FireOn,

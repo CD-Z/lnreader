@@ -53,7 +53,11 @@ const wrapBuilder = <T extends object>(builder: T): T => {
 };
 
 /**
- * Creates a test-compatible dbManager that works with better-sqlite3
+ * Create a test-compatible IDbManager that adapts a Drizzle ORM database and a better-sqlite3 Database.
+ *
+ * @param drizzleDb - The Drizzle ORM database instance to delegate query builders and async operations to
+ * @param sqlite - The better-sqlite3 Database instance used for synchronous test helpers
+ * @returns An IDbManager that delegates to `drizzleDb` and provides test-friendly methods (e.g., `getSync`, `allSync`, `batch`, `write`, `transaction`)
  */
 export function createTestDbManager(
   drizzleDb: DrizzleDb,

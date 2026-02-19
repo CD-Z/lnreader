@@ -17,7 +17,9 @@ import {
 } from '@database/schema';
 
 /**
- * Clears all tables in the test database
+ * Remove all rows from test tables used by the application.
+ *
+ * Specifically deletes entries from NovelCategory, Chapter, Novel, and Repository, and deletes Category rows whose `id` is greater than 2 (preserving `id` 1 and 2).
  */
 export function clearAllTables(testDb: TestDb) {
   const { sqlite } = testDb;
@@ -31,7 +33,11 @@ export function clearAllTables(testDb: TestDb) {
 }
 
 /**
- * Inserts a test novel into the database
+ * Create and insert a test novel record into the database.
+ *
+ * @param testDb - Test database context used for the insertion
+ * @param data - Optional fields to override the default novel properties
+ * @returns The id of the inserted novel
  */
 export async function insertTestNovel(
   testDb: TestDb,
@@ -70,7 +76,11 @@ export async function insertTestNovel(
 }
 
 /**
- * Inserts a test chapter into the database
+ * Create and insert a chapter record linked to a novel for tests.
+ *
+ * @param novelId - The id of the novel to associate the chapter with
+ * @param data - Optional partial chapter fields to override default test values
+ * @returns The inserted chapter's id
  */
 export async function insertTestChapter(
   testDb: TestDb,
@@ -106,7 +116,10 @@ export async function insertTestChapter(
 }
 
 /**
- * Inserts a test category into the database
+ * Inserts a category row for tests, using sensible defaults for missing fields.
+ *
+ * @param data - Optional overrides for the category fields; if `name` is omitted a timestamped default is used
+ * @returns The id of the newly inserted category
  */
 export async function insertTestCategory(
   testDb: TestDb,
@@ -128,7 +141,11 @@ export async function insertTestCategory(
 }
 
 /**
- * Inserts a test repository into the database
+ * Create and insert a repository record for tests.
+ *
+ * If `data.url` is not provided, a unique test URL is generated.
+ *
+ * @returns The inserted repository's id
  */
 export async function insertTestRepository(
   testDb: TestDb,
@@ -149,7 +166,9 @@ export async function insertTestRepository(
 }
 
 /**
- * Inserts a novel-category association
+ * Creates an association between a novel and a category in the test database.
+ *
+ * @returns The id of the created novel-category association
  */
 export async function insertTestNovelCategory(
   testDb: TestDb,
@@ -172,7 +191,11 @@ export async function insertTestNovelCategory(
 }
 
 /**
- * Inserts a novel with optional chapters
+ * Create a test novel and optionally add chapters linked to it.
+ *
+ * @param novelData - Partial fields to override on the created novel
+ * @param chapters - Array of partial chapter records to insert for the novel; each entry becomes a chapter linked to the created novel
+ * @returns An object containing the inserted novel's `novelId` and an array of inserted `chapterIds`
  */
 export async function insertTestNovelWithChapters(
   testDb: TestDb,
@@ -201,6 +224,15 @@ export interface TestFixtures {
   novelCategories?: Array<{ novelId: number; categoryId: number }>;
 }
 
+/**
+ * Inserts provided test fixtures into the test database and returns the created record IDs.
+ *
+ * Processes fixtures in this order when present: novels, chapters, categories, repositories, and novel-category associations.
+ *
+ * @param testDb - Test database context used for performing inserts
+ * @param fixtures - Collections of fixture objects to insert; fields can override default test values
+ * @returns An object containing arrays of inserted IDs: `novelIds`, `chapterIds`, `categoryIds`, and `repositoryIds`
+ */
 export async function seedTestData(
   testDb: TestDb,
   fixtures: TestFixtures,

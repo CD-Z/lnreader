@@ -114,7 +114,12 @@ export const useNovel = (novelOrPath: string | NovelInfo, pluginId: string) => {
   );
 
   // #endregion
-  // #region setters
+  /**
+   * Produce the list of page identifiers for a novel, using totalPages if available or custom pages otherwise.
+   *
+   * @param tmpNovel - Novel metadata used to determine available pages
+   * @returns An array of page numbers as strings; always contains at least `'1'`
+   */
 
   async function calculatePages(tmpNovel: NovelInfo) {
     let tmpPages: string[];

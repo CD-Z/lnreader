@@ -16,6 +16,13 @@ const defaultValue = {} as NovelContextType;
 
 const NovelContext = createContext<NovelContextType>(defaultValue);
 
+/**
+ * Provides NovelContext to descendants by combining novel hook data with safe-area and orientation-derived layout metrics and a chapter text cache.
+ *
+ * @param children - Element subtree that will receive the context
+ * @param route - Navigation route for 'Novel' or 'Chapter'; used to derive the novel identifier (either `path` or a `NovelInfo` object) and `pluginId`
+ * @returns The NovelContext provider wrapping `children`
+ */
 export function NovelContextProvider({
   children,
 

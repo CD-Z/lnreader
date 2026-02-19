@@ -38,6 +38,17 @@ import { useNovelContext } from '@screens/novel/NovelContext';
 
 const emmiter = new NativeEventEmitter(NativeVolumeButtonListener);
 
+/**
+ * Manages chapter loading, navigation, UI visibility, auto-scrolling, and reading progress for a reader WebView.
+ *
+ * Handles loading and caching chapter text, prefetching adjacent chapters/pages, volume-button and auto-scroll controls,
+ * tracking/marking progress, history updates, and immersive mode toggling.
+ *
+ * @param webViewRef - Ref to the WebView used to render and control the chapter content
+ * @param initialChapter - The initial ChapterInfo to display
+ * @param novel - Metadata for the current novel (used for fetching, caching, and pagination)
+ * @returns An object exposing reader state (hidden, chapter, nextChapter, prevChapter, error, loading, chapterText), setters (setHidden, setChapter, setLoading), and actions (saveProgress, hideHeader, navigateChapter, refetch, getChapter)
+ */
 export default function useChapter(
   webViewRef: RefObject<WebView | null>,
   initialChapter: ChapterInfo,

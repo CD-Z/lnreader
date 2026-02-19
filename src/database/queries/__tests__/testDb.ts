@@ -79,8 +79,11 @@ const MIGRATION_STATEMENTS = [
 ];
 
 /**
- * Creates a fresh in-memory SQLite database with schema and migrations
- * @returns Database instance and dbManager
+ * Create a fresh in-memory SQLite database preloaded with schema, migrations, triggers, and default categories for use in tests.
+ *
+ * The database is configured with testing-friendly PRAGMAs, migration SQL is applied, required tables are verified (including `Novel`), production-like triggers are created, and default Category rows are seeded.
+ *
+ * @returns An object with `sqlite` (the better-sqlite3 Database), `drizzleDb` (the Drizzle ORM instance bound to the database), and `dbManager` (a test-friendly database manager)
  */
 export function createTestDb() {
   // Create in-memory database
@@ -149,15 +152,19 @@ export function createTestDb() {
 }
 
 /**
- * Closes and cleans up a test database
+ * Close the underlying SQLite connection for a test database.
+ *
+ * @param testDb - The test database object returned by `createTestDb`; its underlying SQLite connection will be closed
  */
 export function cleanupTestDb(testDb: ReturnType<typeof createTestDb>) {
   testDb.sqlite.close();
 }
 
 /**
- * Gets a dbManager instance for a test database
- * Convenience function for tests
+ * Retrieve the dbManager from a test database instance.
+ *
+ * @param testDb - The object returned by `createTestDb`
+ * @returns The `dbManager` associated with `testDb`
  */
 export function getTestDbManager(testDb: ReturnType<typeof createTestDb>) {
   return testDb.dbManager;

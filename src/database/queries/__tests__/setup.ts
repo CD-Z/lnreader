@@ -15,8 +15,11 @@ import { createTestDb, cleanupTestDb, type TestDb } from './testDb';
 let mockTestDbInstance: TestDb | null = null;
 
 /**
- * Sets up the test database
- * This should be called in beforeEach of test files
+ * Initialize and return the in-memory test database for queries.
+ *
+ * If a test database is already initialized, it is first cleaned up and replaced.
+ *
+ * @returns The initialized test database instance
  */
 export function setupTestDatabase(): TestDb {
   if (mockTestDbInstance) {
@@ -27,7 +30,10 @@ export function setupTestDatabase(): TestDb {
 }
 
 /**
- * Gets the current test database instance
+ * Retrieves the active test database instance for the current test run.
+ *
+ * @returns The initialized TestDb instance.
+ * @throws Error if the test database has not been initialized; call setupTestDatabase() first.
  */
 export function getTestDb(): TestDb {
   if (!mockTestDbInstance) {
@@ -39,7 +45,9 @@ export function getTestDb(): TestDb {
 }
 
 /**
- * Cleans up the test database
+ * Dispose of the current in-memory test database and clear its module reference.
+ *
+ * If a test database has been initialized, calls the cleanup routine and sets the internal instance to `null`.
  */
 export function teardownTestDatabase() {
   if (mockTestDbInstance) {

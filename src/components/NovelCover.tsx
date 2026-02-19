@@ -73,6 +73,23 @@ function isFromDB(
   return 'chaptersDownloaded' in item;
 }
 
+/**
+ * Render a novel cover (grid or list) with badges, title, image, and selection handling.
+ *
+ * @param item - Novel item data (cover, name, and optional DB-specific chapter counts).
+ * @param onPress - Callback invoked when the cover is pressed (used when not in selection mode).
+ * @param libraryStatus - Whether the novel is present in the user's library (shows InLibrary badge and alters cover opacity).
+ * @param theme - Theme colors used for badges, ripples, and title styling.
+ * @param isSelected - Whether the novel is currently selected (affects visual highlighting).
+ * @param addSkeletonLoading - When true and `item.completeRow` is present, render skeleton loading for that row; otherwise render nothing for that row.
+ * @param inActivity - When true, show a small activity badge on the cover.
+ * @param onLongPress - Callback invoked to trigger selection behavior; receives the novel item.
+ * @param hasSelection - Optional explicit flag to enable selection mode; if omitted, selection mode is inferred from `selectedNovelIds`.
+ * @param globalSearch - When true, use the global-search layout and sizing (three-column grid behaviour).
+ * @param selectedNovelIds - Optional array of selected novel IDs used to infer selection mode when `hasSelection` is not provided.
+ * @param imageRequestInit - Optional image request init (headers, etc.); a User-Agent header is injected if none provided.
+ * @returns A React element that displays the novel cover in the appropriate layout (grid or list) or a skeleton loading component when applicable.
+ */
 function NovelCover<
   TNovel extends CoverItemLibrary | CoverItemPlugin | CoverItemDB,
 >({
