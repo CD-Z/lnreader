@@ -23,6 +23,7 @@ module.exports = {
         'no-dupe-else-if': 'error',
         'no-duplicate-imports': 'error',
         '@react-native/no-deep-imports': 0,
+        'jest/no-mocks-import': 'off',
       },
     },
   ],
