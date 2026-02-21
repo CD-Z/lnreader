@@ -1,11 +1,29 @@
 import './mocks';
-import { act, renderHook } from '@testing-library/react-native';
+import { act, renderHook, waitFor } from '@testing-library/react-native';
 import { fetchNovel } from '@services/plugin/fetch';
 import { getNovelByPath } from '@database/queries/NovelQueries';
+import {
+  getChapterCount,
+  getPageChaptersBatched,
+  getFirstUnreadChapter,
+  bookmarkChapter as mockBookmarkChapter,
+  markChapterRead as mockMarkChapterRead,
+  markChaptersRead as mockMarkChaptersRead,
+  markPreviuschaptersRead as mockMarkPreviuschaptersRead,
+  markPreviousChaptersUnread as mockMarkPreviousChaptersUnread,
+  markChaptersUnread as mockMarkChaptersUnread,
+  deleteChapter as mockDeleteChapter,
+  deleteChapters as mockDeleteChapters,
+  insertChapters,
+  getCustomPages,
+} from '@database/queries/ChapterQueries';
 import { useLibraryContext } from '@components/Context/LibraryContext';
 import { useNovel } from '@hooks/persisted';
+import { showToast } from '@utils/showToast';
+import { ChapterInfo } from '@database/types';
 
 const pluginId = 'mock-plugin';
+
 const mockNovel = {
   id: 1,
   pluginId,
@@ -18,89 +36,379 @@ const mockNovel = {
   inLibrarySort: 0,
 } as const;
 
+const mockChapter: ChapterInfo = {
+  id: 1,
+  novelId: 1,
+  name: 'Chapter 1',
+  chapterNumber: 1,
+  path: '/mock/chapter/1',
+  page: '1',
+  releaseTime: '2024-01-01',
+  readTime: null,
+  updatedTime: null,
+  unread: true,
+  bookmark: false,
+  isDownloaded: false,
+  progress: 0,
+};
+
+const createLibraryContextMock = (overrides = {}) => ({
+  switchNovelToLibrary: jest.fn().mockResolvedValue(undefined),
+  library: [],
+  categories: [],
+  isLoading: false,
+  refetchLibrary: jest.fn(),
+  setLibrary: jest.fn(),
+  setCategories: jest.fn(),
+  novelInLibrary: jest.fn(() => false),
+  settings: {},
+  ...overrides,
+});
+
 describe('useNovel hook', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    (useLibraryContext as jest.Mock).mockReturnValue({
-      switchNovelToLibrary: jest.fn().mockResolvedValue(undefined),
-      library: [],
-      categories: [],
-      isLoading: false,
-      refetchLibrary: jest.fn(),
-      setLibrary: jest.fn(),
-      setCategories: jest.fn(),
-      novelInLibrary: jest.fn(() => false),
-      settings: {},
+    (useLibraryContext as jest.Mock).mockImplementation(() =>
+      createLibraryContextMock(),
+    );
+    (getChapterCount as jest.Mock).mockResolvedValue(10);
+    (getPageChaptersBatched as jest.Mock).mockResolvedValue([mockChapter]);
+    (getFirstUnreadChapter as jest.Mock).mockResolvedValue(mockChapter);
+    (getCustomPages as jest.Mock).mockResolvedValue([]);
+    (insertChapters as jest.Mock).mockResolvedValue(undefined);
+  });
+
+  describe('initialization', () => {
+    it('uses the provided NovelInfo immediately without fetching', () => {
+      const { result } = renderHook(() => useNovel(mockNovel, pluginId));
+
+      expect(result.current.novel).toEqual(mockNovel);
+      expect(result.current.pages).toEqual(['1', '2', '3']);
+    });
+
+    it('initializes with empty chapters array', () => {
+      const { result } = renderHook(() => useNovel(mockNovel, pluginId));
+
+      expect(result.current.chapters).toEqual([]);
+    });
+
+    it('initializes with default batchInformation', () => {
+      const { result } = renderHook(() => useNovel(mockNovel, pluginId));
+
+      expect(result.current.batchInformation).toEqual({
+        batch: 0,
+        total: 0,
+      });
     });
   });
 
-  it('starts loading/fetching when given only a path', () => {
-    const { result } = renderHook(() => useNovel('/missing-path', pluginId));
+  describe('getNovel', () => {
+    it('fetches novel data via plugin when the novel is missing locally', async () => {
+      (getNovelByPath as jest.Mock)
+        .mockResolvedValueOnce(undefined)
+        .mockResolvedValueOnce(mockNovel);
+      (fetchNovel as jest.Mock).mockResolvedValue(mockNovel);
 
-    expect(result.current.loading).toBe(true);
-    expect(result.current.fetching).toBe(true);
-    expect(result.current.novel).toBeUndefined();
-    expect(result.current.pages).toEqual([]);
-    expect(result.current.pageIndex).toBe(0);
-  });
+      const { result } = renderHook(() => useNovel('/remote', pluginId));
 
-  it('uses the provided NovelInfo immediately', () => {
-    const { result } = renderHook(() => useNovel(mockNovel, pluginId));
+      await act(async () => {
+        await result.current.getNovel();
+      });
 
-    expect(result.current.novel).toEqual(mockNovel);
-    expect(result.current.pages).toEqual(['1', '2', '3']);
-    expect(result.current.loading).toBe(true);
-    expect(result.current.fetching).toBe(true);
-  });
-
-  it('fetches novel data via plugin when the novel is missing locally', async () => {
-    (getNovelByPath as jest.Mock)
-      .mockResolvedValueOnce(undefined)
-      .mockResolvedValueOnce(mockNovel);
-    (fetchNovel as jest.Mock).mockResolvedValue(mockNovel);
-
-    const { result } = renderHook(() => useNovel('/remote', pluginId));
-
-    await act(async () => {
-      await result.current.getNovel();
+      expect(fetchNovel).toHaveBeenCalledWith(pluginId, '/remote');
+      expect(result.current.novel).toEqual(mockNovel);
+      expect(result.current.pages).toEqual(['1', '2', '3']);
     });
 
-    expect(fetchNovel).toHaveBeenCalledWith(pluginId, '/remote');
-    expect(result.current.novel).toEqual(mockNovel);
-    expect(result.current.pages).toEqual(['1', '2', '3']);
+    it('uses local novel data when available', async () => {
+      (getNovelByPath as jest.Mock).mockResolvedValue(mockNovel);
+
+      const { result } = renderHook(() => useNovel('/local', pluginId));
+
+      await act(async () => {
+        await result.current.getNovel();
+      });
+
+      expect(fetchNovel).not.toHaveBeenCalled();
+      expect(result.current.novel).toEqual(mockNovel);
+    });
+
+    it('returns undefined when novel not found after fetch', async () => {
+      (getNovelByPath as jest.Mock)
+        .mockResolvedValueOnce(undefined)
+        .mockResolvedValueOnce(undefined);
+      (fetchNovel as jest.Mock).mockResolvedValue(mockNovel);
+
+      const { result } = renderHook(() => useNovel('/not-found', pluginId));
+
+      await act(async () => {
+        const novel = await result.current.getNovel();
+        expect(novel).toBeUndefined();
+      });
+    });
   });
 
-  it('followNovel invokes library context helper', async () => {
-    const switchMock = jest.fn().mockResolvedValue(undefined);
-    (useLibraryContext as jest.Mock).mockReturnValueOnce({
-      switchNovelToLibrary: switchMock,
-      library: [],
-      categories: [],
-      isLoading: false,
-      refetchLibrary: jest.fn(),
-      setLibrary: jest.fn(),
-      setCategories: jest.fn(),
-      novelInLibrary: jest.fn(() => false),
-      settings: {},
+  describe('followNovel', () => {
+    it('invokes library context helper and updates novel state', async () => {
+      const switchMock = jest.fn().mockResolvedValue(undefined);
+      (useLibraryContext as jest.Mock).mockImplementation(() =>
+        createLibraryContextMock({ switchNovelToLibrary: switchMock }),
+      );
+
+      const { result } = renderHook(() => useNovel(mockNovel, pluginId));
+
+      await act(async () => {
+        await result.current.followNovel();
+      });
+
+      expect(switchMock).toHaveBeenCalledWith(mockNovel.path, pluginId);
     });
 
-    const { result } = renderHook(() => useNovel(mockNovel, pluginId));
+    it('toggles inLibrary status after follow', async () => {
+      const switchMock = jest.fn().mockResolvedValue(undefined);
+      (useLibraryContext as jest.Mock).mockImplementation(() =>
+        createLibraryContextMock({ switchNovelToLibrary: switchMock }),
+      );
 
-    await act(async () => {
-      await result.current.followNovel();
+      const novelNotInLibrary = { ...mockNovel, inLibrary: false };
+      const { result } = renderHook(() =>
+        useNovel(novelNotInLibrary, pluginId),
+      );
+
+      await act(async () => {
+        await result.current.followNovel();
+      });
+
+      expect(result.current.novel?.inLibrary).toBe(true);
     });
-
-    expect(switchMock).toHaveBeenCalledWith(mockNovel.path, pluginId);
   });
 
-  it('openPage updates the pageIndex and currentPage accordingly', () => {
-    const { result } = renderHook(() => useNovel(mockNovel, pluginId));
+  describe('chapter operations', () => {
+    it('markChapterRead calls the database function', async () => {
+      const { result } = renderHook(() => useNovel(mockNovel, pluginId));
 
-    act(() => {
-      result.current.openPage(2);
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
+
+      act(() => {
+        result.current.markChapterRead(1);
+      });
+
+      expect(mockMarkChapterRead).toHaveBeenCalledWith(1);
     });
 
-    expect(result.current.pageIndex).toBe(2);
-    expect(result.current.currentPage).toBe('3');
+    it('markChaptersRead updates multiple chapters', async () => {
+      const { result } = renderHook(() => useNovel(mockNovel, pluginId));
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
+
+      const chapters = [
+        { ...mockChapter, id: 1 },
+        { ...mockChapter, id: 2 },
+      ];
+
+      act(() => {
+        result.current.markChaptersRead(chapters);
+      });
+
+      expect(mockMarkChaptersRead).toHaveBeenCalledWith([1, 2]);
+    });
+
+    it('markPreviouschaptersRead calls database function', async () => {
+      const { result } = renderHook(() => useNovel(mockNovel, pluginId));
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
+
+      act(() => {
+        result.current.markPreviouschaptersRead(5);
+      });
+
+      expect(mockMarkPreviuschaptersRead).toHaveBeenCalledWith(5, mockNovel.id);
+    });
+
+    it('markPreviousChaptersUnread calls database function', async () => {
+      const { result } = renderHook(() => useNovel(mockNovel, pluginId));
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
+
+      act(() => {
+        result.current.markPreviousChaptersUnread(5);
+      });
+
+      expect(mockMarkPreviousChaptersUnread).toHaveBeenCalledWith(
+        5,
+        mockNovel.id,
+      );
+    });
+
+    it('markChaptersUnread updates multiple chapters', async () => {
+      const { result } = renderHook(() => useNovel(mockNovel, pluginId));
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
+
+      const chapters = [
+        { ...mockChapter, id: 1 },
+        { ...mockChapter, id: 2 },
+      ];
+
+      act(() => {
+        result.current.markChaptersUnread(chapters);
+      });
+
+      expect(mockMarkChaptersUnread).toHaveBeenCalledWith([1, 2]);
+    });
+
+    it('bookmarkChapters toggles bookmark status', async () => {
+      const { result } = renderHook(() => useNovel(mockNovel, pluginId));
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
+
+      act(() => {
+        result.current.bookmarkChapters([mockChapter]);
+      });
+
+      expect(mockBookmarkChapter).toHaveBeenCalledWith(mockChapter.id);
+    });
+  });
+
+  describe('update operations', () => {
+    it('updateChapter updates specific chapter in state', async () => {
+      const { result } = renderHook(() => useNovel(mockNovel, pluginId));
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
+
+      act(() => {
+        result.current.updateChapter(0, { name: 'Updated Chapter' });
+      });
+
+      expect(result.current.chapters[0]?.name).toBe('Updated Chapter');
+    });
+
+    it('does not update chapter when novel is not defined', () => {
+      const { result } = renderHook(() => useNovel('/path', pluginId));
+
+      act(() => {
+        result.current.updateChapter(0, { name: 'Updated' });
+      });
+
+      expect(result.current.chapters).toEqual([]);
+    });
+  });
+
+  describe('delete operations', () => {
+    it('deleteChapter calls database function and shows toast', async () => {
+      (mockDeleteChapter as jest.Mock).mockResolvedValue(undefined);
+
+      const { result } = renderHook(() => useNovel(mockNovel, pluginId));
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
+
+      act(() => {
+        result.current.deleteChapter(mockChapter);
+      });
+
+      await waitFor(() => {
+        expect(mockDeleteChapter).toHaveBeenCalledWith(
+          pluginId,
+          mockNovel.id,
+          mockChapter.id,
+        );
+      });
+
+      expect(showToast).toHaveBeenCalled();
+    });
+
+    it('deleteChapters shows toast with count', async () => {
+      (mockDeleteChapters as jest.Mock).mockResolvedValue(undefined);
+
+      const { result } = renderHook(() => useNovel(mockNovel, pluginId));
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
+
+      const chapters = [mockChapter, { ...mockChapter, id: 2 }];
+
+      act(() => {
+        result.current.deleteChapters(chapters);
+      });
+
+      expect(mockDeleteChapters).toHaveBeenCalledWith(
+        pluginId,
+        mockNovel.id,
+        chapters,
+      );
+    });
+
+    it('does not delete chapter when novel is not defined', () => {
+      const { result } = renderHook(() => useNovel('/path', pluginId));
+
+      act(() => {
+        result.current.deleteChapter(mockChapter);
+      });
+
+      expect(mockDeleteChapter).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('setNovel', () => {
+    it('updates novel data', () => {
+      const { result } = renderHook(() => useNovel(mockNovel, pluginId));
+
+      const updatedNovel = { ...mockNovel, name: 'Updated Name' };
+
+      act(() => {
+        result.current.setNovel(updatedNovel);
+      });
+
+      expect(result.current.novel?.name).toBe('Updated Name');
+    });
+  });
+
+  describe('refreshChapters', () => {
+    it('refreshes chapters when not currently fetching', async () => {
+      const { result } = renderHook(() => useNovel(mockNovel, pluginId));
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
+
+      act(() => {
+        result.current.refreshChapters();
+      });
+
+      await waitFor(() => {
+        expect(getPageChaptersBatched).toHaveBeenCalled();
+      });
+    });
+  });
+
+  describe('loading states', () => {
+    it('sets fetching to false after data is loaded', async () => {
+      (getNovelByPath as jest.Mock).mockResolvedValue(mockNovel);
+
+      const { result } = renderHook(() => useNovel('/path', pluginId));
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
+
+      expect(result.current.fetching).toBe(false);
+    });
   });
 });

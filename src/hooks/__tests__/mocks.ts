@@ -1,13 +1,3 @@
-jest.mock('@utils/mmkv/mmkv', () => ({
-  MMKVStorage: {
-    getString: jest.fn(),
-    set: jest.fn(),
-    delete: jest.fn(),
-  },
-  getMMKVObject: jest.fn(() => undefined),
-  setMMKVObject: jest.fn(),
-}));
-
 jest.mock('@utils/showToast', () => ({
   showToast: jest.fn(),
 }));
@@ -37,3 +27,5 @@ jest.mock('@hooks/persisted/useSelfHost');
 jest.mock('@hooks/persisted/useTheme');
 jest.mock('@hooks/persisted/useTrackedNovel');
 jest.mock('@hooks/persisted/useUpdates');
+jest.mock('@services/plugin/fetch');
+jest.mock('@components/Context/LibraryContext');

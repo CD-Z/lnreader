@@ -1,42 +1,42 @@
 /* eslint-disable no-console */
-import { useMMKVNumber, useMMKVObject } from 'react-native-mmkv';
-import { ChapterInfo, NovelInfo } from '@database/types';
-import { MMKVStorage } from '@utils/mmkv/mmkv';
-import { TRACKED_NOVEL_PREFIX } from './useTrackedNovel';
-import { ChapterOrderKey, ChapterFilterKey } from '@database/constants';
-import {
-  getNovelByPath,
-  deleteCachedNovels as _deleteCachedNovels,
-  getCachedNovels as _getCachedNovels,
-  insertNovelAndChapters,
-} from '@database/queries/NovelQueries';
+import { useLibraryContext } from '@components/Context/LibraryContext';
+import { ChapterFilterKey, ChapterOrderKey } from '@database/constants';
 import {
   bookmarkChapter as _bookmarkChapter,
-  markChapterRead as _markChapterRead,
-  markChaptersRead as _markChaptersRead,
-  markPreviuschaptersRead as _markPreviuschaptersRead,
-  markPreviousChaptersUnread as _markPreviousChaptersUnread,
-  markChaptersUnread as _markChaptersUnread,
   deleteChapter as _deleteChapter,
   deleteChapters as _deleteChapters,
-  getPageChapters as _getPageChapters,
-  insertChapters,
-  getCustomPages,
-  getChapterCount,
-  getPageChaptersBatched,
   getFirstUnreadChapter as _getFirstUnreadChapter,
+  getPageChapters as _getPageChapters,
+  markChapterRead as _markChapterRead,
+  markChaptersRead as _markChaptersRead,
+  markChaptersUnread as _markChaptersUnread,
+  markPreviousChaptersUnread as _markPreviousChaptersUnread,
+  markPreviuschaptersRead as _markPreviuschaptersRead,
   updateChapterProgress as _updateChapterProgress,
+  getChapterCount,
+  getCustomPages,
+  getPageChaptersBatched,
+  insertChapters,
 } from '@database/queries/ChapterQueries';
+import {
+  deleteCachedNovels as _deleteCachedNovels,
+  getCachedNovels as _getCachedNovels,
+  getNovelByPath,
+  insertNovelAndChapters,
+} from '@database/queries/NovelQueries';
+import { ChapterInfo, NovelInfo } from '@database/types';
 import { fetchNovel, fetchPage } from '@services/plugin/fetch';
-import { showToast } from '@utils/showToast';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { getString } from '@strings/translations';
-import dayjs from 'dayjs';
-import { parseChapterNumber } from '@utils/parseChapterNumber';
-import { NOVEL_STORAGE } from '@utils/Storages';
-import { useAppSettings } from './useSettings';
 import NativeFile from '@specs/NativeFile';
-import { useLibraryContext } from '@components/Context/LibraryContext';
+import { getString } from '@strings/translations';
+import { MMKVStorage } from '@utils/mmkv/mmkv';
+import { parseChapterNumber } from '@utils/parseChapterNumber';
+import { showToast } from '@utils/showToast';
+import { NOVEL_STORAGE } from '@utils/Storages';
+import dayjs from 'dayjs';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMMKVNumber, useMMKVObject } from 'react-native-mmkv';
+import { useAppSettings } from './useSettings';
+import { TRACKED_NOVEL_PREFIX } from './useTrackedNovel';
 
 // #region constants
 
@@ -70,7 +70,7 @@ export const useNovel = (novelOrPath: string | NovelInfo, pluginId: string) => {
     typeof novelOrPath === 'object' ? novelOrPath : undefined,
   );
   const [pages, setPages] = useState<string[]>(() => {
-    if (novel && novel.totalPages > 0) {
+    if (novel && (novel.totalPages ?? 0) > 0) {
       const tmpPages = Array(novel.totalPages)
         .fill(0)
         .map((_, idx) => String(idx + 1));
