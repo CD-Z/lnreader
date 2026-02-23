@@ -1,11 +1,12 @@
 module.exports = {
   root: true,
-  plugins: ['jest'],
-  extends: ['@react-native', 'plugin:jest/recommended'],
-
+  extends: ['@react-native'],
   overrides: [
     {
-      files: ['**/__tests__/**', '**/*.test.*', '**/*.spec.*'],
+      // Test files only
+      plugins: ['jest'],
+      files: ['**/__tests__/**/*.[jt]s?(x)', '**/?(*.)+(spec|test).[jt]s?(x)'],
+      extends: ['plugin:testing-library/react', 'plugin:jest/recommended'],
     },
     {
       files: ['*.js', '*.jsx', '*.ts', '*.tsx'],
@@ -23,7 +24,6 @@ module.exports = {
         'no-dupe-else-if': 'error',
         'no-duplicate-imports': 'error',
         '@react-native/no-deep-imports': 0,
-        'jest/no-mocks-import': 'off',
       },
     },
   ],
