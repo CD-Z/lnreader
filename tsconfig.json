@@ -31,7 +31,8 @@
       "@native/*": ["./src/native/*"],
       "@api/*": ["./src/api/*"],
       "@type/*": ["./src/type/*"],
-      "@specs/*": ["./specs/*"]
+      "@specs/*": ["./specs/*"],
+      "@test-utils": ["./__tests-modules__/test-utils"],
     },
     "types": ["react-native", "jest"]
   }

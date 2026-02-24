@@ -16,6 +16,7 @@ const baseModuleNameMapper = {
   '^@api/(.*)$': '<rootDir>/src/api/$1',
   '^@type/(.*)$': '<rootDir>/src/type/$1',
   '^@specs/(.*)$': '<rootDir>/specs/$1',
+  '^@test-utils$': '<rootDir>/__tests-modules__/test-utils',
   // Mock static assets
   '\\.(jpg|jpeg|png|gif|webp|svg)$': '<rootDir>/__mocks__/fileMock.js',
 };
@@ -30,6 +31,7 @@ const baseTransformIgnorePatterns = [
 ];
 
 module.exports = {
+  moduleDirectories: ['node_modules', '__tests-modules__'],
   projects: [
     // --- Project 1: Database / pure logic tests (node environment) ---
     {

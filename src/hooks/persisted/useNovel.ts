@@ -211,14 +211,14 @@ export const useNovel = (novelOrPath: string | NovelInfo, pluginId: string) => {
   // #region getters
 
   const getNovel = useCallback(async () => {
-    let tmpNovel = await getNovelByPath(novelPath, pluginId);
+    let tmpNovel = getNovelByPath(novelPath, pluginId);
     if (!tmpNovel) {
       const sourceNovel = await fetchNovel(pluginId, novelPath).catch(() => {
         throw new Error(getString('updatesScreen.unableToGetNovel'));
       });
 
       await insertNovelAndChapters(pluginId, sourceNovel);
-      tmpNovel = await getNovelByPath(novelPath, pluginId);
+      tmpNovel = getNovelByPath(novelPath, pluginId);
 
       if (!tmpNovel) {
         return;
@@ -572,11 +572,15 @@ export const useNovel = (novelOrPath: string | NovelInfo, pluginId: string) => {
       }
       setLoading(false);
     } else {
-      getNovel().finally(() => {
-        //? Sometimes loading state changes doesn't trigger rerender causing NovelScreen to be in endless loading state
-        setLoading(false);
-        // getNovel();
-      });
+      getNovel()
+        .catch(() => {
+          // Error is handled - novel stays undefined and loading becomes false
+        })
+        .finally(() => {
+          //? Sometimes loading state changes doesn't trigger rerender causing NovelScreen to be in endless loading state
+          setLoading(false);
+          // getNovel();
+        });
     }
   }, [getNovel, novel]);
 

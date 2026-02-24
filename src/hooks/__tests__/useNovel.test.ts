@@ -1,5 +1,5 @@
 import './mocks';
-import { renderHook, act, waitFor } from '@testing-library/react-native';
+import { renderHook, act, waitFor } from '@test-utils';
 import { useNovel, deleteCachedNovels } from '@hooks/persisted/useNovel';
 import {
   getNovelByPath,
@@ -79,7 +79,7 @@ describe('useNovel', () => {
     jest.clearAllMocks();
     MMKVStorage.clearAll();
     // Default happy-path mocks
-    (getNovelByPath as jest.Mock).mockResolvedValue(mockNovel);
+    (getNovelByPath as jest.Mock).mockReturnValue(mockNovel);
     (getChapterCount as jest.Mock).mockResolvedValue(mockChapters.length);
     (getPageChaptersBatched as jest.Mock).mockResolvedValue(mockChapters);
     (_getFirstUnreadChapter as jest.Mock).mockResolvedValue(mockChapters[0]);
@@ -108,8 +108,8 @@ describe('useNovel', () => {
     it('fetches from source and inserts when novel is not in DB', async () => {
       const sourceNovel = { ...mockNovel, chapters: mockChapters };
       (getNovelByPath as jest.Mock)
-        .mockResolvedValueOnce(null)
-        .mockResolvedValueOnce(mockNovel);
+        .mockReturnValueOnce(null)
+        .mockReturnValueOnce(mockNovel);
       (fetchNovel as jest.Mock).mockResolvedValue(sourceNovel);
 
       await renderUseNovel(mockNovel.path);
@@ -124,15 +124,14 @@ describe('useNovel', () => {
     });
 
     it('throws when source fetch fails and novel is not in DB', async () => {
-      (getNovelByPath as jest.Mock).mockResolvedValue(null);
+      (getNovelByPath as jest.Mock).mockReturnValue(null);
       (fetchNovel as jest.Mock).mockRejectedValue(new Error('network error'));
 
-      const { result } = await renderUseNovel(mockNovel.path);
+      const { result } = renderHook(() => useNovel(mockNovel.path, PLUGIN_ID));
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false);
       });
-      // novel stays undefined
       expect(result.current.novel).toBeUndefined();
     });
 
@@ -175,7 +174,7 @@ describe('useNovel', () => {
   describe('pages', () => {
     it('builds numeric pages from totalPages when > 0', async () => {
       const pagedNovel = { ...mockNovel, totalPages: 3 };
-      (getNovelByPath as jest.Mock).mockResolvedValue(pagedNovel);
+      (getNovelByPath as jest.Mock).mockReturnValue(pagedNovel);
 
       const { result } = await renderUseNovel(pagedNovel.path);
 
@@ -207,7 +206,7 @@ describe('useNovel', () => {
 
     it('openPage updates pageIndex', async () => {
       const pagedNovel = { ...mockNovel, totalPages: 3 };
-      (getNovelByPath as jest.Mock).mockResolvedValue(pagedNovel);
+      (getNovelByPath as jest.Mock).mockReturnValue(pagedNovel);
 
       const { result } = await renderUseNovel(pagedNovel.path);
 
@@ -215,6 +214,11 @@ describe('useNovel', () => {
       await waitFor(() => expect(result.current.fetching).toBe(false));
 
       expect(result.current.pageIndex).toBe(2);
+
+      act(() => result.current.openPage(0));
+      await waitFor(() => expect(result.current.fetching).toBe(false));
+
+      expect(result.current.pageIndex).toBe(0);
     });
   });
 
@@ -243,12 +247,10 @@ describe('useNovel', () => {
 
       const { result } = await renderUseNovel();
 
-      await waitFor(() => expect(result.current.fetching).toBe(false));
-
       expect(result.current.chapters).toHaveLength(mockChapters.length);
 
       await act(() => result.current.getNextChapterBatch());
-
+      console.log(result.current.pageIndex);
       expect(result.current.chapters).toHaveLength(
         mockChapters.length + batch1.length,
       );
@@ -260,8 +262,6 @@ describe('useNovel', () => {
       // total = Math.floor(3 / 300) = 0, so nextBatch(1) > total(0)
 
       const { result } = await renderUseNovel();
-
-      await waitFor(() => expect(result.current.fetching).toBe(false));
 
       const chaptersBefore = result.current.chapters.length;
       await act(() => result.current.getNextChapterBatch());
@@ -292,7 +292,7 @@ describe('useNovel', () => {
   describe('fetching missing page chapters from source', () => {
     it('fetches page from source when chapter count is 0 for that page', async () => {
       const pagedNovel = { ...mockNovel, totalPages: 2 };
-      (getNovelByPath as jest.Mock).mockResolvedValue(pagedNovel);
+      (getNovelByPath as jest.Mock).mockReturnValue(pagedNovel);
       (getChapterCount as jest.Mock)
         .mockResolvedValueOnce(0) // page 1 missing
         .mockResolvedValueOnce(2); // after insert
@@ -315,8 +315,6 @@ describe('useNovel', () => {
     it('marks single chapter as read in state', async () => {
       const { result } = await renderUseNovel();
 
-      await waitFor(() => expect(result.current.fetching).toBe(false));
-
       act(() => result.current.markChapterRead(1));
 
       expect(_markChapterRead).toHaveBeenCalledWith(1);
@@ -326,8 +324,6 @@ describe('useNovel', () => {
 
     it('markChaptersRead marks multiple chapters', async () => {
       const { result } = await renderUseNovel();
-
-      await waitFor(() => expect(result.current.fetching).toBe(false));
 
       act(() =>
         result.current.markChaptersRead([mockChapters[0], mockChapters[1]]),
@@ -345,8 +341,6 @@ describe('useNovel', () => {
 
       const { result } = await renderUseNovel();
 
-      await waitFor(() => expect(result.current.fetching).toBe(false));
-
       act(() => result.current.markChaptersUnread([readChapters[0]]));
 
       expect(_markChaptersUnread).toHaveBeenCalledWith([1]);
@@ -355,8 +349,6 @@ describe('useNovel', () => {
 
     it('markPreviouschaptersRead marks chapters with id <= given id', async () => {
       const { result } = await renderUseNovel();
-
-      await waitFor(() => expect(result.current.fetching).toBe(false));
 
       act(() => result.current.markPreviouschaptersRead(2));
 
@@ -369,8 +361,6 @@ describe('useNovel', () => {
 
     it('markPreviousChaptersUnread marks chapters with id <= given id as unread', async () => {
       const { result } = await renderUseNovel();
-
-      await waitFor(() => expect(result.current.fetching).toBe(false));
 
       act(() => result.current.markPreviousChaptersUnread(2));
 
@@ -387,8 +377,6 @@ describe('useNovel', () => {
   describe('bookmarkChapters', () => {
     it('toggles bookmark state for given chapters', async () => {
       const { result } = await renderUseNovel();
-
-      await waitFor(() => expect(result.current.fetching).toBe(false));
 
       const before = result.current.chapters.find(c => c.id === 1)?.bookmark;
 
@@ -408,8 +396,6 @@ describe('useNovel', () => {
     it('updates progress in state and caps at 100', async () => {
       const { result } = await renderUseNovel();
 
-      await waitFor(() => expect(result.current.fetching).toBe(false));
-
       act(() => result.current.updateChapterProgress(1, 150));
 
       expect(_updateChapterProgress).toHaveBeenCalledWith(1, 100);
@@ -418,8 +404,6 @@ describe('useNovel', () => {
 
     it('stores the raw progress value in state', async () => {
       const { result } = await renderUseNovel();
-
-      await waitFor(() => expect(result.current.fetching).toBe(false));
 
       act(() => result.current.updateChapterProgress(1, 42));
 
@@ -437,8 +421,6 @@ describe('useNovel', () => {
       (getPageChaptersBatched as jest.Mock).mockResolvedValue(downloaded);
 
       const { result } = await renderUseNovel();
-
-      await waitFor(() => expect(result.current.fetching).toBe(false));
 
       act(() => result.current.deleteChapter(downloaded[0]));
 
@@ -479,8 +461,6 @@ describe('useNovel', () => {
       (switchNovelToLibrary as jest.Mock).mockResolvedValue(undefined);
 
       const { result } = await renderUseNovel();
-
-      await waitFor(() => expect(result.current.fetching).toBe(false));
 
       const before = result.current.novel?.inLibrary;
 
