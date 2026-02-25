@@ -15,16 +15,23 @@ export const getTracker = jest.fn(
 
 export const getAllTrackerNames = jest.fn(() => Object.keys(trackers) as any[]);
 
-export function useTracker() {
-  return {
-    tracker: null,
-    setTracker: jest.fn(),
-    removeTracker: jest.fn(),
-    authenticatedTrackers: {},
-    activeTrackerName: undefined,
-    setActiveTracker: jest.fn(),
-    getTrackerAuth: jest.fn(() => undefined),
-    isTrackerAuthenticated: jest.fn(() => false),
-    getAuthenticatedTrackers: jest.fn(() => []),
-  };
-}
+const setTracker = jest.fn();
+const removeTracker = jest.fn();
+const setActiveTracker = jest.fn();
+const getTrackerAuth = jest.fn(() => undefined);
+const isTrackerAuthenticated = jest.fn(() => false);
+const getAuthenticatedTrackers = jest.fn(() => []);
+
+const useTracker = jest.fn(() => ({
+  tracker: null,
+  setTracker,
+  removeTracker,
+  authenticatedTrackers: {},
+  activeTrackerName: undefined,
+  setActiveTracker,
+  getTrackerAuth,
+  isTrackerAuthenticated,
+  getAuthenticatedTrackers,
+}));
+
+export default useTracker;

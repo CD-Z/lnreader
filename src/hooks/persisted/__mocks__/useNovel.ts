@@ -1,5 +1,5 @@
 export const NOVEL_PAGE_INDEX_PREFIX = 'NOVEL_PAGE_INDEX_PREFIX';
-export const NOVEL_SETTINSG_PREFIX = 'NOVEL_SETTINGS';
+export const NOVEL_SETTINGS_PREFIX = 'NOVEL_SETTINGS';
 export const LAST_READ_PREFIX = 'LAST_READ_PREFIX';
 const mockNovel = {
   id: 123,

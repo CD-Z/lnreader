@@ -11,7 +11,7 @@ import { parseChapterNumber } from '@utils/parseChapterNumber';
 import { getMMKVObject, setMMKVObject } from '@utils/mmkv/mmkv';
 import {
   LAST_READ_PREFIX,
-  NOVEL_SETTINSG_PREFIX,
+  NOVEL_SETTINGS_PREFIX,
 } from '@hooks/persisted/useNovel';
 import { sleep } from '@utils/sleep';
 import ServiceManager, {
@@ -97,9 +97,9 @@ export const migrateNovel = async (
   });
 
   setMMKVObject(
-    `${NOVEL_SETTINSG_PREFIX}_${toNovel!.pluginId}_${toNovel!.path}`,
+    `${NOVEL_SETTINGS_PREFIX}_${toNovel!.pluginId}_${toNovel!.path}`,
     getMMKVObject(
-      `${NOVEL_SETTINSG_PREFIX}_${fromNovel.pluginId}_${fromNovel.path}`,
+      `${NOVEL_SETTINGS_PREFIX}_${fromNovel.pluginId}_${fromNovel.path}`,
     ),
   );
 

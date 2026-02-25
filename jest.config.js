@@ -80,7 +80,6 @@ module.exports = {
   coverageReporters: ['text', 'lcov', 'html'],
   testTimeout: 10000,
   clearMocks: true,
-  resetMocks: true,
   restoreMocks: true,
   verbose: true,
 };

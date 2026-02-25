@@ -1,3 +1,6 @@
+const mockNavigate = jest.fn();
+const mockSetOptions = jest.fn();
+
 jest.mock('react-native-worklets', () =>
   require('react-native-worklets/src/mock'),
 );
@@ -10,19 +13,17 @@ const { setUpTests } = require('react-native-reanimated');
 
 setUpTests();
 
-// __tests__/jest.setup.ts
-
 jest.mock('@react-navigation/native', () => {
-  //const actualNav = jest.requireActual('@react-navigation/native');
   return {
-    //...actualNav,
     useFocusEffect: jest.fn(),
     useNavigation: () => ({
-      navigate: jest.fn(),
-      setOptions: jest.fn(),
+      navigate: mockNavigate,
+      setOptions: mockSetOptions,
     }),
     useRoute: () => ({
       params: {},
     }),
   };
 });
+
+module.exports = { mockNavigate, mockSetOptions };

@@ -1,4 +1,4 @@
-// Mock for react-native-nitro-modules in Jest environment
+// Mock for react-native-mmkv (v3 uses NitroModules under the hood)
 module.exports = {
   NitroModules: {
     createHybridObject: jest.fn(() => {
