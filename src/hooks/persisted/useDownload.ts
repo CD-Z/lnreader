@@ -45,7 +45,7 @@ export default function useDownload() {
         },
       })),
     );
-  const resumeDowndload = () => ServiceManager.manager.resume();
+  const resumeDownload = () => ServiceManager.manager.resume();
 
   const pauseDownload = () => ServiceManager.manager.pause();
 
@@ -55,7 +55,7 @@ export default function useDownload() {
   return {
     downloadQueue,
     downloadingChapterIds,
-    resumeDowndload,
+    resumeDownload,
     downloadChapter,
     downloadChapters,
     pauseDownload,

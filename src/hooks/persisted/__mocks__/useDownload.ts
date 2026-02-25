@@ -1,6 +1,3 @@
-export const DOWNLOAD_QUEUE = 'DOWNLOAD';
-export const CHAPTER_DOWNLOADING = 'CHAPTER_DOWNLOADING';
-
 const mockDownloadQueue: any[] = [];
 const mockDownloadingChapterIds = new Set<number>();
 

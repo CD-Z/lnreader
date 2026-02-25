@@ -19,5 +19,4 @@ const useNovelSettings = jest.fn(() => ({
   setShowChapterTitles: jest.fn(),
 }));
 
-export default useNovelSettings;
-export { defaultNovelSettings };
+export { useNovelSettings };
