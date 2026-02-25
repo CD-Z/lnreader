@@ -250,7 +250,7 @@ describe('useNovel', () => {
       expect(result.current.chapters).toHaveLength(mockChapters.length);
 
       await act(() => result.current.getNextChapterBatch());
-      console.log(result.current.pageIndex);
+
       expect(result.current.chapters).toHaveLength(
         mockChapters.length + batch1.length,
       );

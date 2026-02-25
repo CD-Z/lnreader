@@ -81,11 +81,6 @@ export const initialChapterReaderSettings = {
   epubUseCustomJS: false,
 };
 
-const createMockState = (defaultState: Record<string, any>) => ({
-  ...defaultState,
-  setAppSettings: jest.fn(),
-});
-
 export const useAppSettings = jest.fn(() => ({
   ...initialAppSettings,
   setAppSettings: jest.fn(),
