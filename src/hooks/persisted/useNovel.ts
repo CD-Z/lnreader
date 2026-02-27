@@ -205,7 +205,7 @@ export const useNovel = (novelOrPath: string | NovelInfo, pluginId: string) => {
       .finally(() => {
         setFetching(false);
       });
-  }, [getChapters, novel, novelOrPath]);
+  }, [getChapters, novel, novelOrPath, pages.length]);
 
   return useMemo(
     () => ({

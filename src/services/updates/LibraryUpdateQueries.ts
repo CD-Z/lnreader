@@ -194,7 +194,6 @@ const updateNovel = async (
   } else if (novel.totalPages) {
     await updateNovelTotalPages(novelId, novel.totalPages);
   }
-  console.log(novel.chapters);
   await updateNovelChapters(
     novel.name,
     novelId,
