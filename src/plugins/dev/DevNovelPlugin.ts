@@ -6,8 +6,8 @@ import {
   NovelStatus,
 } from '../types';
 import { dbManager } from '@database/db';
-import { chapterSchema, novelSchema } from '@database/schema';
-import { and, eq, gt } from 'drizzle-orm';
+import { novelSchema } from '@database/schema';
+import { and, eq } from 'drizzle-orm';
 import { Storage } from '@plugins/helpers/storage';
 
 const generateChapterContent = (chapterNumber: number): string => {

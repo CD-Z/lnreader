@@ -5,6 +5,10 @@ import {
   ChapterItem,
   NovelStatus,
 } from '../types';
+import { dbManager } from '@database/db';
+import { novelSchema } from '@database/schema';
+import { and, eq } from 'drizzle-orm';
+import { Storage } from '@plugins/helpers/storage';
 
 const generateChapterContent = (chapterNumber: number): string => {
   const patterns = [
@@ -36,6 +40,48 @@ const mockPagedNovels: NovelItem[] = [
     name: 'The Infinite Story',
     path: 'the-infinite-story',
     cover: 'https://picsum.photos/seed/paged3/300/450',
+  },
+  {
+    id: undefined,
+    name: 'Chronicles of the Realm',
+    path: 'chronicles-of-the-realm',
+    cover: 'https://picsum.photos/seed/paged4/300/450',
+  },
+  {
+    id: undefined,
+    name: 'Beyond the Stars',
+    path: 'beyond-the-stars',
+    cover: 'https://picsum.photos/seed/paged5/300/450',
+  },
+  {
+    id: undefined,
+    name: 'The Forgotten Path',
+    path: 'the-forgotten-path',
+    cover: 'https://picsum.photos/seed/paged6/300/450',
+  },
+  {
+    id: undefined,
+    name: 'Legends Rise',
+    path: 'legends-rise',
+    cover: 'https://picsum.photos/seed/paged7/300/450',
+  },
+  {
+    id: undefined,
+    name: 'Shadows of Tomorrow',
+    path: 'shadows-of-tomorrow',
+    cover: 'https://picsum.photos/seed/paged8/300/450',
+  },
+  {
+    id: undefined,
+    name: 'The Endless Journey',
+    path: 'the-endless-journey',
+    cover: 'https://picsum.photos/seed/paged9/300/450',
+  },
+  {
+    id: undefined,
+    name: 'Realms of Magic',
+    path: 'realms-of-magic',
+    cover: 'https://picsum.photos/seed/paged10/300/450',
   },
 ];
 
@@ -84,11 +130,67 @@ const getPagedNovelByPath = (
       status: NovelStatus.Ongoing,
       cover: 'https://picsum.photos/seed/paged3/300/450',
     },
+    'chronicles-of-the-realm': {
+      name: 'Chronicles of the Realm',
+      author: 'Dev Author',
+      summary:
+        'An epic fantasy saga with multiple volumes. Each page contains several chapters, demonstrating how large series can be organized efficiently.',
+      status: NovelStatus.Ongoing,
+      cover: 'https://picsum.photos/seed/paged4/300/450',
+    },
+    'beyond-the-stars': {
+      name: 'Beyond the Stars',
+      author: 'Dev Author',
+      summary:
+        'A science fiction epic exploring the cosmos. With new pages added on update, this novel demonstrates dynamic pagination for growing series.',
+      status: NovelStatus.Ongoing,
+      cover: 'https://picsum.photos/seed/paged5/300/450',
+    },
+    'the-forgotten-path': {
+      name: 'The Forgotten Path',
+      author: 'Dev Author',
+      summary:
+        'A mystery adventure through forgotten lands. This novel showcases the paged format with chapters organized across multiple pages.',
+      status: NovelStatus.OnHiatus,
+      cover: 'https://picsum.photos/seed/paged6/300/450',
+    },
+    'legends-rise': {
+      name: 'Legends Rise',
+      author: 'Dev Author',
+      summary:
+        'Heroes emerge from humble beginnings to change the world. A long-running series perfect for testing pagination and updates.',
+      status: NovelStatus.Ongoing,
+      cover: 'https://picsum.photos/seed/paged7/300/450',
+    },
+    'shadows-of-tomorrow': {
+      name: 'Shadows of Tomorrow',
+      author: 'Dev Author',
+      summary:
+        'A dystopian tale of a world on the brink. Multiple pages of content demonstrate how chapter pagination handles larger novels.',
+      status: NovelStatus.Completed,
+      cover: 'https://picsum.photos/seed/paged8/300/450',
+    },
+    'the-endless-journey': {
+      name: 'The Endless Journey',
+      author: 'Dev Author',
+      summary:
+        'A traveler explores countless worlds in an endless adventure. This paged novel is excellent for testing dynamic page generation.',
+      status: NovelStatus.Ongoing,
+      cover: 'https://picsum.photos/seed/paged9/300/450',
+    },
+    'realms-of-magic': {
+      name: 'Realms of Magic',
+      author: 'Dev Author',
+      summary:
+        'Magic users battle for control of magical realms. A long series with pages that grow on update to test pagination fully.',
+      status: NovelStatus.Ongoing,
+      cover: 'https://picsum.photos/seed/paged10/300/450',
+    },
   };
   return novels[path];
 };
 
-const TOTAL_PAGES = 3;
+const DEFAULT_PAGES = 3;
 const CHAPTERS_PER_PAGE = 7;
 
 const generateChaptersForPage = (
@@ -110,9 +212,12 @@ const generateChaptersForPage = (
   return chapters;
 };
 
-const generateAllChapters = (novelPath: string): ChapterItem[] => {
+const generateAllChapters = (
+  novelPath: string,
+  totalPages: number,
+): ChapterItem[] => {
   const chapters: ChapterItem[] = [];
-  for (let page = 1; page <= TOTAL_PAGES; page++) {
+  for (let page = 1; page <= totalPages; page++) {
     chapters.push(...generateChaptersForPage(novelPath, page));
   }
   return chapters;
@@ -135,6 +240,11 @@ const devPagedNovelPlugin: Plugin = {
       value: true,
       type: 'Switch',
     },
+    provideNewPages: {
+      label: 'Provide new pages on update',
+      value: false,
+      type: 'Switch',
+    },
   },
   popularNovels: async (_page: number): Promise<NovelItem[]> => {
     return mockPagedNovels;
@@ -144,6 +254,45 @@ const devPagedNovelPlugin: Plugin = {
     if (!novel) {
       throw new Error('Novel not found');
     }
+
+    const s = new Storage('dev-paged-novel');
+    const newContent = s.get('provideNewContent');
+    const newPages = s.get('provideNewPages');
+
+    const res = await dbManager
+      .select({
+        count: novelSchema.totalChapters,
+      })
+      .from(novelSchema)
+      .where(
+        and(
+          eq(novelSchema.pluginId, 'dev-paged-novel'),
+          eq(novelSchema.path, novelPath),
+        ),
+      )
+      .get();
+
+    const currentChapters = res?.count || 0;
+    let totalPages = Math.ceil(currentChapters / CHAPTERS_PER_PAGE);
+
+    if (totalPages < DEFAULT_PAGES) {
+      totalPages = DEFAULT_PAGES;
+    }
+
+    if (newPages) {
+      totalPages += 2;
+    } else if (newContent) {
+      const extraChapters = Math.min(
+        5,
+        CHAPTERS_PER_PAGE - (totalPages * CHAPTERS_PER_PAGE - currentChapters),
+      );
+      if (extraChapters > 0) {
+        totalPages = Math.ceil(
+          (currentChapters + extraChapters) / CHAPTERS_PER_PAGE,
+        );
+      }
+    }
+
     return {
       id: undefined,
       name: novel.name,
@@ -153,16 +302,59 @@ const devPagedNovelPlugin: Plugin = {
       summary: novel.summary,
       status: novel.status,
       genres: 'Fiction',
-      chapters: generateAllChapters(novelPath),
-      totalPages: TOTAL_PAGES,
+      chapters: generateAllChapters(novelPath, totalPages),
+      totalPages: totalPages,
     };
   },
   parsePage: async (
     novelPath: string,
     page: string,
   ): Promise<{ chapters: ChapterItem[] }> => {
+    const novel = getPagedNovelByPath(novelPath);
+    if (!novel) {
+      return { chapters: [] };
+    }
+
+    const s = new Storage('dev-paged-novel');
+    const newContent = s.get('provideNewContent');
+    const newPages = s.get('provideNewPages');
+
+    const res = await dbManager
+      .select({
+        count: novelSchema.totalChapters,
+      })
+      .from(novelSchema)
+      .where(
+        and(
+          eq(novelSchema.pluginId, 'dev-paged-novel'),
+          eq(novelSchema.path, novelPath),
+        ),
+      )
+      .get();
+
+    const currentChapters = res?.count || 0;
+    let totalPages = Math.ceil(currentChapters / CHAPTERS_PER_PAGE);
+
+    if (totalPages < DEFAULT_PAGES) {
+      totalPages = DEFAULT_PAGES;
+    }
+
+    if (newPages) {
+      totalPages += 2;
+    } else if (newContent) {
+      const extraChapters = Math.min(
+        5,
+        CHAPTERS_PER_PAGE - (totalPages * CHAPTERS_PER_PAGE - currentChapters),
+      );
+      if (extraChapters > 0) {
+        totalPages = Math.ceil(
+          (currentChapters + extraChapters) / CHAPTERS_PER_PAGE,
+        );
+      }
+    }
+
     const pageNum = parseInt(page, 10);
-    if (pageNum < 1 || pageNum > TOTAL_PAGES) {
+    if (pageNum < 1 || pageNum > totalPages) {
       return { chapters: [] };
     }
     return {
