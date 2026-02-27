@@ -1,5 +1,6 @@
 import { getPlugin } from '@plugins/pluginManager';
 import { isUrlAbsolute } from '@plugins/helpers/isAbsoluteUrl';
+import { SourcePage } from '@plugins/types';
 
 export const fetchNovel = async (pluginId: string, novelPath: string) => {
   const plugin = getPlugin(pluginId);
@@ -32,18 +33,24 @@ export const fetchPage = async (
   pluginId: string,
   novelPath: string,
   page: string,
-) => {
+): Promise<SourcePage> => {
   const plugin = getPlugin(pluginId);
 
   if (!plugin) {
     throw new Error(`Unknown plugin: ${pluginId}`);
   }
 
-  if (!plugin.parsePage) {
+  if (plugin.parsePage) {
+    const res = await plugin.parsePage(novelPath, page);
+    if (res) return res;
     throw new Error(`Could not fetch chapters for page ${page}`);
   }
-  const res = await plugin.parsePage(novelPath, page);
-  return res;
+  if (plugin.parseNovel && page === '1') {
+    const res = await plugin.parseNovel(novelPath);
+    if (res.chapters) return { chapters: res.chapters };
+    throw new Error(`Could not fetch chapters for novel ${novelPath}`);
+  }
+  throw new Error(`Could not fetch chapters for novel ${novelPath}`);
 };
 
 export const resolveUrl = (

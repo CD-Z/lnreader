@@ -216,7 +216,7 @@ export const useNovel = (novelOrPath: string | NovelInfo, pluginId: string) => {
       const sourceNovel = await fetchNovel(pluginId, novelPath).catch(() => {
         throw new Error(getString('updatesScreen.unableToGetNovel'));
       });
-
+      console.log('getNovel', sourceNovel);
       await insertNovelAndChapters(pluginId, sourceNovel);
       tmpNovel = getNovelByPath(novelPath, pluginId);
 
@@ -239,7 +239,7 @@ export const useNovel = (novelOrPath: string | NovelInfo, pluginId: string) => {
       const config = [novel.id, settingsSort, settingsFilter, page] as const;
 
       let chapterCount = await getChapterCount(novel.id, page);
-
+      console.log(chapterCount);
       if (chapterCount) {
         try {
           newChapters = (await getPageChaptersBatched(...config)) || [];
@@ -566,7 +566,8 @@ export const useNovel = (novelOrPath: string | NovelInfo, pluginId: string) => {
   // #region useEffects
 
   useEffect(() => {
-    if (novel) {
+    console.log(novel);
+    if (novel && novel.id) {
       if (pages.length === 0) {
         calculatePages(novel).then(setPages);
       }
