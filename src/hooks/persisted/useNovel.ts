@@ -171,7 +171,6 @@ export const useNovel = (novelOrPath: string | NovelInfo, pluginId: string) => {
   );
 
   useEffect(() => {
-    console.log(novel);
     if (novel && novel.id) {
       if (pages.length === 0) {
         calculatePages(novel).then(setPages);

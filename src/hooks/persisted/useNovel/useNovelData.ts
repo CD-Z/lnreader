@@ -71,7 +71,6 @@ export const useNovelData = ({
       const sourceNovel = await fetchNovel(pluginId, novelPath).catch(() => {
         throw new Error(getString('updatesScreen.unableToGetNovel'));
       });
-      console.log('getNovel', sourceNovel);
       await insertNovelAndChapters(pluginId, sourceNovel);
       tmpNovel = getNovelByPath(novelPath, pluginId);
 
@@ -94,7 +93,6 @@ export const useNovelData = ({
       const config = [novel.id, settingsSort, settingsFilter, page] as const;
 
       let chapterCount = await getChapterCount(novel.id, page);
-      console.log(chapterCount);
       if (chapterCount) {
         try {
           newChapters = (await getPageChaptersBatched(...config)) || [];
