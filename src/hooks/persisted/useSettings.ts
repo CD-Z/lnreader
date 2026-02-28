@@ -301,6 +301,7 @@ export const useChapterReaderSettings = () => {
 
   // Ensure TTS settings have proper defaults (migration for existing users)
   const chapterReaderSettings = {
+    ...initialChapterReaderSettings,
     ...storedSettings,
     tts: {
       ...initialChapterReaderSettings.tts,
