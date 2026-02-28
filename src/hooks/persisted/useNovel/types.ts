@@ -6,6 +6,7 @@ export const LAST_READ_PREFIX = 'LAST_READ_PREFIX';
 
 export const defaultNovelSettings: NovelSettings = {
   showChapterTitles: true,
+  sort: 'positionAsc',
   filter: [],
 };
 

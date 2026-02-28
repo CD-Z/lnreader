@@ -304,16 +304,17 @@ const NovelInfoHeader = ({
     () => ({ color: theme.rippleColor }),
     [theme.rippleColor],
   );
-
   return (
     <>
       <CoverImage
+        // @ts-expect-error coverSource.uri can be undefined or null but only undefined is allowed
         source={coverSource}
         theme={theme}
         hideBackdrop={hideBackdrop}
       >
         <NovelInfoContainer>
           <NovelThumbnail
+            // @ts-expect-error coverSource.uri can be undefined or null but only undefined is allowed
             source={coverSource}
             theme={theme}
             setCustomNovelCover={
@@ -360,7 +361,9 @@ const NovelInfoHeader = ({
                 <Row style={styles.infoRow}>
                   <MaterialCommunityIcons
                     name={getStatusIcon(
-                      novel.id !== 'NO_ID' ? novel.status : undefined,
+                      novel.id !== 'NO_ID'
+                        ? novel.status ?? undefined
+                        : undefined,
                     )}
                     size={14}
                     color={theme.onSurfaceVariant}
@@ -368,7 +371,7 @@ const NovelInfoHeader = ({
                   />
                   <NovelInfo theme={theme}>
                     {(novel.id !== 'NO_ID'
-                      ? translateNovelStatus(novel.status)
+                      ? translateNovelStatus(novel.status ?? undefined)
                       : getString('novelScreen.unknownStatus')) +
                       ' • ' +
                       pluginName}
@@ -429,7 +432,9 @@ const NovelInfoHeader = ({
               </View>
               <IconButton
                 icon="filter-variant"
-                iconColor={filter ? filterColor(theme.isDark) : theme.onSurface}
+                iconColor={
+                  filter?.length ? filterColor(theme.isDark) : theme.onSurface
+                }
                 size={24}
                 onPress={handleOpenBottomSheet}
               />
