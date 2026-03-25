@@ -4,6 +4,7 @@ import React, {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Text } from 'react-native-paper';
@@ -17,6 +18,10 @@ import { useChapterContext } from '@screens/reader/ChapterContext';
 import { useNovelContext } from '@screens/novel/NovelContext';
 import { LegendList, LegendListRef, ViewToken } from '@legendapp/list';
 import { noop } from 'lodash-es';
+import {
+  NovelStoreApi,
+  NovelStoreState,
+} from '@hooks/persisted/useNovel/novelStore';
 
 type ButtonProperties = {
   text: string;
@@ -28,17 +33,79 @@ type ButtonsProperties = {
   down: ButtonProperties;
 };
 
+type NovelContextWithOptionalStore = ReturnType<typeof useNovelContext> & {
+  novelStore?: NovelStoreApi;
+};
+
+const noopUnsubscribe = () => {};
+
+const selectChapters = (state: NovelStoreState) => state.chapters;
+const selectNovelSettings = (state: NovelStoreState) => state.novelSettings;
+const selectPages = (state: NovelStoreState) => state.pages;
+const selectFetching = (state: NovelStoreState) => state.fetching;
+const selectBatchInformation = (state: NovelStoreState) =>
+  state.batchInformation;
+const selectGetNextChapterBatch = (state: NovelStoreState) =>
+  state.getNextChapterBatch;
+const selectSetPageIndex = (state: NovelStoreState) => state.setPageIndex;
+
+const useNovelDomainValue = <T,>(
+  novelStore: NovelStoreApi | undefined,
+  selector: (state: NovelStoreState) => T,
+  fallback: T,
+) => {
+  const subscribe = useCallback(
+    (onStoreChange: () => void) =>
+      novelStore ? novelStore.subscribe(onStoreChange) : noopUnsubscribe,
+    [novelStore],
+  );
+
+  const getSnapshot = useCallback(
+    () => (novelStore ? selector(novelStore.getState()) : fallback),
+    [fallback, novelStore, selector],
+  );
+
+  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+};
+
 const ChapterDrawer = () => {
   const { chapter, getChapter, setLoading } = useChapterContext();
-  const {
-    chapters,
-    novelSettings,
-    pages,
-    fetching,
-    batchInformation,
-    getNextChapterBatch,
-    setPageIndex,
-  } = useNovelContext();
+  const novelContext = useNovelContext() as NovelContextWithOptionalStore;
+  const chapters = useNovelDomainValue(
+    novelContext.novelStore,
+    selectChapters,
+    novelContext.chapters,
+  );
+  const novelSettings = useNovelDomainValue(
+    novelContext.novelStore,
+    selectNovelSettings,
+    novelContext.novelSettings,
+  );
+  const pages = useNovelDomainValue(
+    novelContext.novelStore,
+    selectPages,
+    novelContext.pages,
+  );
+  const fetching = useNovelDomainValue(
+    novelContext.novelStore,
+    selectFetching,
+    novelContext.fetching,
+  );
+  const batchInformation = useNovelDomainValue(
+    novelContext.novelStore,
+    selectBatchInformation,
+    novelContext.batchInformation,
+  );
+  const getNextChapterBatch = useNovelDomainValue(
+    novelContext.novelStore,
+    selectGetNextChapterBatch,
+    novelContext.getNextChapterBatch,
+  );
+  const setPageIndex = useNovelDomainValue(
+    novelContext.novelStore,
+    selectSetPageIndex,
+    novelContext.setPageIndex,
+  );
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const { defaultChapterSort } = useAppSettings();

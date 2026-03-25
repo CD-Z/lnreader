@@ -22,6 +22,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from 'react';
 import { sanitizeChapterText } from '../utils/sanitizeChapterText';
 import { parseChapterNumber } from '@utils/parseChapterNumber';
@@ -35,20 +36,88 @@ import { getString } from '@strings/translations';
 import NativeVolumeButtonListener from '@specs/NativeVolumeButtonListener';
 import NativeFile from '@specs/NativeFile';
 import { useNovelContext } from '@screens/novel/NovelContext';
+import {
+  ChapterTextCacheApi,
+  NovelStoreApi,
+  NovelStoreState,
+} from '@hooks/persisted/useNovel/novelStore';
 
 const emmiter = new NativeEventEmitter(NativeVolumeButtonListener);
+
+type NovelContextWithOptionalStore = ReturnType<typeof useNovelContext> & {
+  novelStore?: NovelStoreApi;
+};
+
+const noopUnsubscribe = () => {};
+
+const selectMarkChapterRead = (state: NovelStoreState) => state.markChapterRead;
+const selectUpdateChapterProgress = (state: NovelStoreState) =>
+  state.updateChapterProgress;
+const selectChapterTextCache = (state: NovelStoreState) =>
+  state.chapterTextCache;
+
+const useNovelDomainValue = <T>(
+  novelStore: NovelStoreApi | undefined,
+  selector: (state: NovelStoreState) => T,
+  fallback: T,
+) => {
+  const subscribe = useCallback(
+    (onStoreChange: () => void) =>
+      novelStore ? novelStore.subscribe(onStoreChange) : noopUnsubscribe,
+    [novelStore],
+  );
+
+  const getSnapshot = useCallback(
+    () => (novelStore ? selector(novelStore.getState()) : fallback),
+    [fallback, novelStore, selector],
+  );
+
+  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+};
 
 export default function useChapter(
   webViewRef: RefObject<WebView | null>,
   initialChapter: ChapterInfo,
   novel: NovelInfo,
 ) {
-  const {
-    setLastRead,
-    markChapterRead,
-    updateChapterProgress,
-    chapterTextCache,
-  } = useNovelContext();
+  const novelContext = useNovelContext() as NovelContextWithOptionalStore;
+
+  const setLastRead = novelContext.setLastRead;
+  const fallbackChapterTextCache = useMemo<ChapterTextCacheApi>(
+    () => ({
+      read: chapterId => novelContext.chapterTextCache.get(chapterId),
+      write: (chapterId, value) => {
+        novelContext.chapterTextCache.set(chapterId, value);
+      },
+      remove: chapterId => novelContext.chapterTextCache.delete(chapterId),
+      clear: () => {
+        novelContext.chapterTextCache.clear();
+      },
+    }),
+    [novelContext.chapterTextCache],
+  );
+  const markChapterRead = useNovelDomainValue(
+    novelContext.novelStore,
+    selectMarkChapterRead,
+    novelContext.markChapterRead,
+  );
+  const updateChapterProgress = useNovelDomainValue(
+    novelContext.novelStore,
+    selectUpdateChapterProgress,
+    novelContext.updateChapterProgress,
+  );
+  const chapterTextCacheDomain = useNovelDomainValue(
+    novelContext.novelStore,
+    selectChapterTextCache,
+    fallbackChapterTextCache,
+  );
+  const chapterTextCache = useMemo(
+    () => ({
+      get: chapterTextCacheDomain.read,
+      set: chapterTextCacheDomain.write,
+    }),
+    [chapterTextCacheDomain.read, chapterTextCacheDomain.write],
+  );
   const [hidden, setHidden] = useState(true);
   const [chapter, setChapter] = useState(initialChapter);
   const [loading, setLoading] = useState(true);
@@ -137,14 +206,11 @@ export default function useChapter(
 
         let nextChap = nextChapResult;
         let prevChap = prevChapResult;
+        const totalPages = novel.totalPages ?? 0;
 
         // Pre-fetch adjacent page chapters if at a page boundary
         const currentPage = Number(chap.page);
-        if (
-          !nextChap &&
-          novel.totalPages > 0 &&
-          currentPage < novel.totalPages
-        ) {
+        if (!nextChap && totalPages > 0 && currentPage < totalPages) {
           const nextPage = String(currentPage + 1);
           try {
             const count = await getChapterCount(chap.novelId, nextPage);
