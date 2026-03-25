@@ -1,4 +1,11 @@
-import React, { Suspense, useCallback, useMemo, useRef, useState } from 'react';
+import React, {
+  Suspense,
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 import { StyleSheet, View, StatusBar, Text, Share } from 'react-native';
 import Animated, {
   SlideInUp,
@@ -32,24 +39,131 @@ import { ThemeColors } from '@theme/types';
 import { SafeAreaView } from '@components';
 import { useNovelContext } from './NovelContext';
 import { LegendListRef } from '@legendapp/list';
+import {
+  NovelStoreApi,
+  NovelStoreState,
+} from '@hooks/persisted/useNovel/novelStore';
+
+type NovelContextWithOptionalStore = ReturnType<typeof useNovelContext> & {
+  novelStore?: NovelStoreApi;
+};
+
+const noopUnsubscribe = () => {};
+
+const selectNovel = (state: NovelStoreState) => state.novel;
+const selectChapters = (state: NovelStoreState) => state.chapters;
+const selectFetching = (state: NovelStoreState) => state.fetching;
+const selectBatchInformation = (state: NovelStoreState) =>
+  state.batchInformation;
+const selectGetNextChapterBatch = (state: NovelStoreState) =>
+  state.getNextChapterBatch;
+const selectLoadUpToBatch = (state: NovelStoreState) => state.loadUpToBatch;
+const selectSetNovel = (state: NovelStoreState) => state.setNovel;
+const selectBookmarkChapters = (state: NovelStoreState) =>
+  state.bookmarkChapters;
+const selectMarkChaptersRead = (state: NovelStoreState) =>
+  state.markChaptersRead;
+const selectMarkChaptersUnread = (state: NovelStoreState) =>
+  state.markChaptersUnread;
+const selectMarkPreviouschaptersRead = (state: NovelStoreState) =>
+  state.markPreviouschaptersRead;
+const selectMarkPreviousChaptersUnread = (state: NovelStoreState) =>
+  state.markPreviousChaptersUnread;
+const selectRefreshChapters = (state: NovelStoreState) => state.refreshChapters;
+const selectDeleteChapters = (state: NovelStoreState) => state.deleteChapters;
+
+const useNovelDomainValue = <T,>(
+  novelStore: NovelStoreApi | undefined,
+  selector: (state: NovelStoreState) => T,
+  fallback: T,
+) => {
+  const subscribe = useCallback(
+    (onStoreChange: () => void) =>
+      novelStore ? novelStore.subscribe(onStoreChange) : noopUnsubscribe,
+    [novelStore],
+  );
+
+  const getSnapshot = useCallback(
+    () => (novelStore ? selector(novelStore.getState()) : fallback),
+    [fallback, novelStore, selector],
+  );
+
+  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+};
 
 const Novel = ({ route, navigation }: NovelScreenProps) => {
-  const {
-    novel,
-    chapters,
-    fetching,
-    batchInformation,
-    getNextChapterBatch,
-    loadUpToBatch,
-    setNovel,
-    bookmarkChapters,
-    markChaptersRead,
-    markChaptersUnread,
-    markPreviouschaptersRead,
-    markPreviousChaptersUnread,
-    refreshChapters,
-    deleteChapters,
-  } = useNovelContext();
+  const novelContext = useNovelContext() as NovelContextWithOptionalStore;
+
+  const novel = useNovelDomainValue(
+    novelContext.novelStore,
+    selectNovel,
+    novelContext.novel,
+  );
+  const chapters = useNovelDomainValue(
+    novelContext.novelStore,
+    selectChapters,
+    novelContext.chapters,
+  );
+  const fetching = useNovelDomainValue(
+    novelContext.novelStore,
+    selectFetching,
+    novelContext.fetching,
+  );
+  const batchInformation = useNovelDomainValue(
+    novelContext.novelStore,
+    selectBatchInformation,
+    novelContext.batchInformation,
+  );
+  const getNextChapterBatch = useNovelDomainValue(
+    novelContext.novelStore,
+    selectGetNextChapterBatch,
+    novelContext.getNextChapterBatch,
+  );
+  const loadUpToBatch = useNovelDomainValue(
+    novelContext.novelStore,
+    selectLoadUpToBatch,
+    novelContext.loadUpToBatch,
+  );
+  const setNovel = useNovelDomainValue(
+    novelContext.novelStore,
+    selectSetNovel,
+    novelContext.setNovel,
+  );
+  const bookmarkChapters = useNovelDomainValue(
+    novelContext.novelStore,
+    selectBookmarkChapters,
+    novelContext.bookmarkChapters,
+  );
+  const markChaptersRead = useNovelDomainValue(
+    novelContext.novelStore,
+    selectMarkChaptersRead,
+    novelContext.markChaptersRead,
+  );
+  const markChaptersUnread = useNovelDomainValue(
+    novelContext.novelStore,
+    selectMarkChaptersUnread,
+    novelContext.markChaptersUnread,
+  );
+  const markPreviouschaptersRead = useNovelDomainValue(
+    novelContext.novelStore,
+    selectMarkPreviouschaptersRead,
+    novelContext.markPreviouschaptersRead,
+  );
+  const markPreviousChaptersUnread = useNovelDomainValue(
+    novelContext.novelStore,
+    selectMarkPreviousChaptersUnread,
+    novelContext.markPreviousChaptersUnread,
+  );
+  const refreshChapters = useNovelDomainValue(
+    novelContext.novelStore,
+    selectRefreshChapters,
+    novelContext.refreshChapters,
+  );
+  const deleteChapters = useNovelDomainValue(
+    novelContext.novelStore,
+    selectDeleteChapters,
+    novelContext.deleteChapters,
+  );
 
   const theme = useTheme();
   const { downloadChapters } = useDownload();
@@ -229,17 +343,19 @@ const Novel = ({ route, navigation }: NovelScreenProps) => {
       batchInformation.batch < batchInformation.total && !fetching
         ? getNextChapterBatch
         : noop,
-    [batchInformation.batch, batchInformation.total, fetching, getNextChapterBatch],
+    [
+      batchInformation.batch,
+      batchInformation.total,
+      fetching,
+      getNextChapterBatch,
+    ],
   );
 
   const hideJumpToChapterModal = useCallback(
     () => showJumpToChapterModal(false),
     [],
   );
-  const hideEditInfoModal = useCallback(
-    () => showEditInfoModal(false),
-    [],
-  );
+  const hideEditInfoModal = useCallback(() => showEditInfoModal(false), []);
   const clearSelection = useCallback(() => setSelected([]), []);
   const selectAll = useCallback(() => setSelected(chapters), [chapters]);
 
