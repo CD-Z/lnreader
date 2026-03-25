@@ -8,11 +8,10 @@ import { getNovelChapters } from '@database/queries/ChapterQueries';
 import { fetchNovel } from '@services/plugin/fetch';
 import { parseChapterNumber } from '@utils/parseChapterNumber';
 
-import { getMMKVObject, setMMKVObject } from '@utils/mmkv/mmkv';
 import {
-  LAST_READ_PREFIX,
-  NOVEL_SETTINGS_PREFIX,
-} from '@hooks/persisted/useNovel';
+  novelPersistence,
+  NovelPersistenceInput,
+} from '@hooks/persisted/useNovel/persistence';
 import { sleep } from '@utils/sleep';
 import ServiceManager, {
   BackgroundTaskMetadata,
@@ -96,22 +95,21 @@ export const migrateNovel = async (
     await tx.delete(novelSchema).where(eq(novelSchema.id, fromNovel.id));
   });
 
-  setMMKVObject(
-    `${NOVEL_SETTINGS_PREFIX}_${toNovel!.pluginId}_${toNovel!.path}`,
-    getMMKVObject(
-      `${NOVEL_SETTINGS_PREFIX}_${fromNovel.pluginId}_${fromNovel.path}`,
-    ),
-  );
+  const fromPersistenceInput: NovelPersistenceInput = {
+    pluginId: fromNovel.pluginId,
+    novelPath: fromNovel.path,
+  };
+  const toPersistenceInput: NovelPersistenceInput = {
+    pluginId: toNovel!.pluginId,
+    novelPath: toNovel!.path,
+  };
 
-  const lastRead = getMMKVObject<NovelInfo>(
-    `${LAST_READ_PREFIX}_${fromNovel.pluginId}_${fromNovel.path}`,
-  );
+  novelPersistence.copySettings(fromPersistenceInput, toPersistenceInput);
+
+  const lastRead = novelPersistence.readLastRead(fromPersistenceInput);
 
   const setLastRead = (chapter: ChapterInfo) => {
-    setMMKVObject(
-      `${LAST_READ_PREFIX}_${toNovel!.pluginId}_${toNovel!.path}`,
-      chapter,
-    );
+    novelPersistence.writeLastRead(toPersistenceInput, chapter);
   };
 
   fromChapters = sortChaptersByNumber(fromNovel.name, fromChapters);
