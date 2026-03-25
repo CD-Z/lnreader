@@ -10,8 +10,8 @@ import { parseChapterNumber } from '@utils/parseChapterNumber';
 
 import {
   novelPersistence,
-  NovelPersistenceInput,
-} from '@hooks/persisted/useNovel/persistence';
+  type NovelPersistenceInput,
+} from '@hooks/persisted/useNovel/contracts';
 import { sleep } from '@utils/sleep';
 import ServiceManager, {
   BackgroundTaskMetadata,

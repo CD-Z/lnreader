@@ -4,11 +4,12 @@ import {
   createNovelPersistenceBridge,
   defaultNovelSettings,
   defaultPageIndex,
+  keyContract,
   LAST_READ_PREFIX,
   NOVEL_PAGE_INDEX_PREFIX,
   NOVEL_SETTINGS_PREFIX,
   novelPersistence,
-} from '../persistence';
+} from '../contracts';
 
 jest.mock('@services/ServiceManager', () => ({
   __esModule: true,
@@ -88,6 +89,24 @@ describe('novelPersistence bridge', () => {
     expect(bridge.readPageIndex(input)).toBe(5);
     expect(bridge.readSettings(input)).toEqual(defaultNovelSettings);
     expect(bridge.readLastRead(input)).toEqual(sampleChapter);
+  });
+
+  it('keeps bridge key builders aligned with shared key contract exports', () => {
+    const bridge = createNovelPersistenceBridge(createStorage());
+
+    expect(bridge.keys.pageIndex(input)).toBe(
+      `${NOVEL_PAGE_INDEX_PREFIX}_${input.pluginId}_${input.novelPath}`,
+    );
+    expect(bridge.keys.settings(input)).toBe(
+      `${NOVEL_SETTINGS_PREFIX}_${input.pluginId}_${input.novelPath}`,
+    );
+    expect(bridge.keys.lastRead(input)).toBe(
+      `${LAST_READ_PREFIX}_${input.pluginId}_${input.novelPath}`,
+    );
+
+    expect(bridge.keys.pageIndex(input)).toBe(keyContract.pageIndex(input));
+    expect(bridge.keys.settings(input)).toBe(keyContract.settings(input));
+    expect(bridge.keys.lastRead(input)).toBe(keyContract.lastRead(input));
   });
 
   it('recovers from corrupt persisted values with safe defaults', () => {
