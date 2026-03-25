@@ -2,14 +2,9 @@ import { act, renderHook } from '@testing-library/react-native';
 import { useNovelSettings } from '../../useNovelSettings';
 
 const mockUseNovelContext = jest.fn();
-const mockUseMMKVObject = jest.fn();
 
 jest.mock('@screens/novel/NovelContext', () => ({
   useNovelContext: () => mockUseNovelContext(),
-}));
-
-jest.mock('react-native-mmkv', () => ({
-  useMMKVObject: (...args: unknown[]) => mockUseMMKVObject(...args),
 }));
 
 jest.mock('../../useSettings', () => ({
@@ -32,34 +27,7 @@ describe('useNovelSettings (task 10 settings boundary decouple)', () => {
     jest.clearAllMocks();
   });
 
-  it('keeps compatibility fallback path (no novelStore) and persists chapter sort updates', async () => {
-    const setNovelSettings = jest.fn();
-
-    mockUseMMKVObject.mockReturnValue([
-      {
-        filter: ['downloaded'],
-        showChapterTitles: false,
-      },
-      setNovelSettings,
-    ]);
-    mockUseNovelContext.mockReturnValue({ novel: baseNovel });
-
-    const { result } = renderHook(() => useNovelSettings());
-
-    await act(async () => {
-      await result.current.setChapterSort('nameAsc');
-    });
-
-    expect(setNovelSettings).toHaveBeenCalledWith({
-      showChapterTitles: false,
-      sort: 'nameAsc',
-      filter: ['downloaded'],
-    });
-    expect(setNovelSettings).toHaveBeenCalledTimes(1);
-  });
-
-  it('uses selector-backed novelSettings state and actions when novelStore is present', async () => {
-    const setNovelSettings = jest.fn();
+  it('uses selector-backed novelSettings state and actions', async () => {
     const storeSetNovelSettings = jest.fn();
     const storeState = {
       novel: baseNovel,
@@ -75,18 +43,7 @@ describe('useNovelSettings (task 10 settings boundary decouple)', () => {
       subscribe: jest.fn(() => () => {}),
     };
 
-    mockUseMMKVObject.mockReturnValue([
-      {
-        sort: 'nameAsc',
-        filter: ['downloaded'],
-        showChapterTitles: false,
-      },
-      setNovelSettings,
-    ]);
-    mockUseNovelContext.mockReturnValue({
-      novel: baseNovel,
-      novelStore,
-    });
+    mockUseNovelContext.mockReturnValue({ novelStore });
 
     const { result } = renderHook(() => useNovelSettings());
 
@@ -104,11 +61,5 @@ describe('useNovelSettings (task 10 settings boundary decouple)', () => {
       filter: ['read'],
     });
     expect(storeSetNovelSettings).toHaveBeenCalledTimes(1);
-    expect(setNovelSettings).toHaveBeenCalledWith({
-      showChapterTitles: true,
-      sort: 'nameDesc',
-      filter: ['read'],
-    });
-    expect(setNovelSettings).toHaveBeenCalledTimes(1);
   });
 });

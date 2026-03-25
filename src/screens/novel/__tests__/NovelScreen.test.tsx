@@ -247,20 +247,9 @@ const createStore = (overrides: Record<string, unknown> = {}) => {
 };
 
 const createContext = (overrides: Record<string, unknown> = {}) => ({
-  novel: baseNovel,
-  chapters: [],
-  fetching: false,
-  batchInformation: { batch: 0, total: 0, totalChapters: 0 },
-  getNextChapterBatch: jest.fn(),
-  loadUpToBatch: jest.fn(),
-  setNovel: jest.fn(),
-  bookmarkChapters: jest.fn(),
-  markChaptersRead: jest.fn(),
-  markChaptersUnread: jest.fn(),
-  markPreviouschaptersRead: jest.fn(),
-  markPreviousChaptersUnread: jest.fn(),
-  refreshChapters: jest.fn(),
-  deleteChapters: jest.fn(),
+  novelStore: createStore(),
+  navigationBarHeight: 0,
+  statusBarHeight: 0,
   ...overrides,
 });
 
@@ -278,21 +267,14 @@ const navigation = {
   navigate: jest.fn(),
 };
 
-describe('NovelScreen (task 7 store migration)', () => {
+describe('NovelScreen (task 12 context boundary cutover)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
   it('uses novelStore action selectors for selected unread workflow', () => {
     const store = createStore();
-    const fallbackMarkChaptersRead = jest.fn();
-
-    mockUseNovelContext.mockReturnValue(
-      createContext({
-        novelStore: store,
-        markChaptersRead: fallbackMarkChaptersRead,
-      }),
-    );
+    mockUseNovelContext.mockReturnValue(createContext({ novelStore: store }));
 
     render(
       // @ts-expect-error narrowed test props
@@ -303,7 +285,6 @@ describe('NovelScreen (task 7 store migration)', () => {
     fireEvent.press(screen.getByTestId('action-check'));
 
     expect(store.state.markChaptersRead).toHaveBeenCalledTimes(1);
-    expect(fallbackMarkChaptersRead).not.toHaveBeenCalled();
   });
 
   it('preserves selected-read workflow parity (mark unread + reset progress + refresh)', () => {
@@ -326,9 +307,7 @@ describe('NovelScreen (task 7 store migration)', () => {
 
   it('keeps undefined-novel safety path for download action and guarded modals', () => {
     const store = createStore({ novel: undefined });
-    mockUseNovelContext.mockReturnValue(
-      createContext({ novel: undefined, novelStore: store }),
-    );
+    mockUseNovelContext.mockReturnValue(createContext({ novelStore: store }));
 
     render(
       // @ts-expect-error narrowed test props

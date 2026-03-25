@@ -126,26 +126,19 @@ const createStore = (overrides: Record<string, unknown> = {}) => {
 };
 
 const createNovelContext = (overrides: Record<string, unknown> = {}) => ({
-  chapters: [makeChapter(1, '1'), makeChapter(2, '2')],
-  novelSettings: { sort: 'positionAsc', filter: [] },
-  pages: ['1', '2'],
-  fetching: false,
-  batchInformation: { batch: 0, total: 1, totalChapters: 2 },
-  getNextChapterBatch: jest.fn(),
-  setPageIndex: jest.fn(),
+  novelStore: createStore(),
+  navigationBarHeight: 0,
+  statusBarHeight: 0,
   ...overrides,
 });
 
-describe('ChapterDrawer (task 9 reader-flow selector migration)', () => {
+describe('ChapterDrawer (task 12 context boundary cutover)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
   it('uses novelStore selector-backed page index and pagination batch actions', async () => {
     const store = createStore();
-    const fallbackSetPageIndex = jest.fn();
-    const fallbackGetNextBatch = jest.fn();
-
     mockUseChapterContext.mockReturnValue({
       chapter: makeChapter(10, '2'),
       getChapter: jest.fn(),
@@ -154,8 +147,6 @@ describe('ChapterDrawer (task 9 reader-flow selector migration)', () => {
     mockUseNovelContext.mockReturnValue(
       createNovelContext({
         novelStore: store,
-        setPageIndex: fallbackSetPageIndex,
-        getNextChapterBatch: fallbackGetNextBatch,
       }),
     );
 
@@ -164,37 +155,9 @@ describe('ChapterDrawer (task 9 reader-flow selector migration)', () => {
     await waitFor(() => {
       expect(store.state.setPageIndex).toHaveBeenCalledWith(1);
     });
-    expect(fallbackSetPageIndex).not.toHaveBeenCalled();
 
     fireEvent.press(screen.getByTestId('legend-end-reached'));
 
     expect(store.state.getNextChapterBatch).toHaveBeenCalledTimes(1);
-    expect(fallbackGetNextBatch).not.toHaveBeenCalled();
-  });
-
-  it('keeps compatibility fallback path without novelStore', async () => {
-    const fallbackSetPageIndex = jest.fn();
-    const fallbackGetNextBatch = jest.fn();
-
-    mockUseChapterContext.mockReturnValue({
-      chapter: makeChapter(20, '2'),
-      getChapter: jest.fn(),
-      setLoading: jest.fn(),
-    });
-    mockUseNovelContext.mockReturnValue(
-      createNovelContext({
-        setPageIndex: fallbackSetPageIndex,
-        getNextChapterBatch: fallbackGetNextBatch,
-      }),
-    );
-
-    render(<ChapterDrawer />);
-
-    await waitFor(() => {
-      expect(fallbackSetPageIndex).toHaveBeenCalledWith(1);
-    });
-
-    fireEvent.press(screen.getByTestId('legend-end-reached'));
-    expect(fallbackGetNextBatch).toHaveBeenCalledTimes(1);
   });
 });

@@ -225,6 +225,8 @@ const createStore = (overrides: Record<string, unknown> = {}) => {
     pageIndex: 0,
     openPage: jest.fn(),
     updateChapter: jest.fn(),
+    refreshNovel: jest.fn(),
+    lastRead: undefined,
     ...overrides,
   };
 
@@ -236,21 +238,9 @@ const createStore = (overrides: Record<string, unknown> = {}) => {
 };
 
 const createContext = (overrides: Record<string, unknown> = {}) => ({
-  chapters: [],
-  deleteChapter: jest.fn(),
-  fetching: false,
-  firstUnreadChapter: undefined,
-  getNovel: jest.fn(),
-  lastRead: undefined,
-  loading: false,
-  novelSettings: { filter: [], showChapterTitles: false },
-  pages: ['1'],
-  setNovel: jest.fn(),
-  novel: baseNovel,
-  batchInformation: { batch: 0, total: 0, totalChapters: 0 },
-  pageIndex: 0,
-  openPage: jest.fn(),
-  updateChapter: jest.fn(),
+  novelStore: createStore(),
+  navigationBarHeight: 0,
+  statusBarHeight: 0,
   ...overrides,
 });
 
@@ -275,29 +265,21 @@ const renderList = () =>
     />,
   );
 
-describe('NovelScreenList (task 8 store selector migration)', () => {
+describe('NovelScreenList (task 12 context boundary cutover)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockDownloadingChapterIds = new Set<number>();
   });
 
-  it('uses novelStore selector actions over fallback context actions', () => {
+  it('uses novelStore selector actions', () => {
     const store = createStore();
-    const fallbackDeleteChapter = jest.fn();
-
-    mockUseNovelContext.mockReturnValue(
-      createContext({
-        novelStore: store,
-        deleteChapter: fallbackDeleteChapter,
-      }),
-    );
+    mockUseNovelContext.mockReturnValue(createContext({ novelStore: store }));
 
     renderList();
 
     fireEvent.press(screen.getByTestId('delete-chapter-1'));
 
     expect(store.state.deleteChapter).toHaveBeenCalledTimes(1);
-    expect(fallbackDeleteChapter).not.toHaveBeenCalled();
   });
 
   it('marks downloaded chapter when an id leaves downloading set', () => {
@@ -332,32 +314,23 @@ describe('NovelScreenList (task 8 store selector migration)', () => {
 
   it('uses selector-backed page navigation action from novelStore', () => {
     const store = createStore();
-    const fallbackOpenPage = jest.fn();
-
-    mockUseNovelContext.mockReturnValue(
-      createContext({ novelStore: store, openPage: fallbackOpenPage }),
-    );
+    mockUseNovelContext.mockReturnValue(createContext({ novelStore: store }));
 
     renderList();
 
     fireEvent.press(screen.getByTestId('pagination-change-page'));
 
     expect(store.state.openPage).toHaveBeenCalledWith(1);
-    expect(fallbackOpenPage).not.toHaveBeenCalled();
   });
 
   it('keeps continue-reading FAB navigation parity with lastRead fallback chain', () => {
+    const lastRead = { ...baseChapter, id: 42 };
     const store = createStore({
       firstUnreadChapter: { ...baseChapter, id: 99 },
+      lastRead,
     });
-    const lastRead = { ...baseChapter, id: 42 };
 
-    mockUseNovelContext.mockReturnValue(
-      createContext({
-        novelStore: store,
-        lastRead,
-      }),
-    );
+    mockUseNovelContext.mockReturnValue(createContext({ novelStore: store }));
 
     renderList();
 
