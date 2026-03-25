@@ -1,5 +1,9 @@
-import './mocks';
-import useNovelDefault, {
+import {
+  createMockNovelStore,
+  createMockNovelStoreState,
+  mockUseNovelContext,
+} from './mocks';
+import {
   LAST_READ_PREFIX,
   NOVEL_PAGE_INDEX_PREFIX,
   NOVEL_SETTINGS_PREFIX,
@@ -7,16 +11,10 @@ import useNovelDefault, {
   defaultPageIndex,
   deleteCachedNovels,
   useNovel,
-} from '@hooks/persisted/__mocks__/useNovel';
-import {
-  defaultNovelSettings as settingsDefaultNovelSettings,
-  useNovelSettings,
-} from '@hooks/persisted/__mocks__/useNovelSettings';
-import {
-  createMockNovelStore,
-  createMockNovelStoreState,
-  mockUseNovelContext,
-} from './mocks';
+} from '@hooks/persisted/useNovel';
+import { useNovelSettings } from '@hooks/persisted/useNovelSettings';
+
+jest.mock('@hooks/persisted/useNovel');
 
 describe('mock contracts (zustand novel architecture)', () => {
   it('useNovel mock exports persistence constants and compatibility helpers', () => {
@@ -30,12 +28,19 @@ describe('mock contracts (zustand novel architecture)', () => {
     });
 
     expect(typeof useNovel).toBe('function');
-    expect(useNovelDefault).toBe(useNovel);
+    expect(jest.isMockFunction(useNovel)).toBe(true);
     expect(jest.isMockFunction(deleteCachedNovels)).toBe(true);
   });
 
   it('useNovel mock state includes store-era action and cache surface', () => {
-    const state = useNovel();
+    const state = useNovel() as unknown as {
+      chapterTextCache: {
+        read: unknown;
+        write: unknown;
+        remove: unknown;
+        clear: unknown;
+      };
+    } & Record<string, unknown>;
 
     const requiredMembers = [
       'loading',
@@ -91,9 +96,13 @@ describe('mock contracts (zustand novel architecture)', () => {
   });
 
   it('useNovelSettings mock keeps settings API contract available', () => {
-    const result = useNovelSettings();
+    const result = useNovelSettings() as unknown as Record<string, unknown>;
 
-    expect(settingsDefaultNovelSettings).toEqual({
+    expect({
+      sort: result.sort,
+      filter: result.filter,
+      showChapterTitles: result.showChapterTitles,
+    }).toEqual({
       sort: undefined,
       filter: [],
       showChapterTitles: true,
