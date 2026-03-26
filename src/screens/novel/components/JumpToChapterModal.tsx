@@ -1,4 +1,9 @@
-import React, { useRef, useState } from 'react';
+import React, {
+  useRef,
+  useState,
+  useCallback,
+  useSyncExternalStore,
+} from 'react';
 import {
   StyleSheet,
   View,
@@ -10,6 +15,8 @@ import { Button, Modal, SwitchItem } from '@components';
 
 import { Portal, Text } from 'react-native-paper';
 import { useTheme } from '@hooks/persisted';
+import { useNovelContext } from '../NovelContext';
+import { NovelStoreState } from '@hooks/persisted/useNovel/novelStore';
 import { ChapterInfo, NovelInfo } from '@database/types';
 import { NovelScreenProps } from '@navigators/types';
 import {
@@ -27,24 +34,48 @@ interface JumpToChapterModalProps {
   modalVisible: boolean;
   navigation: NovelScreenProps['navigation'];
   novel: NovelInfo;
-  chapters: ChapterInfo[];
   chapterListRef: React.RefObject<LegendListRef | null>;
-  loadUpToBatch: (batch: number) => Promise<void>;
-  totalChapters?: number;
 }
 
 const JumpToChapterModal = ({
   hideModal,
   modalVisible,
-  chapters: loadedChapters,
   navigation,
   novel,
   chapterListRef,
-  loadUpToBatch,
-  totalChapters,
 }: JumpToChapterModalProps) => {
   const minNumber = 1;
-  const maxNumber = totalChapters ?? -1;
+  const { novelStore } = useNovelContext();
+
+  const selectChapters = (state: NovelStoreState) => state.chapters;
+  const selectLoadUpToBatch = (state: NovelStoreState) => state.loadUpToBatch;
+  const selectBatchInformation = (state: NovelStoreState) =>
+    state.batchInformation;
+
+  const useNovelDomainValue = <T,>(
+    store: ReturnType<typeof useNovelContext>['novelStore'],
+    selector: (state: NovelStoreState) => T,
+  ) => {
+    const subscribe = useCallback(
+      (onStoreChange: () => void) => store.subscribe(onStoreChange),
+      [store],
+    );
+
+    const getSnapshot = useCallback(
+      () => selector(store.getState()),
+      [store, selector],
+    );
+
+    return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  };
+
+  const loadedChapters = useNovelDomainValue(novelStore, selectChapters);
+  const loadUpToBatch = useNovelDomainValue(novelStore, selectLoadUpToBatch);
+  const batchInformation = useNovelDomainValue(
+    novelStore,
+    selectBatchInformation,
+  );
+  const maxNumber = batchInformation.totalChapters ?? -1;
   const theme = useTheme();
   const [mode, setMode] = useState(false);
   const [openChapter, setOpenChapter] = useState(false);

@@ -50,7 +50,7 @@ type NovelScreenListProps = {
   navigation: any;
   selected: ChapterInfo[];
   setSelected: React.Dispatch<React.SetStateAction<ChapterInfo[]>>;
-  getNextChapterBatch: () => void;
+  getNextChapterBatch?: () => void;
   routeBaseNovel: {
     name: string;
     path: string;
@@ -106,7 +106,6 @@ const NovelScreenList = ({
   getNextChapterBatch,
 }: NovelScreenListProps) => {
   const { novelStore } = useNovelContext();
-
   const chapters = useNovelDomainValue(novelStore, selectChapters);
   const deleteChapter = useNovelDomainValue(novelStore, selectDeleteChapter);
   const fetching = useNovelDomainValue(novelStore, selectFetching);
@@ -122,6 +121,10 @@ const NovelScreenList = ({
   const batchInformation = useNovelDomainValue(
     novelStore,
     selectBatchInformation,
+  );
+  const getNextChapterBatchFromStore = useNovelDomainValue(
+    novelStore,
+    (s: NovelStoreState) => s.getNextChapterBatch,
   );
   const pageIndex = useNovelDomainValue(novelStore, selectPageIndex);
   const openPage = useNovelDomainValue(novelStore, selectOpenPage);
@@ -533,6 +536,8 @@ const NovelScreenList = ({
     [lastRead],
   );
 
+  const effectiveGetNext = getNextChapterBatch ?? getNextChapterBatchFromStore;
+
   return (
     <>
       <LegendList
@@ -566,7 +571,7 @@ const NovelScreenList = ({
         extraData={[downloadingChapterIds, selectedIds]}
         contentContainerStyle={styles.contentContainer}
         refreshControl={refreshControlElement}
-        onEndReached={getNextChapterBatch}
+        onEndReached={effectiveGetNext}
         onEndReachedThreshold={6}
         onScroll={onPageScroll}
         scrollEventThrottle={16}

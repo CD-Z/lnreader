@@ -25,7 +25,7 @@ import NovelScreenLoading from './components/LoadingAnimation/NovelScreenLoading
 import { NovelScreenProps } from '@navigators/types';
 import { ChapterInfo } from '@database/types';
 import { getString } from '@strings/translations';
-import { isNumber, noop } from 'lodash-es';
+import { isNumber } from 'lodash-es';
 import NovelAppbar from './components/NovelAppbar';
 import { resolveUrl } from '@services/plugin/fetch';
 import {
@@ -43,12 +43,7 @@ import { NovelStoreState } from '@hooks/persisted/useNovel/novelStore';
 
 const selectNovel = (state: NovelStoreState) => state.novel;
 const selectChapters = (state: NovelStoreState) => state.chapters;
-const selectFetching = (state: NovelStoreState) => state.fetching;
-const selectBatchInformation = (state: NovelStoreState) =>
-  state.batchInformation;
-const selectGetNextChapterBatch = (state: NovelStoreState) =>
-  state.getNextChapterBatch;
-const selectLoadUpToBatch = (state: NovelStoreState) => state.loadUpToBatch;
+// batchInformation moved to child components
 const selectSetNovel = (state: NovelStoreState) => state.setNovel;
 const selectBookmarkChapters = (state: NovelStoreState) =>
   state.bookmarkChapters;
@@ -85,16 +80,7 @@ const Novel = ({ route, navigation }: NovelScreenProps) => {
 
   const novel = useNovelDomainValue(novelStore, selectNovel);
   const chapters = useNovelDomainValue(novelStore, selectChapters);
-  const fetching = useNovelDomainValue(novelStore, selectFetching);
-  const batchInformation = useNovelDomainValue(
-    novelStore,
-    selectBatchInformation,
-  );
-  const getNextChapterBatch = useNovelDomainValue(
-    novelStore,
-    selectGetNextChapterBatch,
-  );
-  const loadUpToBatch = useNovelDomainValue(novelStore, selectLoadUpToBatch);
+
   const setNovel = useNovelDomainValue(novelStore, selectSetNovel);
   const bookmarkChapters = useNovelDomainValue(
     novelStore,
@@ -295,19 +281,6 @@ const Novel = ({ route, navigation }: NovelScreenProps) => {
     }
   }, [novel, setNovel]);
 
-  const stableGetNextBatch = useMemo(
-    () =>
-      batchInformation.batch < batchInformation.total && !fetching
-        ? getNextChapterBatch
-        : noop,
-    [
-      batchInformation.batch,
-      batchInformation.total,
-      fetching,
-      getNextChapterBatch,
-    ],
-  );
-
   const hideJumpToChapterModal = useCallback(
     () => showJumpToChapterModal(false),
     [],
@@ -395,7 +368,6 @@ const Novel = ({ route, navigation }: NovelScreenProps) => {
               routeBaseNovel={route.params}
               selected={selected}
               setSelected={setSelected}
-              getNextChapterBatch={stableGetNextBatch}
             />
           </Suspense>
         </SafeAreaView>
@@ -423,9 +395,6 @@ const Novel = ({ route, navigation }: NovelScreenProps) => {
                 novel={novel}
                 chapterListRef={chapterListRef}
                 navigation={navigation}
-                loadUpToBatch={loadUpToBatch}
-                totalChapters={batchInformation.totalChapters}
-                chapters={chapters}
               />
               <EditInfoModal
                 modalVisible={editInfoModal}
