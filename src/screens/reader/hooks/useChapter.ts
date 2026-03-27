@@ -22,7 +22,6 @@ import {
   useMemo,
   useRef,
   useState,
-  useSyncExternalStore,
 } from 'react';
 import { sanitizeChapterText } from '../utils/sanitizeChapterText';
 import { parseChapterNumber } from '@utils/parseChapterNumber';
@@ -35,63 +34,22 @@ import { showToast } from '@utils/showToast';
 import { getString } from '@strings/translations';
 import NativeVolumeButtonListener from '@specs/NativeVolumeButtonListener';
 import NativeFile from '@specs/NativeFile';
-import { useNovelContext } from '@screens/novel/NovelContext';
-import { NovelStoreState } from '@hooks/persisted/useNovel/novelStore';
+import { useNovelActions } from '@screens/novel/NovelContext';
 
 const emmiter = new NativeEventEmitter(NativeVolumeButtonListener);
-
-const selectMarkChapterRead = (state: NovelStoreState) => state.markChapterRead;
-const selectUpdateChapterProgress = (state: NovelStoreState) =>
-  state.updateChapterProgress;
-const selectChapterTextCache = (state: NovelStoreState) =>
-  state.chapterTextCache;
-const selectSetLastRead = (state: NovelStoreState) => state.setLastRead;
-
-const useNovelDomainValue = <T>(
-  novelStore: ReturnType<typeof useNovelContext>['novelStore'],
-  selector: (state: NovelStoreState) => T,
-) => {
-  const subscribe = useCallback(
-    (onStoreChange: () => void) => novelStore.subscribe(onStoreChange),
-    [novelStore],
-  );
-
-  const getSnapshot = useCallback(
-    () => selector(novelStore.getState()),
-    [novelStore, selector],
-  );
-
-  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
-};
 
 export default function useChapter(
   webViewRef: RefObject<WebView | null>,
   initialChapter: ChapterInfo,
   novel: NovelInfo,
 ) {
-  const { novelStore } = useNovelContext();
+  const {
+    setLastRead,
+    markChapterRead,
+    updateChapterProgress,
+    chapterTextCache,
+  } = useNovelActions();
 
-  const setLastRead = useNovelDomainValue(novelStore, selectSetLastRead);
-
-  const markChapterRead = useNovelDomainValue(
-    novelStore,
-    selectMarkChapterRead,
-  );
-  const updateChapterProgress = useNovelDomainValue(
-    novelStore,
-    selectUpdateChapterProgress,
-  );
-  const chapterTextCacheDomain = useNovelDomainValue(
-    novelStore,
-    selectChapterTextCache,
-  );
-  const chapterTextCache = useMemo(
-    () => ({
-      get: chapterTextCacheDomain.read,
-      set: chapterTextCacheDomain.write,
-    }),
-    [chapterTextCacheDomain.read, chapterTextCacheDomain.write],
-  );
   const [hidden, setHidden] = useState(true);
   const [chapter, setChapter] = useState(initialChapter);
   const [loading, setLoading] = useState(true);
@@ -168,7 +126,7 @@ export default function useChapter(
     async (navChapter?: ChapterInfo) => {
       try {
         const chap = navChapter ?? chapter;
-        const cachedText = chapterTextCache.get(chap.id);
+        const cachedText = chapterTextCache.read(chap.id);
         const text = cachedText ?? loadChapterText(chap.id, chap.path);
         const [nextChapResult, prevChapResult, awaitedText] = await Promise.all(
           [
@@ -229,14 +187,14 @@ export default function useChapter(
           } catch {}
         }
 
-        if (nextChap && !chapterTextCache.get(nextChap.id)) {
-          chapterTextCache.set(
+        if (nextChap && !chapterTextCache.read(nextChap.id)) {
+          chapterTextCache.write(
             nextChap.id,
             loadChapterText(nextChap.id, nextChap.path),
           );
         }
         if (!cachedText) {
-          chapterTextCache.set(chap.id, text);
+          chapterTextCache.write(chap.id, text);
         }
         setChapter(chap);
         setChapterText(

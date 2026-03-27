@@ -171,6 +171,46 @@ describe('createNovelStore', () => {
     expect(store.getState().pageIndex).toBe(0);
   });
 
+  it('delegates chapter batch operations through bootstrapService composition boundary', async () => {
+    const bootstrapDeps = createBootstrapDeps();
+    const chapterDeps = createChapterDeps();
+
+    bootstrapDeps.getNextChapterBatch.mockResolvedValue({
+      chapters: [makeChapter(30, { page: '1' })],
+      batch: 1,
+    });
+
+    const store = createNovelStore({
+      pluginId: PLUGIN_ID,
+      novelPath: NOVEL_PATH,
+      novel: mockNovel,
+      dependencies: {
+        bootstrapService: bootstrapDeps,
+        chapterActionsDependencies: chapterDeps,
+      },
+    });
+
+    store.getState().setPages(['1', '2']);
+    await store.getState().getNextChapterBatch();
+    await store.getState().loadUpToBatch(3);
+
+    expect(bootstrapDeps.getNextChapterBatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        novel: mockNovel,
+        pages: ['1', '2'],
+        pageIndex: 0,
+      }),
+    );
+    expect(bootstrapDeps.loadUpToBatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        targetBatch: 3,
+        novel: mockNovel,
+        pages: ['1', '2'],
+        pageIndex: 0,
+      }),
+    );
+  });
+
   it('delegates chapter actions to chapterActions helpers and keeps mutation parity', () => {
     const bootstrapDeps = createBootstrapDeps();
     const chapterDeps = createChapterDeps();

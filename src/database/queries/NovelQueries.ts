@@ -82,15 +82,10 @@ export const getAllNovels = async (): Promise<NovelInfo[]> => {
   return dbManager.select().from(novelSchema).all();
 };
 
-export const getNovelById = async (
-  novelId: number,
-): Promise<NovelInfo | undefined> => {
-  const res = dbManager
-    .select()
-    .from(novelSchema)
-    .where(eq(novelSchema.id, novelId))
-    .get();
-  return res;
+export const getNovelById = (novelId: number): NovelInfo | undefined => {
+  return dbManager.getSync(
+    dbManager.select().from(novelSchema).where(eq(novelSchema.id, novelId)),
+  );
 };
 
 export const getNovelByPath = (

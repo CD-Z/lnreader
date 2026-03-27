@@ -4,60 +4,23 @@ import {
   ChapterFilterPositiveKey,
   ChapterOrderKey,
 } from '@database/constants';
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useSyncExternalStore,
-} from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useAppSettings } from './useSettings';
 import { ChapterFilterObject, FilterStates } from '@database/utils/filter';
-import { useNovelContext } from '@screens/novel/NovelContext';
-import { NovelStoreState } from './useNovel/novelStore';
 import {
   defaultNovelSettings,
   NOVEL_PAGE_INDEX_PREFIX,
   NOVEL_SETTINGS_PREFIX,
 } from './useNovel/types';
+import { useNovelAction, useNovelValue } from '@screens/novel/NovelContext';
 
 export { NOVEL_PAGE_INDEX_PREFIX, NOVEL_SETTINGS_PREFIX };
 
-const selectNovel = (state: NovelStoreState) => state.novel;
-const selectNovelSettings = (state: NovelStoreState) => state.novelSettings;
-const selectSetNovelSettings = (state: NovelStoreState) =>
-  state.setNovelSettings;
-
-const useNovelDomainValue = <T>(
-  novelStore: ReturnType<typeof useNovelContext>['novelStore'],
-  selector: (state: NovelStoreState) => T,
-) => {
-  const subscribe = useCallback(
-    (onStoreChange: () => void) => novelStore.subscribe(onStoreChange),
-    [novelStore],
-  );
-
-  const getSnapshot = useCallback(
-    () => selector(novelStore.getState()),
-    [novelStore, selector],
-  );
-
-  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
-};
-
 export const useNovelSettings = () => {
-  const { novelStore } = useNovelContext();
   const { defaultChapterSort } = useAppSettings();
-
-  const novel = useNovelDomainValue(novelStore, selectNovel);
-  const domainNovelSettings = useNovelDomainValue(
-    novelStore,
-    selectNovelSettings,
-  );
-  const writeNovelSettings = useNovelDomainValue(
-    novelStore,
-    selectSetNovelSettings,
-  );
+  const novel = useNovelValue('novel');
+  const domainNovelSettings = useNovelValue('novelSettings');
+  const writeNovelSettings = useNovelAction('setNovelSettings');
 
   const novelSettings = useMemo(
     () => ({ ...defaultNovelSettings, ...domainNovelSettings }),

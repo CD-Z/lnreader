@@ -6,126 +6,176 @@ import React, {
   useRef,
 } from 'react';
 import { RouteProp } from '@react-navigation/native';
+import { useStore } from 'zustand';
 import { ReaderStackParamList } from '@navigators/types';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDeviceOrientation } from '@hooks/index';
-import { NovelInfo } from '@database/types';
 import { useLibraryContext } from '@components/Context/LibraryContext';
 import { useAppSettings } from '@hooks/persisted';
-import { createNovelStore } from '@hooks/persisted/useNovel/novelStore';
 import { novelPersistence } from '@hooks/persisted/useNovel/contracts';
+import { createNovelStore } from '@hooks/persisted/useNovel/novelStore';
+import {
+  NovelStoreActions,
+  NovelStoreApi,
+  NovelStoreData,
+  NovelStoreState,
+} from '@hooks/persisted/useNovel/novelStore.types';
+import { NovelInfo } from '@database/types';
 
-type NovelContextType = {
-  novelStore: ReturnType<typeof createNovelStore>;
+type Props = {
+  children: React.ReactNode;
+  route:
+    | RouteProp<ReaderStackParamList, 'Novel'>
+    | RouteProp<ReaderStackParamList, 'Chapter'>;
+};
+
+type NovelLayout = {
   navigationBarHeight: number;
   statusBarHeight: number;
 };
 
-const defaultValue = {} as NovelContextType;
+const NovelStoreContext = createContext<NovelStoreApi | null>(null);
+const NovelLayoutContext = createContext<NovelLayout | null>(null);
 
-const NovelContext = createContext<NovelContextType>(defaultValue);
+export function NovelContextProvider({ children, route }: Props) {
+  const initialNovel =
+    'id' in route.params ? (route.params as NovelInfo) : undefined;
 
-export function NovelContextProvider({
-  children,
-
-  route,
-}: {
-  children: React.JSX.Element;
-
-  route:
-    | RouteProp<ReaderStackParamList, 'Novel'>
-    | RouteProp<ReaderStackParamList, 'Chapter'>;
-}) {
   const { path, pluginId } =
     'novel' in route.params ? route.params.novel : route.params;
+  const storeKey = `${pluginId}:${path}`;
 
   const { switchNovelToLibrary } = useLibraryContext();
   const { defaultChapterSort } = useAppSettings();
 
-  const novelStore = useMemo(
-    () =>
-      createNovelStore({
+  const defaultChapterSortRef = useRef(defaultChapterSort);
+  const switchNovelToLibraryRef = useRef(switchNovelToLibrary);
+
+  const persistendInput = useMemo(
+    () => ({
+      pluginId,
+      novelPath: path,
+    }),
+    [pluginId, path],
+  );
+
+  const storeRef = useRef<{
+    key: string;
+    store: NovelStoreApi;
+  } | null>(null);
+
+  if (storeRef.current?.key !== storeKey) {
+    storeRef.current = {
+      key: storeKey,
+      store: createNovelStore({
         pluginId,
         novelPath: path,
-        novel: 'id' in route.params ? (route.params as NovelInfo) : undefined,
-        defaultChapterSort,
+        novel: initialNovel,
+        defaultChapterSort: defaultChapterSortRef.current,
         initialPageIndex: novelPersistence.readPageIndex({
           pluginId,
           novelPath: path,
         }),
         initialNovelSettings:
-          novelPersistence.readSettings({
-            pluginId,
-            novelPath: path,
-          }) ?? undefined,
+          novelPersistence.readSettings(persistendInput) ?? undefined,
         initialLastRead: novelPersistence.readLastRead({
           pluginId,
           novelPath: path,
         }),
         dependencies: {
           persistPageIndex: value =>
-            novelPersistence.writePageIndex(
-              {
-                pluginId,
-                novelPath: path,
-              },
-              value,
-            ),
+            novelPersistence.writePageIndex(persistendInput, value),
           persistNovelSettings: value =>
-            novelPersistence.writeSettings(
-              {
-                pluginId,
-                novelPath: path,
-              },
-              value,
-            ),
+            novelPersistence.writeSettings(persistendInput, value),
           persistLastRead: chapter =>
-            novelPersistence.writeLastRead(
-              {
-                pluginId,
-                novelPath: path,
-              },
-              chapter,
-            ),
-          switchNovelToLibrary,
+            novelPersistence.writeLastRead(persistendInput, chapter),
+          switchNovelToLibrary: (novelPath, currentPluginId) =>
+            switchNovelToLibraryRef.current(novelPath, currentPluginId),
         },
       }),
-    [defaultChapterSort, path, pluginId, route.params, switchNovelToLibrary],
-  );
+    };
+  }
+
+  const novelStore = storeRef.current.store;
 
   useEffect(() => {
-    void novelStore.getState().bootstrapNovel();
+    novelStore.getState().actions.bootstrapNovel();
   }, [novelStore]);
 
   const { bottom, top } = useSafeAreaInsets();
   const orientation = useDeviceOrientation();
-  const NavigationBarHeight = useRef(bottom);
-  const StatusBarHeight = useRef(top);
 
-  if (bottom < NavigationBarHeight.current && orientation === 'landscape') {
-    NavigationBarHeight.current = bottom;
-  } else if (bottom > NavigationBarHeight.current) {
-    NavigationBarHeight.current = bottom;
+  const navigationBarHeightRef = useRef(bottom);
+  const statusBarHeightRef = useRef(top);
+
+  if (bottom < navigationBarHeightRef.current && orientation === 'landscape') {
+    navigationBarHeightRef.current = bottom;
+  } else if (bottom > navigationBarHeightRef.current) {
+    navigationBarHeightRef.current = bottom;
   }
-  if (top > StatusBarHeight.current) {
-    StatusBarHeight.current = top;
+
+  if (top > statusBarHeightRef.current) {
+    statusBarHeightRef.current = top;
   }
-  const contextValue = useMemo(
+
+  const layoutValue = useMemo(
     () => ({
-      novelStore,
-      navigationBarHeight: NavigationBarHeight.current,
-      statusBarHeight: StatusBarHeight.current,
+      navigationBarHeight: navigationBarHeightRef.current,
+      statusBarHeight: statusBarHeightRef.current,
     }),
-    [novelStore],
+    [],
   );
+
   return (
-    <NovelContext.Provider value={contextValue}>
-      {children}
-    </NovelContext.Provider>
+    <NovelStoreContext.Provider value={novelStore}>
+      <NovelLayoutContext.Provider value={layoutValue}>
+        {children}
+      </NovelLayoutContext.Provider>
+    </NovelStoreContext.Provider>
   );
 }
 
-export const useNovelContext = () => {
-  const context = useContext(NovelContext);
+function useNovelStoreApi() {
+  const store = useContext(NovelStoreContext);
+
+  if (!store) {
+    throw new Error('useNovelStore must be used inside NovelContextProvider');
+  }
+
+  return store;
+}
+
+export function useNovelStore<T>(selector: (state: NovelStoreState) => T): T {
+  const store = useNovelStoreApi();
+  return useStore(store, selector);
+}
+
+export function useNovelState<T>(selector: (state: NovelStoreData) => T): T {
+  return useNovelStore(state => selector(state));
+}
+
+export function useNovelValue<K extends keyof NovelStoreData>(
+  key: K,
+): NovelStoreData[K] {
+  return useNovelStore(state => state[key]);
+}
+
+export function useNovelActions(): NovelStoreActions {
+  return useNovelStore(state => state.actions);
+}
+
+export function useNovelAction<K extends keyof NovelStoreActions>(
+  key: K,
+): NovelStoreActions[K] {
+  return useNovelStore(state => state.actions[key]);
+}
+
+export function useNovelLayout() {
+  const context = useContext(NovelLayoutContext);
+
+  if (!context) {
+    throw new Error('useNovelLayout must be used inside NovelContextProvider');
+  }
+
   return context;
-};
+}

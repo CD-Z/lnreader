@@ -1,14 +1,7 @@
 import * as React from 'react';
 import ChapterItem from './ChapterItem';
 import NovelInfoHeader from './Info/NovelInfoHeader';
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { pickCustomNovelCover } from '@database/queries/NovelQueries';
 import { ChapterInfo, NovelInfo } from '@database/types';
 import { useBoolean } from '@hooks/index';
@@ -36,13 +29,12 @@ import * as Haptics from 'expo-haptics';
 import { AnimatedFAB } from 'react-native-paper';
 import { ChapterListSkeleton } from '@components/Skeleton/Skeleton';
 import { BottomSheetModalMethods } from '@gorhom/bottom-sheet/lib/typescript/types';
-import { useNovelContext } from '../NovelContext';
 import { LegendList, LegendListRef } from '@legendapp/list';
 import FileManager from '@specs/NativeFile';
 import { downloadFile } from '@plugins/helpers/fetch';
 import { StorageAccessFramework } from 'expo-file-system/legacy';
 import PagePaginationControl from './PagePaginationControl';
-import { NovelStoreState } from '@hooks/persisted/useNovel/novelStore';
+import { useNovelActions, useNovelValue } from '../NovelContext';
 
 type NovelScreenListProps = {
   headerOpacity: SharedValue<number>;
@@ -50,7 +42,6 @@ type NovelScreenListProps = {
   navigation: any;
   selected: ChapterInfo[];
   setSelected: React.Dispatch<React.SetStateAction<ChapterInfo[]>>;
-  getNextChapterBatch?: () => void;
   routeBaseNovel: {
     name: string;
     path: string;
@@ -61,41 +52,6 @@ type NovelScreenListProps = {
 
 const chapterKeyExtractor = (item: ChapterInfo) => 'c' + item.id;
 
-const selectChapters = (state: NovelStoreState) => state.chapters;
-const selectDeleteChapter = (state: NovelStoreState) => state.deleteChapter;
-const selectFetching = (state: NovelStoreState) => state.fetching;
-const selectFirstUnreadChapter = (state: NovelStoreState) =>
-  state.firstUnreadChapter;
-const selectLoading = (state: NovelStoreState) => state.loading;
-const selectNovelSettings = (state: NovelStoreState) => state.novelSettings;
-const selectSetNovel = (state: NovelStoreState) => state.setNovel;
-const selectNovel = (state: NovelStoreState) => state.novel;
-const selectBatchInformation = (state: NovelStoreState) =>
-  state.batchInformation;
-const selectPageIndex = (state: NovelStoreState) => state.pageIndex;
-const selectPages = (state: NovelStoreState) => state.pages;
-const selectOpenPage = (state: NovelStoreState) => state.openPage;
-const selectUpdateChapter = (state: NovelStoreState) => state.updateChapter;
-const selectRefreshNovel = (state: NovelStoreState) => state.refreshNovel;
-const selectLastRead = (state: NovelStoreState) => state.lastRead;
-
-const useNovelDomainValue = <T,>(
-  novelStore: ReturnType<typeof useNovelContext>['novelStore'],
-  selector: (state: NovelStoreState) => T,
-) => {
-  const subscribe = useCallback(
-    (onStoreChange: () => void) => novelStore.subscribe(onStoreChange),
-    [novelStore],
-  );
-
-  const getSnapshot = useCallback(
-    () => selector(novelStore.getState()),
-    [novelStore, selector],
-  );
-
-  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
-};
-
 const NovelScreenList = ({
   headerOpacity,
   listRef,
@@ -103,34 +59,25 @@ const NovelScreenList = ({
   routeBaseNovel,
   selected,
   setSelected,
-  getNextChapterBatch,
 }: NovelScreenListProps) => {
-  const { novelStore } = useNovelContext();
-  const chapters = useNovelDomainValue(novelStore, selectChapters);
-  const deleteChapter = useNovelDomainValue(novelStore, selectDeleteChapter);
-  const fetching = useNovelDomainValue(novelStore, selectFetching);
-  const firstUnreadChapter = useNovelDomainValue(
-    novelStore,
-    selectFirstUnreadChapter,
-  );
-  const loading = useNovelDomainValue(novelStore, selectLoading);
-  const novelSettings = useNovelDomainValue(novelStore, selectNovelSettings);
-  const pages = useNovelDomainValue(novelStore, selectPages);
-  const setNovel = useNovelDomainValue(novelStore, selectSetNovel);
-  const fetchedNovel = useNovelDomainValue(novelStore, selectNovel);
-  const batchInformation = useNovelDomainValue(
-    novelStore,
-    selectBatchInformation,
-  );
-  const getNextChapterBatchFromStore = useNovelDomainValue(
-    novelStore,
-    (s: NovelStoreState) => s.getNextChapterBatch,
-  );
-  const pageIndex = useNovelDomainValue(novelStore, selectPageIndex);
-  const openPage = useNovelDomainValue(novelStore, selectOpenPage);
-  const updateChapter = useNovelDomainValue(novelStore, selectUpdateChapter);
-  const refreshNovel = useNovelDomainValue(novelStore, selectRefreshNovel);
-  const lastRead = useNovelDomainValue(novelStore, selectLastRead);
+  const chapters = useNovelValue('chapters');
+  const fetching = useNovelValue('fetching');
+  const firstUnreadChapter = useNovelValue('firstUnreadChapter');
+  const loading = useNovelValue('loading');
+  const pages = useNovelValue('pages');
+  const fetchedNovel = useNovelValue('novel');
+  const batchInformation = useNovelValue('batchInformation');
+  const novelSettings = useNovelValue('novelSettings');
+  const pageIndex = useNovelValue('pageIndex');
+  const lastRead = useNovelValue('lastRead');
+  const {
+    deleteChapter,
+    setNovel,
+    getNextChapterBatch,
+    openPage,
+    updateChapter,
+    refreshNovel,
+  } = useNovelActions();
 
   const { pluginId } = routeBaseNovel;
   const routeNovel: Omit<NovelInfo, 'id'> & { id: 'NO_ID' } = {
@@ -536,8 +483,6 @@ const NovelScreenList = ({
     [lastRead],
   );
 
-  const effectiveGetNext = getNextChapterBatch ?? getNextChapterBatchFromStore;
-
   return (
     <>
       <LegendList
@@ -571,7 +516,7 @@ const NovelScreenList = ({
         extraData={[downloadingChapterIds, selectedIds]}
         contentContainerStyle={styles.contentContainer}
         refreshControl={refreshControlElement}
-        onEndReached={effectiveGetNext}
+        onEndReached={getNextChapterBatch}
         onEndReachedThreshold={6}
         onScroll={onPageScroll}
         scrollEventThrottle={16}

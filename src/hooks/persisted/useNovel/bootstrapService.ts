@@ -271,6 +271,7 @@ export const createBootstrapService = (
     settingsSort: ChapterOrderKey;
     settingsFilter: ChapterFilterKey[];
   }): Promise<BootstrapResult> => {
+    console.time(`bootstrap_${pluginId}_${novelPath}`);
     const key = getBootstrapKey(pluginId, novelPath);
     const existing = inflightBootstraps.get(key);
     if (existing) {
@@ -317,12 +318,12 @@ export const createBootstrapService = (
     })();
 
     inflightBootstraps.set(key, bootstrapPromise);
+    await bootstrapPromise;
+    console.timeEnd(`bootstrap_${pluginId}_${novelPath}`);
     return bootstrapPromise;
   };
 
   return {
-    calculatePages,
-    resolveNovel,
     getChaptersForPage,
     getNextChapterBatch,
     loadUpToBatch,

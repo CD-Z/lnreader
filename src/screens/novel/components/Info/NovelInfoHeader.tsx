@@ -37,7 +37,6 @@ import {
   NovelMetaSkeleton,
   VerticalBarSkeleton,
 } from '@components/Skeleton/Skeleton';
-import { useNovelContext } from '@screens/novel/NovelContext';
 import Animated, {
   useAnimatedProps,
   useSharedValue,
@@ -50,7 +49,7 @@ import useLoadingColors from '@components/Skeleton/useLoadingColors';
 
 const AnimatedLinearGradient = Animated.createAnimatedComponent(LinearGradient);
 import { ChapterFilterKey } from '@database/constants';
-import { NovelStoreState } from '@hooks/persisted/useNovel/novelStore';
+import { useNovelAction } from '@screens/novel/NovelContext';
 
 interface NovelInfoHeaderProps {
   chapters: ChapterInfo[];
@@ -233,8 +232,6 @@ const showNotAvailable = async () => {
   showToast('Not available while loading');
 };
 
-const selectFollowNovel = (state: NovelStoreState) => state.followNovel;
-
 const NovelInfoHeader = ({
   chapters,
   deleteDownloadsSnackbar,
@@ -254,13 +251,7 @@ const NovelInfoHeader = ({
   trackerSheetRef,
 }: NovelInfoHeaderProps) => {
   const { hideBackdrop = false } = useAppSettings();
-  const { novelStore } = useNovelContext();
-
-  const followNovel = React.useSyncExternalStore(
-    novelStore.subscribe,
-    () => selectFollowNovel(novelStore.getState()),
-    () => selectFollowNovel(novelStore.getState()),
-  );
+  const followNovel = useNovelAction('followNovel');
 
   const pluginName = useMemo(
     () =>

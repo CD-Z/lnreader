@@ -1,0 +1,182 @@
+import { ChapterFilterKey, ChapterOrderKey } from '@database/constants';
+import { NovelSettings } from './types';
+import {
+  GetState,
+  NovelStoreDependencies,
+  NovelStoreNovelActions,
+  SetState,
+} from './novelStore.types';
+import { createBootstrapService } from './bootstrapService';
+import { defaultChapterActionsDependencies } from './chapterActions';
+
+interface CreateNovelStoreActionsParams {
+  set: SetState;
+  get: GetState;
+  deps: NovelStoreDependencies;
+  defaultChapterSort: ChapterOrderKey;
+}
+
+export const defaultNovelStoreActionsDependencies: Pick<
+  NovelStoreDependencies,
+  'bootstrapService' | 'chapterActionsDependencies' | 'transformChapters'
+> = {
+  bootstrapService: createBootstrapService(),
+  chapterActionsDependencies: defaultChapterActionsDependencies,
+  transformChapters: chs => chs,
+};
+
+export const createNovelStoreActions = ({
+  set,
+  get,
+  deps,
+  defaultChapterSort,
+}: CreateNovelStoreActionsParams): NovelStoreNovelActions => {
+  let inflightBootstrap: Promise<boolean> | null = null;
+
+  const getSettingsSort = (settings: NovelSettings): ChapterOrderKey =>
+    settings.sort || defaultChapterSort;
+
+  const getSettingsFilter = (settings: NovelSettings): ChapterFilterKey[] =>
+    settings.filter ?? [];
+
+  return {
+    bootstrapNovel: async () => {
+      if (inflightBootstrap) {
+        return inflightBootstrap;
+      }
+
+      inflightBootstrap = (async () => {
+        set({ fetching: true });
+
+        const state = get();
+        const result = await deps.bootstrapService.bootstrapNovel({
+          novel: state.novel,
+          novelPath: state.novelPath,
+          pluginId: state.pluginId,
+          pageIndex: state.pageIndex,
+          settingsSort: getSettingsSort(state.novelSettings),
+          settingsFilter: getSettingsFilter(state.novelSettings),
+        });
+
+        if (!result.ok) {
+          set({
+            loading: false,
+            fetching: false,
+          });
+          return false;
+        }
+
+        set({
+          loading: false,
+          fetching: false,
+          novel: result.novel,
+          pages: result.pages,
+          chapters: deps.transformChapters(result.chapters),
+          batchInformation: result.batchInformation,
+          firstUnreadChapter: result.firstUnreadChapter,
+        });
+
+        return true;
+      })().finally(() => {
+        inflightBootstrap = null;
+      });
+
+      return inflightBootstrap;
+    },
+
+    getChapters: async () => {
+      const state = get();
+      if (!state.novel || state.pages.length === 0) {
+        return;
+      }
+
+      set({ fetching: true });
+      const result = await deps.bootstrapService.getChaptersForPage({
+        novel: state.novel,
+        novelPath: state.novelPath,
+        pluginId: state.pluginId,
+        pages: state.pages,
+        pageIndex: state.pageIndex,
+        settingsSort: getSettingsSort(state.novelSettings),
+        settingsFilter: getSettingsFilter(state.novelSettings),
+      });
+
+      set({
+        fetching: false,
+        chapters: deps.transformChapters(result.chapters),
+        batchInformation: result.batchInformation,
+        firstUnreadChapter: result.firstUnreadChapter,
+      });
+    },
+
+    refreshNovel: async () => {
+      const state = get();
+      const refreshed = await deps.bootstrapService.bootstrapNovel({
+        novel: undefined,
+        novelPath: state.novelPath,
+        pluginId: state.pluginId,
+        pageIndex: state.pageIndex,
+        settingsSort: getSettingsSort(state.novelSettings),
+        settingsFilter: getSettingsFilter(state.novelSettings),
+      });
+
+      if (!refreshed.ok) {
+        return;
+      }
+
+      set({
+        novel: refreshed.novel,
+        pages: refreshed.pages,
+        chapters: deps.transformChapters(refreshed.chapters),
+        batchInformation: refreshed.batchInformation,
+        firstUnreadChapter: refreshed.firstUnreadChapter,
+      });
+    },
+
+    setNovel: novelState => set({ novel: novelState }),
+    setPages: pagesState => set({ pages: pagesState }),
+    setPageIndex: index => {
+      set({ pageIndex: index });
+      deps.persistPageIndex?.(index);
+    },
+    openPage: async index => {
+      set({ pageIndex: index });
+      deps.persistPageIndex?.(index);
+      await get().actions.getChapters();
+    },
+    setNovelSettings: settings => {
+      set({ novelSettings: settings });
+      deps.persistNovelSettings?.(settings);
+
+      const state = get();
+      if (state.novel && state.pages.length > 0) {
+        state.actions.getChapters();
+      }
+    },
+    setLastRead: chapter => {
+      set({ lastRead: chapter });
+      deps.persistLastRead?.(chapter);
+    },
+    followNovel: () => {
+      const state = get();
+      const currentNovel = state.novel;
+      if (!currentNovel || !deps.switchNovelToLibrary) {
+        return;
+      }
+
+      deps.switchNovelToLibrary(state.novelPath, state.pluginId).then(() => {
+        set(inner => {
+          if (!inner.novel) {
+            return {};
+          }
+          return {
+            novel: {
+              ...inner.novel,
+              inLibrary: !inner.novel.inLibrary,
+            },
+          };
+        });
+      });
+    },
+  };
+};
