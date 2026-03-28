@@ -71,9 +71,9 @@ class DbManager implements IDbManager {
     >;
   }
 
-  public async allSync<T extends ExecutableSelect>(
+  public allSync<T extends ExecutableSelect>(
     query: T,
-  ): Promise<Awaited<ReturnType<T['all']>>> {
+  ): Awaited<ReturnType<T['all']>> {
     const { sql: sqlString, params } = query.toSQL();
     return db.executeSync(sqlString, params as any[]).rows as Awaited<
       ReturnType<T['all']>
@@ -135,6 +135,40 @@ type FireOn = Array<{ table: TableNames; ids?: number[] }>;
 export function useLiveQuery<T extends ExecutableSelect>(
   query: T,
   fireOn: FireOn,
+  callback?: (data: Awaited<ReturnType<T['all']>>) => void,
+) {
+  type ReturnValue = Awaited<ReturnType<T['all']>>;
+
+  const { sql: sqlString, params } = query.toSQL();
+  const paramsKey = JSON.stringify(params);
+  const fireOnKey = JSON.stringify(fireOn);
+
+  const [data, setData] = useState<ReturnValue>(() => {
+    const r = db.executeSync(sqlString, params as any[]).rows as ReturnValue;
+    if (callback) callback(r);
+    return r;
+  });
+
+  useEffect(() => {
+    const unsub = db.reactiveExecute({
+      query: sqlString,
+      arguments: params as any[],
+      fireOn,
+      callback: (result: { rows: ReturnValue }) => {
+        setData(result.rows);
+        if (callback) callback(result.rows);
+      },
+    });
+    return unsub;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sqlString, paramsKey, fireOnKey]);
+
+  return data;
+}
+export function useLiveQueryAsync<T extends ExecutableSelect>(
+  query: T,
+  fireOn: FireOn,
+  callback?: (data: Awaited<ReturnType<T['all']>>) => void,
 ) {
   type ReturnValue = Awaited<ReturnType<T['all']>>;
 
@@ -143,7 +177,11 @@ export function useLiveQuery<T extends ExecutableSelect>(
   const fireOnKey = JSON.stringify(fireOn);
 
   const [data, setData] = useState<ReturnValue>(
-    () => db.executeSync(sqlString, params as any[]).rows as ReturnValue,
+    () =>
+      db.execute(sqlString, params as any[]).then(result => {
+        callback?.(result.rows as ReturnValue);
+        return result.rows;
+      }) as ReturnValue,
   );
 
   useEffect(() => {
@@ -153,6 +191,7 @@ export function useLiveQuery<T extends ExecutableSelect>(
       fireOn,
       callback: (result: { rows: ReturnValue }) => {
         setData(result.rows);
+        if (callback) callback(result.rows);
       },
     });
     return unsub;

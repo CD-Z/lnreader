@@ -324,10 +324,10 @@ export const createBootstrapService = (
   };
 
   return {
-    getChaptersForPage,
-    getNextChapterBatch,
-    loadUpToBatch,
-    bootstrapNovel,
+    getChaptersForPage: () => {},
+    getNextChapterBatch: () => {},
+    loadUpToBatch: () => {},
+    bootstrapNovel: () => {},
   };
 };
 

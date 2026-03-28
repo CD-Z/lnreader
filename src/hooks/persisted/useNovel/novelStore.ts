@@ -17,6 +17,7 @@ import { createNovelStoreChapterActions } from './novelStore.chapterActions';
 export interface CreateNovelStoreParams {
   pluginId: string;
   novelPath: string;
+  chapters?: ChapterInfo[];
   novel?: NovelInfo;
   defaultChapterSort?: ChapterOrderKey;
   initialPageIndex?: number;
@@ -28,6 +29,7 @@ export interface CreateNovelStoreParams {
 export const createNovelStore = ({
   pluginId,
   novelPath,
+  chapters,
   novel,
   defaultChapterSort = 'positionAsc',
   initialPageIndex = 0,
@@ -51,7 +53,7 @@ export const createNovelStore = ({
     switchNovelToLibrary: dependencies?.switchNovelToLibrary,
   };
 
-  const chapterSlice = createInitialChapterSlice();
+  const chapterSlice = createInitialChapterSlice(chapters);
 
   return createStore<NovelStoreState>()((set, get) => {
     const actions = {

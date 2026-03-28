@@ -21,6 +21,11 @@ import {
   NovelStoreState,
 } from '@hooks/persisted/useNovel/novelStore.types';
 import { NovelInfo } from '@database/types';
+import { getNovelById, getNovelByPath } from '@database/queries/NovelQueries';
+import { useLiveQuery, useLiveQueryAsync } from '@database/manager/manager';
+import { dbManager } from '@database/db';
+import { chapterSchema } from '@database/schema';
+import { eq } from 'drizzle-orm';
 
 type Props = {
   children: React.ReactNode;
@@ -38,6 +43,7 @@ const NovelStoreContext = createContext<NovelStoreApi | null>(null);
 const NovelLayoutContext = createContext<NovelLayout | null>(null);
 
 export function NovelContextProvider({ children, route }: Props) {
+  console.time('novel contex');
   const initialNovel =
     'id' in route.params ? (route.params as NovelInfo) : undefined;
 
@@ -63,14 +69,44 @@ export function NovelContextProvider({ children, route }: Props) {
     key: string;
     store: NovelStoreApi;
   } | null>(null);
-
+  const queriedNovelRef = useRef<boolean>(false);
+  console.timeLog(
+    'novel contex',
+    'Checking store initialization for novel:',
+    storeKey,
+  );
   if (storeRef.current?.key !== storeKey) {
+    queriedNovelRef.current = false;
+    const novel = initialNovel?.id
+      ? getNovelById(initialNovel.id)
+      : getNovelByPath(path, pluginId) ?? initialNovel;
+
+    const chs = novel?.id
+      ? dbManager.allSync(
+          dbManager
+            .select()
+            .from(chapterSchema)
+            .where(eq(chapterSchema.novelId, novel.id)),
+        )
+      : [];
+
+    if (novel?.id) {
+      queriedNovelRef.current = true;
+    }
+    console.timeLog(
+      'novel contex',
+      'Creating novel store for novel:',
+      novel?.name,
+      'with chapters:',
+      chs.length,
+    );
     storeRef.current = {
       key: storeKey,
       store: createNovelStore({
         pluginId,
         novelPath: path,
-        novel: initialNovel,
+        chapters: chs,
+        novel,
         defaultChapterSort: defaultChapterSortRef.current,
         initialPageIndex: novelPersistence.readPageIndex({
           pluginId,
@@ -95,12 +131,12 @@ export function NovelContextProvider({ children, route }: Props) {
       }),
     };
   }
-
+  console.timeLog('novel contex', 'Novel store ready for novel:', storeKey);
   const novelStore = storeRef.current.store;
 
-  useEffect(() => {
+  if (!queriedNovelRef.current) {
     novelStore.getState().actions.bootstrapNovel();
-  }, [novelStore]);
+  }
 
   const { bottom, top } = useSafeAreaInsets();
   const orientation = useDeviceOrientation();
@@ -125,7 +161,7 @@ export function NovelContextProvider({ children, route }: Props) {
     }),
     [],
   );
-
+  console.timeEnd('novel contex');
   return (
     <NovelStoreContext.Provider value={novelStore}>
       <NovelLayoutContext.Provider value={layoutValue}>

@@ -483,6 +483,7 @@ const NovelScreenList = ({
     [lastRead],
   );
 
+  console.log('rendering chapter', fetching, chapters.length);
   return (
     <>
       <LegendList
@@ -520,7 +521,7 @@ const NovelScreenList = ({
         onEndReachedThreshold={6}
         onScroll={onPageScroll}
         scrollEventThrottle={16}
-        drawDistance={1000}
+        //drawDistance={1000}
         ListHeaderComponent={listHeader}
       />
       {novel.id !== 'NO_ID' ? (
