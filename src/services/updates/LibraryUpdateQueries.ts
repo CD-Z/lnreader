@@ -189,14 +189,11 @@ const updateNovel = async (
   const oldTotalPages = await getStoredTotalPages(novelId);
 
   const novel = await fetchNovel(pluginId, novelPath);
-
   if (refreshNovelMetadata) {
     await updateNovelMetadata(pluginId, novelId, novel);
   } else if (novel.totalPages) {
     await updateNovelTotalPages(novelId, novel.totalPages);
-    await updateNovelTotalPages(novelId, novel.totalPages);
   }
-
   await updateNovelChapters(
     novel.name,
     novelId,
