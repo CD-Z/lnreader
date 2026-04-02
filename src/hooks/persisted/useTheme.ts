@@ -8,7 +8,6 @@ import {
 import { overlay } from 'react-native-paper';
 import Color from 'color';
 
-import { defaultTheme } from '@theme/md3/defaultTheme';
 import { ThemeColors } from '@theme/types';
 import { darkThemes, lightThemes } from '@theme/md3';
 
@@ -62,16 +61,45 @@ const findThemeById = (
   isDark: boolean,
 ): ThemeColors => {
   const themeList = isDark ? darkThemes : lightThemes;
-
+  let theme: ThemeColors | undefined;
   if (themeId !== undefined) {
-    const theme = themeList.find(t => t.id === themeId);
-    if (theme) {
-      return theme;
-    }
+    const id = transformThemeId(themeId, isDark);
+    theme = themeList.find(t => t.id === id);
   }
 
-  return isDark ? defaultTheme.dark : defaultTheme.light;
+  return theme ?? themeList[0];
 };
+
+// transforms legacy theme IDs to new IDs
+function transformThemeId(themeId: number, isDark: boolean): number {
+  if (themeId > 99) return themeId;
+  const lightIdMap: Record<number, number> = {
+    '1': 100,
+    '8': 102,
+    '9': 108,
+    '10': 101,
+    '12': 103,
+    '14': 104,
+    '16': 105,
+    '18': 106,
+    '20': 107,
+  };
+  const darkIdMap: Record<number, number> = {
+    '2': 100,
+    '9': 102,
+    '10': 108,
+    '11': 101,
+    '13': 103,
+    '15': 104,
+    '17': 105,
+    '19': 106,
+    '21': 107,
+  };
+  if (isDark) {
+    return darkIdMap[themeId] ?? themeId;
+  }
+  return lightIdMap[themeId] ?? themeId;
+}
 
 const getBaseTheme = (
   themeMode: string,
@@ -95,7 +123,7 @@ export const useTheme = (): ThemeColors => {
   const [customAccent] = useMMKVString('CUSTOM_ACCENT_COLOR');
 
   const [systemColorScheme, setSystemColorScheme] = useState<ColorSchemeName>(
-    Appearance.getColorScheme(),
+    Appearance.getColorScheme() ?? 'unspecified',
   );
 
   useEffect(() => {
