@@ -112,6 +112,7 @@
     "react-native-screens": "^4.24.0",
     "react-native-shimmer-placeholder": "^2.0.9",
     "react-native-tab-view": "^4.3.0",
+    "react-native-theme-switch-animation": "^0.8.0",
     "react-native-url-polyfill": "^3.0.0",
     "react-native-webview": "^13.16.1",
     "react-native-worklets": "^0.8.1",
