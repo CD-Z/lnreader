@@ -48,8 +48,13 @@ const AppearanceSettings = ({ navigation }: AppearanceSettingsScreenProps) => {
     setAppSettings,
   } = useAppSettings();
 
-  const actualThemeMode: Omit<ThemeMode, 'system'> =
-    themeMode !== 'system' ? themeMode : Appearance.getColorScheme() ?? 'light';
+  const colorScheme = Appearance.getColorScheme() ?? 'light';
+  const actualThemeMode: Exclude<ThemeMode, 'system'> =
+    themeMode !== 'system'
+      ? themeMode
+      : colorScheme === 'unspecified'
+      ? 'light'
+      : colorScheme;
 
   /**
    * Accent Color Modal
