@@ -105,9 +105,7 @@ export default function ThemeSelectionStep() {
     setThemeId(selectedTheme.id);
     event.currentTarget.measure((_x1, _y1, width, height, px, py) => {
       switchTheme({
-        switchThemeFunction: () => {
-          setThemeMode(selectedTheme.isDark ? 'dark' : 'light');
-        },
+        switchThemeFunction: () => {},
         animationConfig: {
           type: 'circular',
           duration: 900,
