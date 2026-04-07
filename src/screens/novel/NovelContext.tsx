@@ -1,15 +1,24 @@
-import React, { createContext, useContext, useMemo, useRef } from 'react';
-import { useNovel } from '@hooks/persisted';
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+} from 'react';
 import { RouteProp } from '@react-navigation/native';
 import { ReaderStackParamList } from '@navigators/types';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDeviceOrientation } from '@hooks/index';
 import { NovelInfo } from '@database/types';
+import { useLibraryContext } from '@components/Context/LibraryContext';
+import { useAppSettings } from '@hooks/persisted';
+import { createNovelStore } from '@hooks/persisted/useNovel/novelStore';
+import { novelPersistence } from '@hooks/persisted/useNovel/contracts';
 
-type NovelContextType = ReturnType<typeof useNovel> & {
+type NovelContextType = {
+  novelStore: ReturnType<typeof createNovelStore>;
   navigationBarHeight: number;
   statusBarHeight: number;
-  chapterTextCache: Map<number, string | Promise<string>>;
 };
 
 const defaultValue = {} as NovelContextType;
@@ -30,18 +39,68 @@ export function NovelContextProvider({
   const { path, pluginId } =
     'novel' in route.params ? route.params.novel : route.params;
 
-  const novelHookContent = useNovel(
-    'id' in route.params ? (route.params as NovelInfo) : path,
-    pluginId,
+  const { switchNovelToLibrary } = useLibraryContext();
+  const { defaultChapterSort } = useAppSettings();
+
+  const novelStore = useMemo(
+    () =>
+      createNovelStore({
+        pluginId,
+        novelPath: path,
+        novel: 'id' in route.params ? (route.params as NovelInfo) : undefined,
+        defaultChapterSort,
+        initialPageIndex: novelPersistence.readPageIndex({
+          pluginId,
+          novelPath: path,
+        }),
+        initialNovelSettings:
+          novelPersistence.readSettings({
+            pluginId,
+            novelPath: path,
+          }) ?? undefined,
+        initialLastRead: novelPersistence.readLastRead({
+          pluginId,
+          novelPath: path,
+        }),
+        dependencies: {
+          persistPageIndex: value =>
+            novelPersistence.writePageIndex(
+              {
+                pluginId,
+                novelPath: path,
+              },
+              value,
+            ),
+          persistNovelSettings: value =>
+            novelPersistence.writeSettings(
+              {
+                pluginId,
+                novelPath: path,
+              },
+              value,
+            ),
+          persistLastRead: chapter =>
+            novelPersistence.writeLastRead(
+              {
+                pluginId,
+                novelPath: path,
+              },
+              chapter,
+            ),
+          switchNovelToLibrary,
+        },
+      }),
+    [defaultChapterSort, path, pluginId, route.params, switchNovelToLibrary],
   );
+
+  useEffect(() => {
+    void novelStore.getState().bootstrapNovel();
+  }, [novelStore]);
 
   const { bottom, top } = useSafeAreaInsets();
   const orientation = useDeviceOrientation();
   const NavigationBarHeight = useRef(bottom);
   const StatusBarHeight = useRef(top);
-  const chapterTextCache = useRef<Map<number, string | Promise<string>>>(
-    new Map(),
-  );
 
   if (bottom < NavigationBarHeight.current && orientation === 'landscape') {
     NavigationBarHeight.current = bottom;
@@ -53,12 +112,11 @@ export function NovelContextProvider({
   }
   const contextValue = useMemo(
     () => ({
-      ...novelHookContent,
+      novelStore,
       navigationBarHeight: NavigationBarHeight.current,
       statusBarHeight: StatusBarHeight.current,
-      chapterTextCache: chapterTextCache.current,
     }),
-    [novelHookContent],
+    [novelStore],
   );
   return (
     <NovelContext.Provider value={contextValue}>

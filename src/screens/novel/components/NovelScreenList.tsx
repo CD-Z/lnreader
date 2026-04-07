@@ -42,10 +42,7 @@ import FileManager from '@specs/NativeFile';
 import { downloadFile } from '@plugins/helpers/fetch';
 import { StorageAccessFramework } from 'expo-file-system/legacy';
 import PagePaginationControl from './PagePaginationControl';
-import {
-  NovelStoreApi,
-  NovelStoreState,
-} from '@hooks/persisted/useNovel/novelStore';
+import { NovelStoreState } from '@hooks/persisted/useNovel/novelStore';
 
 type NovelScreenListProps = {
   headerOpacity: SharedValue<number>;
@@ -64,12 +61,6 @@ type NovelScreenListProps = {
 
 const chapterKeyExtractor = (item: ChapterInfo) => 'c' + item.id;
 
-type NovelContextWithOptionalStore = ReturnType<typeof useNovelContext> & {
-  novelStore?: NovelStoreApi;
-};
-
-const noopUnsubscribe = () => {};
-
 const selectChapters = (state: NovelStoreState) => state.chapters;
 const selectDeleteChapter = (state: NovelStoreState) => state.deleteChapter;
 const selectFetching = (state: NovelStoreState) => state.fetching;
@@ -85,21 +76,21 @@ const selectPageIndex = (state: NovelStoreState) => state.pageIndex;
 const selectPages = (state: NovelStoreState) => state.pages;
 const selectOpenPage = (state: NovelStoreState) => state.openPage;
 const selectUpdateChapter = (state: NovelStoreState) => state.updateChapter;
+const selectRefreshNovel = (state: NovelStoreState) => state.refreshNovel;
+const selectLastRead = (state: NovelStoreState) => state.lastRead;
 
 const useNovelDomainValue = <T,>(
-  novelStore: NovelStoreApi | undefined,
+  novelStore: ReturnType<typeof useNovelContext>['novelStore'],
   selector: (state: NovelStoreState) => T,
-  fallback: T,
 ) => {
   const subscribe = useCallback(
-    (onStoreChange: () => void) =>
-      novelStore ? novelStore.subscribe(onStoreChange) : noopUnsubscribe,
+    (onStoreChange: () => void) => novelStore.subscribe(onStoreChange),
     [novelStore],
   );
 
   const getSnapshot = useCallback(
-    () => (novelStore ? selector(novelStore.getState()) : fallback),
-    [fallback, novelStore, selector],
+    () => selector(novelStore.getState()),
+    [novelStore, selector],
   );
 
   return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
@@ -114,76 +105,29 @@ const NovelScreenList = ({
   setSelected,
   getNextChapterBatch,
 }: NovelScreenListProps) => {
-  const novelContext = useNovelContext() as NovelContextWithOptionalStore;
+  const { novelStore } = useNovelContext();
 
-  const chapters = useNovelDomainValue(
-    novelContext.novelStore,
-    selectChapters,
-    novelContext.chapters,
-  );
-  const deleteChapter = useNovelDomainValue(
-    novelContext.novelStore,
-    selectDeleteChapter,
-    novelContext.deleteChapter,
-  );
-  const fetching = useNovelDomainValue(
-    novelContext.novelStore,
-    selectFetching,
-    novelContext.fetching,
-  );
+  const chapters = useNovelDomainValue(novelStore, selectChapters);
+  const deleteChapter = useNovelDomainValue(novelStore, selectDeleteChapter);
+  const fetching = useNovelDomainValue(novelStore, selectFetching);
   const firstUnreadChapter = useNovelDomainValue(
-    novelContext.novelStore,
+    novelStore,
     selectFirstUnreadChapter,
-    novelContext.firstUnreadChapter,
   );
-  const loading = useNovelDomainValue(
-    novelContext.novelStore,
-    selectLoading,
-    novelContext.loading,
-  );
-  const novelSettings = useNovelDomainValue(
-    novelContext.novelStore,
-    selectNovelSettings,
-    novelContext.novelSettings,
-  );
-  const pages = useNovelDomainValue(
-    novelContext.novelStore,
-    selectPages,
-    novelContext.pages,
-  );
-  const setNovel = useNovelDomainValue(
-    novelContext.novelStore,
-    selectSetNovel,
-    novelContext.setNovel,
-  );
-  const fetchedNovel = useNovelDomainValue(
-    novelContext.novelStore,
-    selectNovel,
-    novelContext.novel,
-  );
+  const loading = useNovelDomainValue(novelStore, selectLoading);
+  const novelSettings = useNovelDomainValue(novelStore, selectNovelSettings);
+  const pages = useNovelDomainValue(novelStore, selectPages);
+  const setNovel = useNovelDomainValue(novelStore, selectSetNovel);
+  const fetchedNovel = useNovelDomainValue(novelStore, selectNovel);
   const batchInformation = useNovelDomainValue(
-    novelContext.novelStore,
+    novelStore,
     selectBatchInformation,
-    novelContext.batchInformation,
   );
-  const pageIndex = useNovelDomainValue(
-    novelContext.novelStore,
-    selectPageIndex,
-    novelContext.pageIndex,
-  );
-  const openPage = useNovelDomainValue(
-    novelContext.novelStore,
-    selectOpenPage,
-    novelContext.openPage,
-  );
-  const updateChapter = useNovelDomainValue(
-    novelContext.novelStore,
-    selectUpdateChapter,
-    novelContext.updateChapter,
-  );
-
-  const getNovel = novelContext.getNovel;
-  const lastRead = novelContext.lastRead;
+  const pageIndex = useNovelDomainValue(novelStore, selectPageIndex);
+  const openPage = useNovelDomainValue(novelStore, selectOpenPage);
+  const updateChapter = useNovelDomainValue(novelStore, selectUpdateChapter);
+  const refreshNovel = useNovelDomainValue(novelStore, selectRefreshNovel);
+  const lastRead = useNovelDomainValue(novelStore, selectLastRead);
 
   const { pluginId } = routeBaseNovel;
   const routeNovel: Omit<NovelInfo, 'id'> & { id: 'NO_ID' } = {
@@ -357,7 +301,7 @@ const NovelScreenList = ({
         downloadNewChapters,
         refreshNovelMetadata,
       })
-        .then(() => getNovel())
+        .then(() => refreshNovel())
         .then(() =>
           showToast(
             getString('novelScreen.updatedToast', { name: novel.name }),
@@ -366,7 +310,13 @@ const NovelScreenList = ({
         .catch(error => showToast('Failed updating: ' + error.message))
         .finally(() => setUpdating(false));
     }
-  }, [novel, pluginId, downloadNewChapters, refreshNovelMetadata, getNovel]);
+  }, [
+    novel,
+    pluginId,
+    downloadNewChapters,
+    refreshNovelMetadata,
+    refreshNovel,
+  ]);
 
   const onRefreshPage = useCallback(
     async (page: string) => {
@@ -375,13 +325,13 @@ const NovelScreenList = ({
         updateNovelPage(pluginId, novel.path, novel.path, novel.id, page, {
           downloadNewChapters,
         })
-          .then(() => getNovel())
+          .then(() => refreshNovel())
           .then(() => showToast(`Updated page: ${page}`))
           .catch(e => showToast('Failed updating: ' + e.message))
           .finally(() => setUpdating(false));
       }
     },
-    [novel, pluginId, downloadNewChapters, getNovel],
+    [novel, pluginId, downloadNewChapters, refreshNovel],
   );
 
   const refreshControlElement = useMemo(

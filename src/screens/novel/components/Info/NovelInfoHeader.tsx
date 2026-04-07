@@ -50,6 +50,7 @@ import useLoadingColors from '@components/Skeleton/useLoadingColors';
 
 const AnimatedLinearGradient = Animated.createAnimatedComponent(LinearGradient);
 import { ChapterFilterKey } from '@database/constants';
+import { NovelStoreState } from '@hooks/persisted/useNovel/novelStore';
 
 interface NovelInfoHeaderProps {
   chapters: ChapterInfo[];
@@ -232,6 +233,8 @@ const showNotAvailable = async () => {
   showToast('Not available while loading');
 };
 
+const selectFollowNovel = (state: NovelStoreState) => state.followNovel;
+
 const NovelInfoHeader = ({
   chapters,
   deleteDownloadsSnackbar,
@@ -251,7 +254,13 @@ const NovelInfoHeader = ({
   trackerSheetRef,
 }: NovelInfoHeaderProps) => {
   const { hideBackdrop = false } = useAppSettings();
-  const { followNovel } = useNovelContext();
+  const { novelStore } = useNovelContext();
+
+  const followNovel = React.useSyncExternalStore(
+    novelStore.subscribe,
+    () => selectFollowNovel(novelStore.getState()),
+    () => selectFollowNovel(novelStore.getState()),
+  );
 
   const pluginName = useMemo(
     () =>
@@ -261,7 +270,15 @@ const NovelInfoHeader = ({
     [novel.pluginId],
   );
 
-  const coverSource = useMemo(() => ({ uri: novel.cover }), [novel.cover]);
+  const coverSource = useMemo(
+    () => ({ uri: novel.cover ?? undefined }),
+    [novel.cover],
+  );
+
+  const novelStatus = useMemo(
+    () => (novel.id !== 'NO_ID' ? novel.status ?? undefined : undefined),
+    [novel.id, novel.status],
+  );
 
   const handleTitlePress = useCallback(
     () =>
@@ -363,16 +380,14 @@ const NovelInfoHeader = ({
                 ) : null}
                 <Row style={styles.infoRow}>
                   <MaterialCommunityIcons
-                    name={getStatusIcon(
-                      novel.id !== 'NO_ID' ? novel.status : undefined,
-                    )}
+                    name={getStatusIcon(novelStatus)}
                     size={14}
                     color={theme.onSurfaceVariant}
                     style={styles.marginRight}
                   />
                   <NovelInfo theme={theme}>
-                    {(novel.id !== 'NO_ID'
-                      ? translateNovelStatus(novel.status)
+                    {(novelStatus
+                      ? translateNovelStatus(novelStatus)
                       : getString('novelScreen.unknownStatus')) +
                       ' • ' +
                       pluginName}

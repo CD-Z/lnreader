@@ -40,6 +40,10 @@ export interface NovelStoreDependencies {
   >;
   chapterActionsDependencies: ChapterActionsDependencies;
   transformChapters: (chs: ChapterInfo[]) => ChapterInfo[];
+  persistPageIndex?: (value: number) => void;
+  persistNovelSettings?: (value: NovelSettings) => void;
+  persistLastRead?: (value: ChapterInfo) => void;
+  switchNovelToLibrary?: (novelPath: string, pluginId: string) => Promise<void>;
 }
 
 export interface CreateNovelStoreParams {
@@ -49,6 +53,7 @@ export interface CreateNovelStoreParams {
   defaultChapterSort?: ChapterOrderKey;
   initialPageIndex?: number;
   initialNovelSettings?: NovelSettings;
+  initialLastRead?: ChapterInfo;
   dependencies?: Partial<NovelStoreDependencies>;
 }
 
@@ -65,17 +70,21 @@ export interface NovelStoreState {
   batchInformation: BatchInfo;
   novelSettings: NovelSettings;
   chapterTextCache: ChapterTextCacheApi;
+  lastRead: ChapterInfo | undefined;
 
   bootstrapNovel: () => Promise<boolean>;
   getChapters: () => Promise<void>;
   getNextChapterBatch: () => Promise<void>;
   loadUpToBatch: (targetBatch: number) => Promise<void>;
+  refreshNovel: () => Promise<void>;
 
   setNovel: (novel: NovelInfo | undefined) => void;
   setPages: (pages: string[]) => void;
   setPageIndex: (index: number) => void;
   openPage: (index: number) => Promise<void>;
   setNovelSettings: (settings: NovelSettings) => void;
+  setLastRead: (chapter: ChapterInfo) => void;
+  followNovel: () => void;
 
   updateChapter: (index: number, update: Partial<ChapterInfo>) => void;
   setChapters: (chs: ChapterInfo[]) => void;
@@ -102,6 +111,7 @@ export const createNovelStore = ({
   defaultChapterSort = 'positionAsc',
   initialPageIndex = 0,
   initialNovelSettings = defaultNovelSettings,
+  initialLastRead,
   dependencies,
 }: CreateNovelStoreParams): NovelStoreApi => {
   const deps: NovelStoreDependencies = {
@@ -161,6 +171,7 @@ export const createNovelStore = ({
       },
       novelSettings: initialNovelSettings,
       chapterTextCache,
+      lastRead: initialLastRead,
 
       bootstrapNovel: async () => {
         if (inflightBootstrap) {
@@ -278,14 +289,77 @@ export const createNovelStore = ({
         });
       },
 
+      refreshNovel: async () => {
+        const state = get();
+        const refreshed = await deps.bootstrapService.bootstrapNovel({
+          novel: undefined,
+          novelPath: state.novelPath,
+          pluginId: state.pluginId,
+          pageIndex: state.pageIndex,
+          settingsSort: getSettingsSort(state.novelSettings),
+          settingsFilter: getSettingsFilter(state.novelSettings),
+        });
+
+        if (!refreshed.ok) {
+          return;
+        }
+
+        set({
+          novel: refreshed.novel,
+          pages: refreshed.pages,
+          chapters: deps.transformChapters(refreshed.chapters),
+          batchInformation: refreshed.batchInformation,
+          firstUnreadChapter: refreshed.firstUnreadChapter,
+        });
+      },
+
       setNovel: novelState => set({ novel: novelState }),
       setPages: pagesState => set({ pages: pagesState }),
-      setPageIndex: index => set({ pageIndex: index }),
+      setPageIndex: index => {
+        set({ pageIndex: index });
+        deps.persistPageIndex?.(index);
+      },
       openPage: async index => {
         set({ pageIndex: index });
+        deps.persistPageIndex?.(index);
         await get().getChapters();
       },
-      setNovelSettings: settings => set({ novelSettings: settings }),
+      setNovelSettings: settings => {
+        set({ novelSettings: settings });
+        deps.persistNovelSettings?.(settings);
+
+        const state = get();
+        if (state.novel && state.pages.length > 0) {
+          void state.getChapters();
+        }
+      },
+      setLastRead: chapter => {
+        set({ lastRead: chapter });
+        deps.persistLastRead?.(chapter);
+      },
+      followNovel: () => {
+        const state = get();
+        const currentNovel = state.novel;
+        if (!currentNovel || !deps.switchNovelToLibrary) {
+          return;
+        }
+
+        void deps
+          .switchNovelToLibrary(state.novelPath, state.pluginId)
+          .then(() => {
+            set(inner => {
+              if (!inner.novel) {
+                return {};
+              }
+              return {
+                novel: {
+                  ...inner.novel,
+                  inLibrary: !inner.novel.inLibrary,
+                },
+              };
+            });
+          });
+      },
 
       updateChapter: (index, update) => {
         if (get().novel) {

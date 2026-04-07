@@ -36,40 +36,29 @@ import { getString } from '@strings/translations';
 import NativeVolumeButtonListener from '@specs/NativeVolumeButtonListener';
 import NativeFile from '@specs/NativeFile';
 import { useNovelContext } from '@screens/novel/NovelContext';
-import {
-  ChapterTextCacheApi,
-  NovelStoreApi,
-  NovelStoreState,
-} from '@hooks/persisted/useNovel/novelStore';
+import { NovelStoreState } from '@hooks/persisted/useNovel/novelStore';
 
 const emmiter = new NativeEventEmitter(NativeVolumeButtonListener);
-
-type NovelContextWithOptionalStore = ReturnType<typeof useNovelContext> & {
-  novelStore?: NovelStoreApi;
-};
-
-const noopUnsubscribe = () => {};
 
 const selectMarkChapterRead = (state: NovelStoreState) => state.markChapterRead;
 const selectUpdateChapterProgress = (state: NovelStoreState) =>
   state.updateChapterProgress;
 const selectChapterTextCache = (state: NovelStoreState) =>
   state.chapterTextCache;
+const selectSetLastRead = (state: NovelStoreState) => state.setLastRead;
 
 const useNovelDomainValue = <T>(
-  novelStore: NovelStoreApi | undefined,
+  novelStore: ReturnType<typeof useNovelContext>['novelStore'],
   selector: (state: NovelStoreState) => T,
-  fallback: T,
 ) => {
   const subscribe = useCallback(
-    (onStoreChange: () => void) =>
-      novelStore ? novelStore.subscribe(onStoreChange) : noopUnsubscribe,
+    (onStoreChange: () => void) => novelStore.subscribe(onStoreChange),
     [novelStore],
   );
 
   const getSnapshot = useCallback(
-    () => (novelStore ? selector(novelStore.getState()) : fallback),
-    [fallback, novelStore, selector],
+    () => selector(novelStore.getState()),
+    [novelStore, selector],
   );
 
   return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
@@ -80,36 +69,21 @@ export default function useChapter(
   initialChapter: ChapterInfo,
   novel: NovelInfo,
 ) {
-  const novelContext = useNovelContext() as NovelContextWithOptionalStore;
+  const { novelStore } = useNovelContext();
 
-  const setLastRead = novelContext.setLastRead;
-  const fallbackChapterTextCache = useMemo<ChapterTextCacheApi>(
-    () => ({
-      read: chapterId => novelContext.chapterTextCache.get(chapterId),
-      write: (chapterId, value) => {
-        novelContext.chapterTextCache.set(chapterId, value);
-      },
-      remove: chapterId => novelContext.chapterTextCache.delete(chapterId),
-      clear: () => {
-        novelContext.chapterTextCache.clear();
-      },
-    }),
-    [novelContext.chapterTextCache],
-  );
+  const setLastRead = useNovelDomainValue(novelStore, selectSetLastRead);
+
   const markChapterRead = useNovelDomainValue(
-    novelContext.novelStore,
+    novelStore,
     selectMarkChapterRead,
-    novelContext.markChapterRead,
   );
   const updateChapterProgress = useNovelDomainValue(
-    novelContext.novelStore,
+    novelStore,
     selectUpdateChapterProgress,
-    novelContext.updateChapterProgress,
   );
   const chapterTextCacheDomain = useNovelDomainValue(
-    novelContext.novelStore,
+    novelStore,
     selectChapterTextCache,
-    fallbackChapterTextCache,
   );
   const chapterTextCache = useMemo(
     () => ({

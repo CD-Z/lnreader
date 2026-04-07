@@ -1,5 +1,4 @@
- 
-import { useMMKVObject } from 'react-native-mmkv';
+/* eslint-disable no-console */
 import {
   ChapterFilterKey,
   ChapterFilterPositiveKey,
@@ -15,24 +14,14 @@ import {
 import { useAppSettings } from './useSettings';
 import { ChapterFilterObject, FilterStates } from '@database/utils/filter';
 import { useNovelContext } from '@screens/novel/NovelContext';
-import { NovelStoreApi, NovelStoreState } from './useNovel/novelStore';
+import { NovelStoreState } from './useNovel/novelStore';
 import {
   defaultNovelSettings,
-  NovelSettings,
   NOVEL_PAGE_INDEX_PREFIX,
   NOVEL_SETTINGS_PREFIX,
 } from './useNovel/types';
 
 export { NOVEL_PAGE_INDEX_PREFIX, NOVEL_SETTINGS_PREFIX };
-
-// #endregion
-// #region definition useNovel
-
-type NovelContextWithOptionalStore = ReturnType<typeof useNovelContext> & {
-  novelStore?: NovelStoreApi;
-};
-
-const noopUnsubscribe = () => {};
 
 const selectNovel = (state: NovelStoreState) => state.novel;
 const selectNovelSettings = (state: NovelStoreState) => state.novelSettings;
@@ -40,69 +29,34 @@ const selectSetNovelSettings = (state: NovelStoreState) =>
   state.setNovelSettings;
 
 const useNovelDomainValue = <T>(
-  novelStore: NovelStoreApi | undefined,
+  novelStore: ReturnType<typeof useNovelContext>['novelStore'],
   selector: (state: NovelStoreState) => T,
-  fallback: T,
 ) => {
   const subscribe = useCallback(
-    (onStoreChange: () => void) =>
-      novelStore ? novelStore.subscribe(onStoreChange) : noopUnsubscribe,
+    (onStoreChange: () => void) => novelStore.subscribe(onStoreChange),
     [novelStore],
   );
 
   const getSnapshot = useCallback(
-    () => (novelStore ? selector(novelStore.getState()) : fallback),
-    [fallback, novelStore, selector],
+    () => selector(novelStore.getState()),
+    [novelStore, selector],
   );
 
   return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 };
 
 export const useNovelSettings = () => {
-  const novelContext = useNovelContext() as NovelContextWithOptionalStore;
+  const { novelStore } = useNovelContext();
   const { defaultChapterSort } = useAppSettings();
 
-  const contextNovel = novelContext.novel;
-  const novel = useNovelDomainValue(
-    novelContext.novelStore,
-    selectNovel,
-    contextNovel,
-  );
-
-  const [ns, setNovelSettings] = useMMKVObject<NovelSettings>(
-    `${NOVEL_SETTINGS_PREFIX}_${novel?.pluginId}_${novel?.path}`,
-  );
-
-  const fallbackSetNovelSettings = useCallback(
-    (settings: NovelSettings) => setNovelSettings(settings),
-    [setNovelSettings],
-  );
-
-  const persistedNovelSettings = useMemo(
-    () => ({ ...defaultNovelSettings, ...ns }),
-    [ns],
-  );
-
+  const novel = useNovelDomainValue(novelStore, selectNovel);
   const domainNovelSettings = useNovelDomainValue(
-    novelContext.novelStore,
+    novelStore,
     selectNovelSettings,
-    persistedNovelSettings,
   );
-
-  const applyNovelSettings = useNovelDomainValue(
-    novelContext.novelStore,
+  const writeNovelSettings = useNovelDomainValue(
+    novelStore,
     selectSetNovelSettings,
-    fallbackSetNovelSettings,
-  );
-
-  const writeNovelSettings = useCallback(
-    (settings: NovelSettings) => {
-      setNovelSettings(settings);
-      if (novelContext.novelStore) {
-        applyNovelSettings(settings);
-      }
-    },
-    [applyNovelSettings, novelContext.novelStore, setNovelSettings],
   );
 
   const novelSettings = useMemo(

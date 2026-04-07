@@ -39,16 +39,7 @@ import { ThemeColors } from '@theme/types';
 import { SafeAreaView } from '@components';
 import { useNovelContext } from './NovelContext';
 import { LegendListRef } from '@legendapp/list';
-import {
-  NovelStoreApi,
-  NovelStoreState,
-} from '@hooks/persisted/useNovel/novelStore';
-
-type NovelContextWithOptionalStore = ReturnType<typeof useNovelContext> & {
-  novelStore?: NovelStoreApi;
-};
-
-const noopUnsubscribe = () => {};
+import { NovelStoreState } from '@hooks/persisted/useNovel/novelStore';
 
 const selectNovel = (state: NovelStoreState) => state.novel;
 const selectChapters = (state: NovelStoreState) => state.chapters;
@@ -73,97 +64,63 @@ const selectRefreshChapters = (state: NovelStoreState) => state.refreshChapters;
 const selectDeleteChapters = (state: NovelStoreState) => state.deleteChapters;
 
 const useNovelDomainValue = <T,>(
-  novelStore: NovelStoreApi | undefined,
+  novelStore: ReturnType<typeof useNovelContext>['novelStore'],
   selector: (state: NovelStoreState) => T,
-  fallback: T,
 ) => {
   const subscribe = useCallback(
-    (onStoreChange: () => void) =>
-      novelStore ? novelStore.subscribe(onStoreChange) : noopUnsubscribe,
+    (onStoreChange: () => void) => novelStore.subscribe(onStoreChange),
     [novelStore],
   );
 
   const getSnapshot = useCallback(
-    () => (novelStore ? selector(novelStore.getState()) : fallback),
-    [fallback, novelStore, selector],
+    () => selector(novelStore.getState()),
+    [novelStore, selector],
   );
 
   return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 };
 
 const Novel = ({ route, navigation }: NovelScreenProps) => {
-  const novelContext = useNovelContext() as NovelContextWithOptionalStore;
+  const { novelStore } = useNovelContext();
 
-  const novel = useNovelDomainValue(
-    novelContext.novelStore,
-    selectNovel,
-    novelContext.novel,
-  );
-  const chapters = useNovelDomainValue(
-    novelContext.novelStore,
-    selectChapters,
-    novelContext.chapters,
-  );
-  const fetching = useNovelDomainValue(
-    novelContext.novelStore,
-    selectFetching,
-    novelContext.fetching,
-  );
+  const novel = useNovelDomainValue(novelStore, selectNovel);
+  const chapters = useNovelDomainValue(novelStore, selectChapters);
+  const fetching = useNovelDomainValue(novelStore, selectFetching);
   const batchInformation = useNovelDomainValue(
-    novelContext.novelStore,
+    novelStore,
     selectBatchInformation,
-    novelContext.batchInformation,
   );
   const getNextChapterBatch = useNovelDomainValue(
-    novelContext.novelStore,
+    novelStore,
     selectGetNextChapterBatch,
-    novelContext.getNextChapterBatch,
   );
-  const loadUpToBatch = useNovelDomainValue(
-    novelContext.novelStore,
-    selectLoadUpToBatch,
-    novelContext.loadUpToBatch,
-  );
-  const setNovel = useNovelDomainValue(
-    novelContext.novelStore,
-    selectSetNovel,
-    novelContext.setNovel,
-  );
+  const loadUpToBatch = useNovelDomainValue(novelStore, selectLoadUpToBatch);
+  const setNovel = useNovelDomainValue(novelStore, selectSetNovel);
   const bookmarkChapters = useNovelDomainValue(
-    novelContext.novelStore,
+    novelStore,
     selectBookmarkChapters,
-    novelContext.bookmarkChapters,
   );
   const markChaptersRead = useNovelDomainValue(
-    novelContext.novelStore,
+    novelStore,
     selectMarkChaptersRead,
-    novelContext.markChaptersRead,
   );
   const markChaptersUnread = useNovelDomainValue(
-    novelContext.novelStore,
+    novelStore,
     selectMarkChaptersUnread,
-    novelContext.markChaptersUnread,
   );
   const markPreviouschaptersRead = useNovelDomainValue(
-    novelContext.novelStore,
+    novelStore,
     selectMarkPreviouschaptersRead,
-    novelContext.markPreviouschaptersRead,
   );
   const markPreviousChaptersUnread = useNovelDomainValue(
-    novelContext.novelStore,
+    novelStore,
     selectMarkPreviousChaptersUnread,
-    novelContext.markPreviousChaptersUnread,
   );
   const refreshChapters = useNovelDomainValue(
-    novelContext.novelStore,
+    novelStore,
     selectRefreshChapters,
-    novelContext.refreshChapters,
   );
-  const deleteChapters = useNovelDomainValue(
-    novelContext.novelStore,
-    selectDeleteChapters,
-    novelContext.deleteChapters,
-  );
+  const deleteChapters = useNovelDomainValue(novelStore, selectDeleteChapters);
 
   const theme = useTheme();
   const { downloadChapters } = useDownload();
