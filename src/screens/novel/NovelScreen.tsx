@@ -1,11 +1,4 @@
-import React, {
-  Suspense,
-  useCallback,
-  useMemo,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from 'react';
+import React, { Suspense, useCallback, useMemo, useRef, useState } from 'react';
 import { StyleSheet, View, StatusBar, Text, Share } from 'react-native';
 import Animated, {
   SlideInUp,

@@ -1,6 +1,6 @@
 import './mocks';
 import { ChapterInfo, NovelInfo } from '@database/types';
-import { createNovelStore } from '@hooks/persisted/useNovel/novelStore';
+import { createNovelStore } from '@hooks/persisted/useNovel/__tests__/novelStore';
 import { ChapterActionsDependencies } from '@hooks/persisted/useNovel/chapterActions';
 
 const PLUGIN_ID = 'test-plugin';

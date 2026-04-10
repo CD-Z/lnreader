@@ -9,7 +9,7 @@ import {
   NOVEL_PAGE_INDEX_PREFIX,
   NOVEL_SETTINGS_PREFIX,
   novelPersistence,
-} from '../contracts';
+} from '../store-helper/contracts';
 
 jest.mock('@services/ServiceManager', () => ({
   __esModule: true,

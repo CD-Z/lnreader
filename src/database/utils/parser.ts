@@ -6,7 +6,8 @@ import {
 } from '@database/constants';
 import { SQL, sql } from 'drizzle-orm';
 
-export function chapterOrderToSQL(order: ChapterOrderKey) {
+export function chapterOrderToSQL(order?: ChapterOrderKey) {
+  if (!order) return sql.raw(CHAPTER_ORDER.positionAsc);
   const o = CHAPTER_ORDER[order] ?? CHAPTER_ORDER.positionAsc;
   return sql.raw(o);
 }

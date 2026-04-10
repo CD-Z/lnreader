@@ -4,17 +4,20 @@ export const NOVEL_PAGE_INDEX_PREFIX = 'NOVEL_PAGE_INDEX_PREFIX';
 export const NOVEL_SETTINGS_PREFIX = 'NOVEL_SETTINGS';
 export const LAST_READ_PREFIX = 'LAST_READ_PREFIX';
 
-export const defaultNovelSettings: NovelSettings = {
+export const defaultNovelSettings: NovelSettingsWithoutSort = {
   showChapterTitles: true,
   filter: [],
 };
 
 export const defaultPageIndex = 0;
 
-export interface NovelSettings {
-  sort?: ChapterOrderKey;
+export interface NovelSettingsWithoutSort {
   filter: ChapterFilterKey[];
-  showChapterTitles?: boolean;
+  showChapterTitles: boolean;
+  sort?: ChapterOrderKey;
+}
+export interface NovelSettings extends NovelSettingsWithoutSort {
+  sort: ChapterOrderKey;
 }
 
 export interface BatchInfo {

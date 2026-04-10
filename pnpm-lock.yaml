@@ -220,7 +220,7 @@ importers:
         version: 2.0.0
       zustand:
         specifier: ^5.0.12
-        version: 5.0.12(@types/react@19.1.17)(react@19.1.4)(use-sync-external-store@1.6.0(react@19.1.4))
+        version: 5.0.12(@types/react@19.2.14)(react@19.2.4)(use-sync-external-store@1.6.0(react@19.2.4))
     devDependencies:
       '@babel/core':
         specifier: ^7.29.0
@@ -13808,8 +13808,8 @@ snapshots:
 
   zod@4.3.6: {}
 
-  zustand@5.0.12(@types/react@19.1.17)(react@19.1.4)(use-sync-external-store@1.6.0(react@19.1.4)):
+  zustand@5.0.12(@types/react@19.2.14)(react@19.2.4)(use-sync-external-store@1.6.0(react@19.2.4)):
     optionalDependencies:
-      '@types/react': 19.1.17
-      react: 19.1.4
-      use-sync-external-store: 1.6.0(react@19.1.4)
+      '@types/react': 19.2.14
+      react: 19.2.4
+      use-sync-external-store: 1.6.0(react@19.2.4)

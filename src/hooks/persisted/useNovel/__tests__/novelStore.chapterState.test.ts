@@ -1,4 +1,4 @@
-import { createChapterTextCache } from '../novelStore.chapterState';
+import { createChapterTextCache } from '../store/novelStore.chapterState';
 
 describe('novelStore.chapterState', () => {
   describe('createChapterTextCache', () => {

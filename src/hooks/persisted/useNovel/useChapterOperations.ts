@@ -11,7 +11,7 @@ import {
   markPreviousChaptersUnreadAction,
   refreshChaptersAction,
   updateChapterProgressAction,
-} from './chapterActions';
+} from './store/chapterActions';
 import { ChapterInfo, NovelInfo } from '@database/types';
 
 export interface UseChapterOperationsParams {

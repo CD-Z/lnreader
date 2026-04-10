@@ -4,7 +4,7 @@ import { ChapterInfo, NovelInfo } from '@database/types';
 import {
   createBootstrapService,
   BootstrapServiceDependencies,
-} from '../bootstrapService';
+} from '../store-helper/bootstrapService';
 
 const PLUGIN_ID = 'test-plugin';
 const NOVEL_PATH = '/novels/test';
@@ -68,9 +68,9 @@ describe('bootstrapService', () => {
 
   it('returns success payload from db-first branch', async () => {
     const deps = createDeps();
-    const service = createBootstrapService(deps);
+    const service = createBootstrapService();
 
-    const result = await service.bootstrapNovel({
+    const result = await service.bootstrapNovelAsync({
       novel: undefined,
       novelPath: NOVEL_PATH,
       pluginId: PLUGIN_ID,
@@ -103,9 +103,9 @@ describe('bootstrapService', () => {
     deps.fetchPage.mockResolvedValue({
       chapters: mockChapters.map(ch => ({ ...ch, page: null })),
     } as never);
-    const service = createBootstrapService(deps);
+    const service = createBootstrapService();
 
-    const result = await service.bootstrapNovel({
+    const result = await service.bootstrapNovelAsync({
       novel: mockNovel,
       novelPath: NOVEL_PATH,
       pluginId: PLUGIN_ID,
@@ -132,9 +132,9 @@ describe('bootstrapService', () => {
     const deps = createDeps();
     deps.getNovelByPath.mockReturnValue(undefined);
     deps.fetchNovel.mockResolvedValue({ ...mockNovel, chapters: [] } as never);
-    const service = createBootstrapService(deps);
+    const service = createBootstrapService();
 
-    const result = await service.bootstrapNovel({
+    const result = await service.bootstrapNovelAsync({
       novel: undefined,
       novelPath: NOVEL_PATH,
       pluginId: PLUGIN_ID,
@@ -149,9 +149,9 @@ describe('bootstrapService', () => {
   it('returns error result when underlying data operation throws', async () => {
     const deps = createDeps();
     deps.getChapterCount.mockRejectedValue(new Error('db failed'));
-    const service = createBootstrapService(deps);
+    const service = createBootstrapService();
 
-    const result = await service.bootstrapNovel({
+    const result = await service.bootstrapNovelAsync({
       novel: mockNovel,
       novelPath: NOVEL_PATH,
       pluginId: PLUGIN_ID,
@@ -167,10 +167,10 @@ describe('bootstrapService', () => {
 
   it('dedupes in-flight bootstrap per ${pluginId}_${novelPath}', async () => {
     const deps = createDeps();
-    const service = createBootstrapService(deps);
+    const service = createBootstrapService();
 
     const [result1, result2] = await Promise.all([
-      service.bootstrapNovel({
+      service.bootstrapNovelAsync({
         novel: mockNovel,
         novelPath: NOVEL_PATH,
         pluginId: PLUGIN_ID,
@@ -178,7 +178,7 @@ describe('bootstrapService', () => {
         settingsSort,
         settingsFilter,
       }),
-      service.bootstrapNovel({
+      service.bootstrapNovelAsync({
         novel: mockNovel,
         novelPath: NOVEL_PATH,
         pluginId: PLUGIN_ID,

@@ -10,6 +10,12 @@ const FILTER_STATES = {
 } as const;
 export type FilterStates = typeof FILTER_STATES;
 
+export type FilterObject = {
+  unread?: boolean;
+  isDownloaded?: boolean;
+  bookmark?: boolean;
+};
+
 export class ChapterFilterObject {
   private filter: Map<
     ChapterFilterPositiveKey,
@@ -49,6 +55,26 @@ export class ChapterFilterObject {
       })
       .filter(v => v !== null);
     return res as ChapterFilterKey[];
+  }
+
+  toFilterObject(): FilterObject {
+    const result: FilterObject = {};
+    for (const [key, value] of this.filter.entries()) {
+      if (value === FILTER_STATES.OFF) continue;
+
+      switch (key) {
+        case 'read':
+          result.unread = value !== FILTER_STATES.ON;
+          break;
+        case 'downloaded':
+          result.isDownloaded = value === FILTER_STATES.ON;
+          break;
+        case 'bookmarked':
+          result.bookmark = value === FILTER_STATES.ON;
+          break;
+      }
+    }
+    return result;
   }
 
   set(key: ChapterFilterPositiveKey, value: keyof typeof FILTER_STATES) {

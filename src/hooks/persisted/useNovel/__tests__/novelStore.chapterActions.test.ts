@@ -1,6 +1,6 @@
 import '../../../__tests__/mocks';
 import { ChapterInfo, NovelInfo } from '@database/types';
-import { createBootstrapService } from '../bootstrapService';
+import { createBootstrapService } from '../store-helper/bootstrapService';
 import {
   bookmarkChaptersAction,
   ChapterActionsDependencies,
@@ -13,8 +13,8 @@ import {
   markPreviousChaptersUnreadAction,
   refreshChaptersAction,
   updateChapterProgressAction,
-} from '../chapterActions';
-import { createNovelStoreChapterActions } from '../novelStore.chapterActions';
+} from '../store/chapterActions';
+import { createNovelStoreChapterActions } from '../store/novelStore.chapterActions';
 import { BatchInfo, NovelSettings } from '../types';
 
 jest.mock('../chapterActions', () => {

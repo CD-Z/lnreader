@@ -15,7 +15,7 @@ import {
   keyContract,
   type NovelPersistenceInput,
   novelPersistence,
-} from './useNovel/contracts';
+} from './useNovel/store-helper/contracts';
 import type { BatchInfo, NovelSettings } from './useNovel/types';
 
 export { NOVEL_PAGE_INDEX_PREFIX, NOVEL_SETTINGS_PREFIX, LAST_READ_PREFIX };

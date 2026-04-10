@@ -1,13 +1,11 @@
 import { ChapterFilterKey, ChapterOrderKey } from '@database/constants';
-import { NovelSettings } from './types';
+import { NovelSettings } from '../types';
 import {
   GetState,
   NovelStoreDependencies,
   NovelStoreNovelActions,
   SetState,
 } from './novelStore.types';
-import { createBootstrapService } from './bootstrapService';
-import { defaultChapterActionsDependencies } from './chapterActions';
 
 interface CreateNovelStoreActionsParams {
   set: SetState;
@@ -15,15 +13,6 @@ interface CreateNovelStoreActionsParams {
   deps: NovelStoreDependencies;
   defaultChapterSort: ChapterOrderKey;
 }
-
-export const defaultNovelStoreActionsDependencies: Pick<
-  NovelStoreDependencies,
-  'bootstrapService' | 'chapterActionsDependencies' | 'transformChapters'
-> = {
-  bootstrapService: createBootstrapService(),
-  chapterActionsDependencies: defaultChapterActionsDependencies,
-  transformChapters: chs => chs,
-};
 
 export const createNovelStoreActions = ({
   set,
@@ -49,7 +38,7 @@ export const createNovelStoreActions = ({
         set({ fetching: true });
 
         const state = get();
-        const result = await deps.bootstrapService.bootstrapNovel({
+        const result = await deps.bootstrapService.bootstrapNovelAsync({
           novel: state.novel,
           novelPath: state.novelPath,
           pluginId: state.pluginId,
@@ -83,6 +72,33 @@ export const createNovelStoreActions = ({
 
       return inflightBootstrap;
     },
+    bootstrapNovelSync: () => {
+      const state = get();
+      const result = deps.bootstrapService.bootstrapNovelSync({
+        novel: state.novel,
+        novelPath: state.novelPath,
+        pluginId: state.pluginId,
+        pageIndex: state.pageIndex,
+        settingsSort: getSettingsSort(state.novelSettings),
+        settingsFilter: getSettingsFilter(state.novelSettings),
+      });
+
+      if (!result.ok) {
+        return false;
+      }
+
+      set({
+        loading: false,
+        fetching: false,
+        novel: result.novel,
+        pages: result.pages,
+        chapters: deps.transformChapters(result.chapters),
+        batchInformation: result.batchInformation,
+        firstUnreadChapter: result.firstUnreadChapter,
+      });
+
+      return true;
+    },
 
     getChapters: async () => {
       const state = get();
@@ -111,7 +127,7 @@ export const createNovelStoreActions = ({
 
     refreshNovel: async () => {
       const state = get();
-      const refreshed = await deps.bootstrapService.bootstrapNovel({
+      const refreshed = await deps.bootstrapService.bootstrapNovelAsync({
         novel: undefined,
         novelPath: state.novelPath,
         pluginId: state.pluginId,

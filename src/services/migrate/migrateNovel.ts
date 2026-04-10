@@ -11,7 +11,7 @@ import { parseChapterNumber } from '@utils/parseChapterNumber';
 import {
   novelPersistence,
   type NovelPersistenceInput,
-} from '@hooks/persisted/useNovel/contracts';
+} from '@hooks/persisted/useNovel/store-helper/contracts';
 import { sleep } from '@utils/sleep';
 import ServiceManager, {
   BackgroundTaskMetadata,

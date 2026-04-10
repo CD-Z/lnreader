@@ -8,7 +8,8 @@ import {
   LAST_READ_PREFIX,
   NOVEL_PAGE_INDEX_PREFIX,
   NOVEL_SETTINGS_PREFIX,
-} from './types';
+  NovelSettingsWithoutSort,
+} from '../types';
 
 export type NovelPersistenceInput = KeyContractInput;
 
@@ -19,15 +20,11 @@ interface NovelPersistenceStorage {
   delete: (key: string) => void;
 }
 
-interface ReadSettingsOptions {
-  fallbackToDefault?: boolean;
-}
-
 const defaultStorage: NovelPersistenceStorage = {
   getNumber: key => MMKVStorage.getNumber(key),
   getString: key => MMKVStorage.getString(key),
   set: (key, value) => MMKVStorage.set(key, value),
-  delete: key => MMKVStorage.delete(key),
+  delete: key => MMKVStorage.remove(key),
 };
 
 const isRecord = (value: unknown): value is Record<string, unknown> => {
@@ -98,12 +95,10 @@ export const createNovelPersistenceBridge = (
 
   const readSettings = (
     input: NovelPersistenceInput,
-    options?: ReadSettingsOptions,
-  ): NovelSettings | undefined => {
+  ): NovelSettingsWithoutSort => {
     const key = keys.settings(input);
     const raw = storage.getString(key);
     if (raw === undefined) {
-      if (options?.fallbackToDefault === false) return undefined;
       return defaultNovelSettings;
     }
 
@@ -113,9 +108,6 @@ export const createNovelPersistenceBridge = (
     }
 
     storage.delete(key);
-    if (options?.fallbackToDefault === false) {
-      return undefined;
-    }
     storage.set(key, JSON.stringify(defaultNovelSettings));
     return defaultNovelSettings;
   };
@@ -155,7 +147,7 @@ export const createNovelPersistenceBridge = (
     from: NovelPersistenceInput,
     to: NovelPersistenceInput,
   ) => {
-    const settings = readSettings(from, { fallbackToDefault: false });
+    const settings = readSettings(from);
     if (settings) {
       writeSettings(to, settings);
     }

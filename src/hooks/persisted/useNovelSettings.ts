@@ -1,10 +1,9 @@
-/* eslint-disable no-console */
 import {
   ChapterFilterKey,
   ChapterFilterPositiveKey,
   ChapterOrderKey,
 } from '@database/constants';
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import { useAppSettings } from './useSettings';
 import { ChapterFilterObject, FilterStates } from '@database/utils/filter';
 import {
@@ -29,13 +28,12 @@ export const useNovelSettings = () => {
 
   const _sort: ChapterOrderKey = novelSettings.sort ?? defaultChapterSort;
   const _filter: ChapterFilterKey[] = novelSettings.filter;
-  const filterManager = useRef<ChapterFilterObject | null>(null);
 
   // #endregion
   // #region setters
 
   const setChapterSort = useCallback(
-    async (sort?: ChapterOrderKey) => {
+    async (sort: ChapterOrderKey) => {
       if (novel) {
         writeNovelSettings({
           showChapterTitles: novelSettings?.showChapterTitles,
@@ -58,14 +56,10 @@ export const useNovelSettings = () => {
     },
     [novel, writeNovelSettings, novelSettings?.showChapterTitles, _sort],
   );
-  useEffect(() => {
-    if (!filterManager.current) {
-      filterManager.current = new ChapterFilterObject(
-        _filter,
-        setChapterFilter,
-      );
-    }
-  }, [_filter, setChapterFilter]);
+
+  const filterManager = useRef<ChapterFilterObject>(
+    new ChapterFilterObject(_filter, setChapterFilter),
+  );
 
   const cycleChapterFilter = useCallback(
     (key: ChapterFilterPositiveKey) => {

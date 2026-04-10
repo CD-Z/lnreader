@@ -1,6 +1,6 @@
 import { ChapterFilterKey, ChapterOrderKey } from '@database/constants';
-import { ChapterInfo, NovelInfo } from '@database/types';
-import { createBootstrapService } from './bootstrapService';
+import { ChapterInfo } from '@database/types';
+import { createBootstrapService } from '../store-helper/bootstrapService';
 import {
   bookmarkChaptersAction,
   ChapterActionsDependencies,
@@ -14,7 +14,7 @@ import {
   refreshChaptersAction,
   updateChapterProgressAction,
 } from './chapterActions';
-import { BatchInfo, NovelSettings } from './types';
+import { NovelSettings } from '../types';
 import {
   ChapterTextCacheApi,
   GetState,

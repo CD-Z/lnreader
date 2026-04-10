@@ -12,7 +12,7 @@ import {
   markPreviousChaptersUnreadAction,
   refreshChaptersAction,
   updateChapterProgressAction,
-} from '../chapterActions';
+} from '../store/chapterActions';
 
 const makeChapter = (id: number, overrides: Partial<ChapterInfo> = {}) => ({
   id,

@@ -1,4 +1,4 @@
-import { keyContract, KeyContractInput } from '../keyContract';
+import { keyContract, KeyContractInput } from '../store-helper/keyContract';
 import {
   NOVEL_PAGE_INDEX_PREFIX,
   NOVEL_SETTINGS_PREFIX,

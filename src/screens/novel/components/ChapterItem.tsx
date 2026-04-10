@@ -8,6 +8,7 @@ import { ThemeColors } from '@theme/types';
 import { ChapterInfo } from '@database/types';
 import MaterialCommunityIcons from '@react-native-vector-icons/material-design-icons';
 import { getString } from '@strings/translations';
+import dayjs from 'dayjs';
 
 interface ChapterItemProps {
   chapter: ChapterInfo;
@@ -97,6 +98,12 @@ const ChapterItem: React.FC<ChapterItemProps> = ({
     color: theme.outline,
     marginStart: chapter.releaseTime ? 5 : 0,
   } as const;
+  function parseTime(time?: string | Date | null) {
+    if (!time) return undefined;
+    const parsedTime = dayjs(time);
+    return parsedTime.isValid() ? parsedTime.format('LL') : (time as string);
+  }
+  const parsedTime = parseTime(releaseTime);
 
   return (
     <View key={'chapterItem' + id}>
@@ -148,12 +155,12 @@ const ChapterItem: React.FC<ChapterItemProps> = ({
               </Text>
             </View>
             <View style={styles.metaRow}>
-              {releaseTime && !isUpdateCard ? (
+              {parsedTime && !isUpdateCard ? (
                 <Text
                   style={[{ color: releaseColor }, styles.mt4, styles.text]}
                   numberOfLines={1}
                 >
-                  {releaseTime}
+                  {parsedTime}
                 </Text>
               ) : null}
               {!isUpdateCard && progress && progress > 0 && chapter.unread ? (

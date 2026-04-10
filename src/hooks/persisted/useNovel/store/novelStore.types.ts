@@ -2,8 +2,8 @@ import { StoreApi } from 'zustand/vanilla';
 import { ChapterFilterKey, ChapterOrderKey } from '@database/constants';
 import { ChapterInfo, NovelInfo } from '@database/types';
 import { ChapterActionsDependencies } from './chapterActions';
-import { createBootstrapService } from './bootstrapService';
-import { BatchInfo, NovelSettings } from './types';
+import { createBootstrapService } from '../store-helper/bootstrapService';
+import { BatchInfo, NovelSettings } from '../types';
 
 type ChapterTextValue = string | Promise<string>;
 
@@ -56,6 +56,7 @@ export interface NovelStoreChapterActions {
 
 export interface NovelStoreNovelActions {
   bootstrapNovel: () => Promise<boolean>;
+  bootstrapNovelSync: () => boolean;
   getChapters: () => Promise<void>;
   refreshNovel: () => Promise<void>;
 
@@ -78,13 +79,7 @@ export interface NovelStoreState extends NovelStoreData {
 export type NovelStoreApi = StoreApi<NovelStoreState>;
 
 export interface NovelStoreDependencies {
-  bootstrapService: Pick<
-    ReturnType<typeof createBootstrapService>,
-    | 'bootstrapNovel'
-    | 'getChaptersForPage'
-    | 'getNextChapterBatch'
-    | 'loadUpToBatch'
-  >;
+  bootstrapService: ReturnType<typeof createBootstrapService>;
   chapterActionsDependencies: ChapterActionsDependencies;
   transformChapters: (chs: ChapterInfo[]) => ChapterInfo[];
   persistPageIndex?: (value: number) => void;
