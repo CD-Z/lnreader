@@ -2,12 +2,14 @@ import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import NovelScreenList from '../NovelScreenList';
 
-const mockUseNovelContext = jest.fn();
+const mockUseNovelValue = jest.fn();
+const mockUseNovelActions = jest.fn();
 const mockDownloadChapter = jest.fn();
 let mockDownloadingChapterIds = new Set<number>();
 
 jest.mock('../../NovelContext', () => ({
-  useNovelContext: () => mockUseNovelContext(),
+  useNovelValue: (key: string) => mockUseNovelValue(key),
+  useNovelActions: () => mockUseNovelActions(),
 }));
 
 jest.mock('@hooks/persisted', () => ({
@@ -237,12 +239,19 @@ const createStore = (overrides: Record<string, unknown> = {}) => {
   };
 };
 
-const createContext = (overrides: Record<string, unknown> = {}) => ({
-  novelStore: createStore(),
-  navigationBarHeight: 0,
-  statusBarHeight: 0,
-  ...overrides,
-});
+const wireStoreSelectors = (store: ReturnType<typeof createStore>) => {
+  mockUseNovelValue.mockImplementation(
+    (key: keyof typeof store.state) => store.state[key],
+  );
+  mockUseNovelActions.mockReturnValue({
+    deleteChapter: store.state.deleteChapter,
+    setNovel: store.state.setNovel,
+    getNextChapterBatch: store.state.getNextChapterBatch,
+    openPage: store.state.openPage,
+    updateChapter: store.state.updateChapter,
+    refreshNovel: store.state.refreshNovel,
+  });
+};
 
 const navigation = { navigate: jest.fn() };
 const listRef = { current: { scrollToOffset: jest.fn() } };
@@ -273,7 +282,7 @@ describe('NovelScreenList (task 12 context boundary cutover)', () => {
 
   it('uses novelStore selector actions', () => {
     const store = createStore();
-    mockUseNovelContext.mockReturnValue(createContext({ novelStore: store }));
+    wireStoreSelectors(store);
 
     renderList();
 
@@ -286,7 +295,7 @@ describe('NovelScreenList (task 12 context boundary cutover)', () => {
     const store = createStore();
 
     mockDownloadingChapterIds = new Set<number>([1]);
-    mockUseNovelContext.mockReturnValue(createContext({ novelStore: store }));
+    wireStoreSelectors(store);
 
     const view = renderList();
 
@@ -314,7 +323,7 @@ describe('NovelScreenList (task 12 context boundary cutover)', () => {
 
   it('uses selector-backed page navigation action from novelStore', () => {
     const store = createStore();
-    mockUseNovelContext.mockReturnValue(createContext({ novelStore: store }));
+    wireStoreSelectors(store);
 
     renderList();
 
@@ -330,7 +339,7 @@ describe('NovelScreenList (task 12 context boundary cutover)', () => {
       lastRead,
     });
 
-    mockUseNovelContext.mockReturnValue(createContext({ novelStore: store }));
+    wireStoreSelectors(store);
 
     renderList();
 

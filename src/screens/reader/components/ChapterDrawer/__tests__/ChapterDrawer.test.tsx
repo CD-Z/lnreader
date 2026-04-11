@@ -7,11 +7,13 @@ import {
 } from '@testing-library/react-native';
 import ChapterDrawer from '..';
 
-const mockUseNovelContext = jest.fn();
+const mockUseNovelValue = jest.fn();
+const mockUseNovelActions = jest.fn();
 const mockUseChapterContext = jest.fn();
 
 jest.mock('@screens/novel/NovelContext', () => ({
-  useNovelContext: () => mockUseNovelContext(),
+  useNovelValue: (key: string) => mockUseNovelValue(key),
+  useNovelActions: () => mockUseNovelActions(),
 }));
 
 jest.mock('@screens/reader/ChapterContext', () => ({
@@ -125,13 +127,6 @@ const createStore = (overrides: Record<string, unknown> = {}) => {
   };
 };
 
-const createNovelContext = (overrides: Record<string, unknown> = {}) => ({
-  novelStore: createStore(),
-  navigationBarHeight: 0,
-  statusBarHeight: 0,
-  ...overrides,
-});
-
 describe('ChapterDrawer (task 12 context boundary cutover)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -144,11 +139,13 @@ describe('ChapterDrawer (task 12 context boundary cutover)', () => {
       getChapter: jest.fn(),
       setLoading: jest.fn(),
     });
-    mockUseNovelContext.mockReturnValue(
-      createNovelContext({
-        novelStore: store,
-      }),
+    mockUseNovelValue.mockImplementation(
+      (key: keyof typeof store.state) => store.state[key],
     );
+    mockUseNovelActions.mockReturnValue({
+      getNextChapterBatch: store.state.getNextChapterBatch,
+      setPageIndex: store.state.setPageIndex,
+    });
 
     render(<ChapterDrawer />);
 

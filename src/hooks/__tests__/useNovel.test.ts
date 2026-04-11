@@ -11,7 +11,7 @@ import { TRACKED_NOVEL_PREFIX } from '@hooks/persisted/useTrackedNovel';
 import {
   keyContract,
   novelPersistence,
-} from '@hooks/persisted/useNovel/contracts';
+} from '@hooks/persisted/useNovel/store-helper/contracts';
 
 describe('useNovel (legacy retirement)', () => {
   it('throws with guidance to use store selectors', () => {

@@ -121,7 +121,28 @@ const defaultMockNovelContext = {
 };
 
 export const mockUseNovelContext = jest.fn(() => defaultMockNovelContext);
+export const mockUseNovelValue = jest.fn((key: string) => {
+  const state = mockUseNovelContext()?.novelStore?.getState?.() ?? {};
+  return state[key as keyof typeof state];
+});
+export const mockUseNovelState = jest.fn((selector: (state: any) => unknown) => {
+  const state = mockUseNovelContext()?.novelStore?.getState?.() ?? {};
+  return selector(state);
+});
+export const mockUseNovelActions = jest.fn(() => {
+  const state = mockUseNovelContext()?.novelStore?.getState?.() ?? {};
+  return state.actions ?? state;
+});
+export const mockUseNovelAction = jest.fn((key: string) => {
+  const actions = mockUseNovelActions();
+  return actions?.[key];
+});
 
 jest.mock('@screens/novel/NovelContext', () => ({
   useNovelContext: () => mockUseNovelContext(),
+  useNovelValue: (key: string) => mockUseNovelValue(key),
+  useNovelState: (selector: (state: any) => unknown) =>
+    mockUseNovelState(selector),
+  useNovelActions: () => mockUseNovelActions(),
+  useNovelAction: (key: string) => mockUseNovelAction(key),
 }));

@@ -4,7 +4,8 @@ import NovelScreen from '../NovelScreen';
 
 const mockDownloadChapters = jest.fn();
 const mockUpdateChapterProgressByIds = jest.fn();
-const mockUseNovelContext = jest.fn();
+const mockUseNovelValue = jest.fn();
+const mockUseNovelActions = jest.fn();
 
 jest.mock('@hooks/persisted', () => ({
   useTheme: () => ({
@@ -29,7 +30,8 @@ jest.mock('@hooks', () => ({
 }));
 
 jest.mock('../NovelContext', () => ({
-  useNovelContext: () => mockUseNovelContext(),
+  useNovelValue: (key: string) => mockUseNovelValue(key),
+  useNovelActions: () => mockUseNovelActions(),
 }));
 
 jest.mock('@services/plugin/fetch', () => ({
@@ -246,12 +248,21 @@ const createStore = (overrides: Record<string, unknown> = {}) => {
   };
 };
 
-const createContext = (overrides: Record<string, unknown> = {}) => ({
-  novelStore: createStore(),
-  navigationBarHeight: 0,
-  statusBarHeight: 0,
-  ...overrides,
-});
+const wireStoreSelectors = (store: ReturnType<typeof createStore>) => {
+  mockUseNovelValue.mockImplementation(
+    (key: keyof typeof store.state) => store.state[key],
+  );
+  mockUseNovelActions.mockReturnValue({
+    setNovel: store.state.setNovel,
+    bookmarkChapters: store.state.bookmarkChapters,
+    markChaptersRead: store.state.markChaptersRead,
+    markChaptersUnread: store.state.markChaptersUnread,
+    markPreviouschaptersRead: store.state.markPreviouschaptersRead,
+    markPreviousChaptersUnread: store.state.markPreviousChaptersUnread,
+    refreshChapters: store.state.refreshChapters,
+    deleteChapters: store.state.deleteChapters,
+  });
+};
 
 const route = {
   params: {
@@ -274,7 +285,7 @@ describe('NovelScreen (task 12 context boundary cutover)', () => {
 
   it('uses novelStore action selectors for selected unread workflow', () => {
     const store = createStore();
-    mockUseNovelContext.mockReturnValue(createContext({ novelStore: store }));
+    wireStoreSelectors(store);
 
     render(
       // @ts-expect-error narrowed test props
@@ -289,8 +300,7 @@ describe('NovelScreen (task 12 context boundary cutover)', () => {
 
   it('preserves selected-read workflow parity (mark unread + reset progress + refresh)', () => {
     const store = createStore();
-
-    mockUseNovelContext.mockReturnValue(createContext({ novelStore: store }));
+    wireStoreSelectors(store);
 
     render(
       // @ts-expect-error narrowed test props
@@ -307,7 +317,7 @@ describe('NovelScreen (task 12 context boundary cutover)', () => {
 
   it('keeps undefined-novel safety path for download action and guarded modals', () => {
     const store = createStore({ novel: undefined });
-    mockUseNovelContext.mockReturnValue(createContext({ novelStore: store }));
+    wireStoreSelectors(store);
 
     render(
       // @ts-expect-error narrowed test props

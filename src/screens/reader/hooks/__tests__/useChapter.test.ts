@@ -2,7 +2,7 @@ import { act, renderHook, waitFor } from '@testing-library/react-native';
 import useChapter from '../useChapter';
 import NativeFile from '@specs/NativeFile';
 
-const mockUseNovelContext = jest.fn();
+const mockUseNovelActions = jest.fn();
 const mockUseChapterGeneralSettings = jest.fn();
 const mockUseLibrarySettings = jest.fn();
 const mockUseTracker = jest.fn();
@@ -21,7 +21,7 @@ const mockSanitizeChapterText = jest.fn();
 const mockParseChapterNumber = jest.fn();
 
 jest.mock('@screens/novel/NovelContext', () => ({
-  useNovelContext: () => mockUseNovelContext(),
+  useNovelActions: () => mockUseNovelActions(),
 }));
 
 jest.mock('@hooks/persisted', () => ({
@@ -180,7 +180,7 @@ describe('useChapter', () => {
 
   it('uses chapterTextCache on initial load and avoids duplicate fetch for cached chapter text', async () => {
     const store = createStore({ [initialChapter.id]: 'cached chapter body' });
-    mockUseNovelContext.mockReturnValue({ novelStore: store });
+    mockUseNovelActions.mockReturnValue(store.state);
 
     const { result } = renderHook(() =>
       useChapter({ current: null }, initialChapter, novel),
@@ -203,7 +203,7 @@ describe('useChapter', () => {
       trackedNovel: { progress: 2 },
       updateAllTrackedNovels,
     });
-    mockUseNovelContext.mockReturnValue({ novelStore: store });
+    mockUseNovelActions.mockReturnValue(store.state);
 
     const { result } = renderHook(() =>
       useChapter({ current: null }, initialChapter, novel),
@@ -237,7 +237,7 @@ describe('useChapter', () => {
 
   it('sets error and remains stable when chapter fetch fails', async () => {
     const store = createStore();
-    mockUseNovelContext.mockReturnValue({ novelStore: store });
+    mockUseNovelActions.mockReturnValue(store.state);
     mockFetchChapter.mockRejectedValueOnce(new Error('network failed'));
 
     const { result } = renderHook(() =>
@@ -251,7 +251,7 @@ describe('useChapter', () => {
 
   it('reuses prefetched promise cache to avoid duplicate concurrent fetches for same chapter', async () => {
     const store = createStore();
-    mockUseNovelContext.mockReturnValue({ novelStore: store });
+    mockUseNovelActions.mockReturnValue(store.state);
 
     const deferredNext = createDeferred<string>();
 
