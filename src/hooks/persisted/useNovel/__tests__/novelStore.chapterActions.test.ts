@@ -17,8 +17,8 @@ import {
 import { createNovelStoreChapterActions } from '../store/novelStore.chapterActions';
 import { BatchInfo, NovelSettings } from '../types';
 
-jest.mock('../chapterActions', () => {
-  const actual = jest.requireActual('../chapterActions');
+jest.mock('../store/chapterActions', () => {
+  const actual = jest.requireActual('../store/chapterActions');
   return {
     ...actual,
     bookmarkChaptersAction: jest.fn(),
@@ -44,6 +44,7 @@ interface TestState {
   pages: string[];
   pageIndex: number;
   chapters: ChapterInfo[];
+  chapterTextCache: Record<number, string | Promise<string>>;
   fetching: boolean;
   novelSettings: NovelSettings;
   batchInformation: BatchInfo;
@@ -100,6 +101,7 @@ const createHarness = (overrides: Partial<TestState> = {}) => {
     pages: ['1', '2'],
     pageIndex: 0,
     chapters: [makeChapter(1)],
+    chapterTextCache: {},
     fetching: false,
     novelSettings: { filter: [] },
     batchInformation: { batch: 0, total: 4 },
@@ -198,6 +200,24 @@ describe('novelStore.chapterActions', () => {
     );
     expect(harness.getState().batchInformation.batch).toBe(2);
     expect(harness.getState().chapters.map(ch => ch.id)).toEqual([1, 2, 3]);
+  });
+
+  it('chapterTextCache supports read/write/remove/clear through state-backed cache', () => {
+    const harness = createHarness();
+    const pendingText = Promise.resolve('chapter text');
+
+    expect(harness.actions.chapterTextCache.read(1)).toBeUndefined();
+
+    harness.actions.chapterTextCache.write(1, pendingText);
+    expect(harness.actions.chapterTextCache.read(1)).toBe(pendingText);
+    expect(harness.getState().chapterTextCache[1]).toBe(pendingText);
+
+    harness.actions.chapterTextCache.remove(1);
+    expect(harness.actions.chapterTextCache.read(1)).toBeUndefined();
+
+    harness.actions.chapterTextCache.write(2, 'second');
+    harness.actions.chapterTextCache.clear();
+    expect(harness.getState().chapterTextCache).toEqual({});
   });
 
   it('updateChapter guard does nothing when novel is missing', () => {

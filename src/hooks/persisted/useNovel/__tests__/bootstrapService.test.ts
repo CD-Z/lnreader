@@ -2,9 +2,19 @@ import '../../../__tests__/mocks';
 import { ChapterFilterKey, ChapterOrderKey } from '@database/constants';
 import { ChapterInfo, NovelInfo } from '@database/types';
 import {
-  createBootstrapService,
-  BootstrapServiceDependencies,
-} from '../store-helper/bootstrapService';
+  getChapterCount,
+  getCustomPages,
+  getFirstUnreadChapter,
+  getPageChapters,
+  getPageChaptersBatched,
+  insertChapters,
+} from '@database/queries/ChapterQueries';
+import {
+  getNovelByPath,
+  insertNovelAndChapters,
+} from '@database/queries/NovelQueries';
+import { fetchNovel, fetchPage } from '@services/plugin/fetch';
+import { createBootstrapService } from '../store-helper/bootstrapService';
 
 const PLUGIN_ID = 'test-plugin';
 const NOVEL_PATH = '/novels/test';
@@ -38,36 +48,53 @@ const makeChapter = (id: number, overrides: Partial<ChapterInfo> = {}) => ({
   ...overrides,
 });
 
-const mockChapters: ChapterInfo[] = [
-  makeChapter(1),
-  makeChapter(2),
-  makeChapter(3),
-];
+const mockChapters: ChapterInfo[] = [makeChapter(1), makeChapter(2), makeChapter(3)];
 
-const createDeps = () => {
-  const deps: jest.Mocked<BootstrapServiceDependencies> = {
-    getCustomPages: jest.fn().mockResolvedValue([]),
-    getNovelByPath: jest.fn().mockReturnValue(mockNovel),
-    fetchNovel: jest.fn(),
-    insertNovelAndChapters: jest.fn().mockResolvedValue(undefined),
-    getChapterCount: jest.fn().mockResolvedValue(mockChapters.length),
-    getPageChaptersBatched: jest.fn().mockResolvedValue(mockChapters),
-    fetchPage: jest.fn(),
-    insertChapters: jest.fn().mockResolvedValue(undefined),
-    getPageChapters: jest.fn().mockResolvedValue(mockChapters),
-    getFirstUnreadChapter: jest.fn().mockResolvedValue(mockChapters[0]),
-  };
+const mockGetCustomPages = getCustomPages as jest.MockedFunction<
+  typeof getCustomPages
+>;
+const mockGetNovelByPath = getNovelByPath as jest.MockedFunction<
+  typeof getNovelByPath
+>;
+const mockFetchNovel = fetchNovel as jest.MockedFunction<typeof fetchNovel>;
+const mockInsertNovelAndChapters = insertNovelAndChapters as jest.MockedFunction<
+  typeof insertNovelAndChapters
+>;
+const mockGetChapterCount = getChapterCount as jest.MockedFunction<
+  typeof getChapterCount
+>;
+const mockGetPageChaptersBatched = getPageChaptersBatched as jest.MockedFunction<
+  typeof getPageChaptersBatched
+>;
+const mockFetchPage = fetchPage as jest.MockedFunction<typeof fetchPage>;
+const mockInsertChapters = insertChapters as jest.MockedFunction<
+  typeof insertChapters
+>;
+const mockGetPageChapters = getPageChapters as jest.MockedFunction<
+  typeof getPageChapters
+>;
+const mockGetFirstUnreadChapter = getFirstUnreadChapter as jest.MockedFunction<
+  typeof getFirstUnreadChapter
+>;
 
-  return deps;
+const setupDbFirstSuccess = () => {
+  mockGetCustomPages.mockReturnValue([]);
+  mockGetNovelByPath.mockReturnValue(mockNovel);
+  mockGetChapterCount.mockResolvedValue(mockChapters.length);
+  mockGetPageChaptersBatched.mockResolvedValue(mockChapters);
+  mockGetFirstUnreadChapter.mockReturnValue(mockChapters[0]);
 };
 
 describe('bootstrapService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.spyOn(console, 'time').mockImplementation(() => {});
+    jest.spyOn(console, 'timeEnd').mockImplementation(() => {});
+    jest.spyOn(console, 'error').mockImplementation(() => {});
   });
 
   it('returns success payload from db-first branch', async () => {
-    const deps = createDeps();
+    setupDbFirstSuccess();
     const service = createBootstrapService();
 
     const result = await service.bootstrapNovelAsync({
@@ -91,18 +118,19 @@ describe('bootstrapService', () => {
       total: 0,
       totalChapters: mockChapters.length,
     });
-    expect(deps.getNovelByPath).toHaveBeenCalledWith(NOVEL_PATH, PLUGIN_ID);
-    expect(deps.getChapterCount).toHaveBeenCalledWith(mockNovel.id, '1');
+    expect(mockGetNovelByPath).toHaveBeenCalledWith(NOVEL_PATH, PLUGIN_ID);
+    expect(mockGetChapterCount).toHaveBeenCalledWith(mockNovel.id, '1');
   });
 
   it('falls back to source page and inserts chapters when db count is 0', async () => {
-    const deps = createDeps();
-    deps.getChapterCount
+    setupDbFirstSuccess();
+    mockGetChapterCount
       .mockResolvedValueOnce(0)
       .mockResolvedValueOnce(mockChapters.length);
-    deps.fetchPage.mockResolvedValue({
+    mockFetchPage.mockResolvedValue({
       chapters: mockChapters.map(ch => ({ ...ch, page: null })),
     } as never);
+    mockGetPageChapters.mockResolvedValue(mockChapters);
     const service = createBootstrapService();
 
     const result = await service.bootstrapNovelAsync({
@@ -117,9 +145,9 @@ describe('bootstrapService', () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
-    expect(deps.fetchPage).toHaveBeenCalledWith(PLUGIN_ID, NOVEL_PATH, '1');
-    expect(deps.insertChapters).toHaveBeenCalled();
-    expect(deps.getPageChapters).toHaveBeenCalledWith(
+    expect(mockFetchPage).toHaveBeenCalledWith(PLUGIN_ID, NOVEL_PATH, '1');
+    expect(mockInsertChapters).toHaveBeenCalled();
+    expect(mockGetPageChapters).toHaveBeenCalledWith(
       mockNovel.id,
       settingsSort,
       settingsFilter,
@@ -129,9 +157,9 @@ describe('bootstrapService', () => {
   });
 
   it('returns missing-novel when source insert path still resolves no novel', async () => {
-    const deps = createDeps();
-    deps.getNovelByPath.mockReturnValue(undefined);
-    deps.fetchNovel.mockResolvedValue({ ...mockNovel, chapters: [] } as never);
+    mockGetNovelByPath.mockReturnValueOnce(undefined).mockReturnValueOnce(undefined);
+    mockFetchNovel.mockResolvedValue({ ...mockNovel, chapters: [] } as never);
+    mockInsertNovelAndChapters.mockResolvedValue(undefined);
     const service = createBootstrapService();
 
     const result = await service.bootstrapNovelAsync({
@@ -147,8 +175,8 @@ describe('bootstrapService', () => {
   });
 
   it('returns error result when underlying data operation throws', async () => {
-    const deps = createDeps();
-    deps.getChapterCount.mockRejectedValue(new Error('db failed'));
+    setupDbFirstSuccess();
+    mockGetChapterCount.mockRejectedValue(new Error('db failed'));
     const service = createBootstrapService();
 
     const result = await service.bootstrapNovelAsync({
@@ -166,7 +194,10 @@ describe('bootstrapService', () => {
   });
 
   it('dedupes in-flight bootstrap per ${pluginId}_${novelPath}', async () => {
-    const deps = createDeps();
+    setupDbFirstSuccess();
+    mockGetChapterCount.mockImplementation(
+      () => new Promise(resolve => setTimeout(() => resolve(mockChapters.length), 10)),
+    );
     const service = createBootstrapService();
 
     const [result1, result2] = await Promise.all([
@@ -190,6 +221,100 @@ describe('bootstrapService', () => {
 
     expect(result1.ok).toBe(true);
     expect(result2.ok).toBe(true);
-    expect(deps.getChapterCount).toHaveBeenCalledTimes(1);
+    expect(mockGetChapterCount).toHaveBeenCalledTimes(1);
+  });
+
+  it('uses custom pages and selected page index when custom pages are available', async () => {
+    setupDbFirstSuccess();
+    mockGetCustomPages.mockReturnValue(
+      [{ page: '1' }, { page: '3' }] as ReturnType<typeof getCustomPages>,
+    );
+    const service = createBootstrapService();
+
+    const result = await service.bootstrapNovelAsync({
+      novel: mockNovel,
+      novelPath: NOVEL_PATH,
+      pluginId: PLUGIN_ID,
+      pageIndex: 1,
+      settingsSort,
+      settingsFilter,
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.pages).toEqual(['1', '3']);
+    expect(mockGetChapterCount).toHaveBeenCalledWith(mockNovel.id, '3');
+    expect(mockGetPageChaptersBatched).toHaveBeenCalledWith(
+      mockNovel.id,
+      settingsSort,
+      settingsFilter,
+      '3',
+    );
+  });
+
+  it('getNextChapterBatch loads the next batch when available', async () => {
+    mockGetPageChaptersBatched.mockResolvedValue([makeChapter(10)]);
+    const service = createBootstrapService();
+
+    const result = await service.getNextChapterBatch({
+      novel: mockNovel,
+      pages: ['1'],
+      pageIndex: 0,
+      settingsSort,
+      settingsFilter,
+      batchInformation: { batch: 0, total: 2 },
+    });
+
+    expect(mockGetPageChaptersBatched).toHaveBeenCalledWith(
+      mockNovel.id,
+      settingsSort,
+      settingsFilter,
+      '1',
+      1,
+    );
+    expect(result).toEqual({
+      batch: 1,
+      chapters: [expect.objectContaining({ id: 10 })],
+    });
+  });
+
+  it('getNextChapterBatch returns undefined when at last batch', async () => {
+    const service = createBootstrapService();
+
+    const result = await service.getNextChapterBatch({
+      novel: mockNovel,
+      pages: ['1'],
+      pageIndex: 0,
+      settingsSort,
+      settingsFilter,
+      batchInformation: { batch: 1, total: 1 },
+    });
+
+    expect(result).toBeUndefined();
+    expect(mockGetPageChaptersBatched).not.toHaveBeenCalled();
+  });
+
+  it('loadUpToBatch only loads until total batch count', async () => {
+    mockGetPageChaptersBatched.mockResolvedValue([makeChapter(11)]);
+    const onBatchLoaded = jest.fn();
+    const service = createBootstrapService();
+
+    await service.loadUpToBatch({
+      targetBatch: 4,
+      novel: mockNovel,
+      pages: ['1'],
+      pageIndex: 0,
+      settingsSort,
+      settingsFilter,
+      batchInformation: { batch: 0, total: 1 },
+      onBatchLoaded,
+    });
+
+    expect(mockGetPageChaptersBatched).toHaveBeenCalledTimes(1);
+    expect(onBatchLoaded).toHaveBeenCalledWith(
+      1,
+      [expect.objectContaining({ id: 11 })],
+    );
   });
 });
