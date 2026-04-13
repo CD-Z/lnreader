@@ -42,6 +42,10 @@ export const createNovelStoreChapterActions = ({
   transformChapters,
   defaultChapterSort,
 }: CreateNovelStoreChapterActionsParams): NovelStoreChapterActions => {
+  let inflightNextChapterBatch: Promise<void> | null = null;
+  let inflightLoadUpToBatch: Promise<void> | null = null;
+  let pendingTargetBatch: number | null = null;
+
   const mutateChapters = (mutation: (chs: ChapterInfo[]) => ChapterInfo[]) => {
     if (get().novel) {
       set(state => ({ chapters: mutation(state.chapters) }));
@@ -84,51 +88,92 @@ export const createNovelStoreChapterActions = ({
     };
   };
 
+  const appendBatch = (batch: number, chapters: ChapterInfo[]) => {
+    set(curr => {
+      if (batch <= curr.batchInformation.batch) {
+        return {};
+      }
+
+      return {
+        batchInformation: {
+          ...curr.batchInformation,
+          batch,
+        },
+        chapters: curr.chapters.concat(chapters),
+      };
+    });
+  };
+
+  const queueLoadUpToBatch = (targetBatch: number): Promise<void> => {
+    pendingTargetBatch = Math.max(pendingTargetBatch ?? targetBatch, targetBatch);
+
+    if (inflightLoadUpToBatch) {
+      return inflightLoadUpToBatch;
+    }
+
+    inflightLoadUpToBatch = (async () => {
+      while (pendingTargetBatch !== null) {
+        const nextTarget = pendingTargetBatch;
+        pendingTargetBatch = null;
+        const state = get();
+
+        if (nextTarget <= state.batchInformation.batch) {
+          continue;
+        }
+
+        await bootstrapService.loadUpToBatch({
+          targetBatch: nextTarget,
+          novel: state.novel,
+          pages: state.pages,
+          pageIndex: state.pageIndex,
+          settingsSort: getSettingsSort(state.novelSettings),
+          settingsFilter: getSettingsFilter(state.novelSettings),
+          batchInformation: state.batchInformation,
+          onBatchLoaded: (batch, chapters) => {
+            appendBatch(batch, transformChapters(chapters));
+          },
+        });
+      }
+    })().finally(() => {
+      inflightLoadUpToBatch = null;
+      pendingTargetBatch = null;
+    });
+
+    return inflightLoadUpToBatch;
+  };
+
   return {
     chapterTextCache: createChapterTextCache(),
     getNextChapterBatch: async () => {
+      if (inflightNextChapterBatch) {
+        return inflightNextChapterBatch;
+      }
+
       const state = get();
-      const result = await bootstrapService.getNextChapterBatch({
-        novel: state.novel,
-        pages: state.pages,
-        pageIndex: state.pageIndex,
-        settingsSort: getSettingsSort(state.novelSettings),
-        settingsFilter: getSettingsFilter(state.novelSettings),
-        batchInformation: state.batchInformation,
+      inflightNextChapterBatch = (async () => {
+        const result = await bootstrapService.getNextChapterBatch({
+          novel: state.novel,
+          pages: state.pages,
+          pageIndex: state.pageIndex,
+          settingsSort: getSettingsSort(state.novelSettings),
+          settingsFilter: getSettingsFilter(state.novelSettings),
+          batchInformation: state.batchInformation,
+        });
+
+        if (!result) {
+          return;
+        }
+
+        appendBatch(result.batch, transformChapters(result.chapters));
+      })().finally(() => {
+        inflightNextChapterBatch = null;
       });
 
-      if (!result) return;
-
-      set(curr => ({
-        batchInformation: {
-          ...curr.batchInformation,
-          batch: result.batch,
-        },
-        chapters: curr.chapters.concat(transformChapters(result.chapters)),
-      }));
+      return inflightNextChapterBatch;
     },
 
     loadUpToBatch: async (targetBatch: number) => {
-      const state = get();
-
-      await bootstrapService.loadUpToBatch({
-        targetBatch,
-        novel: state.novel,
-        pages: state.pages,
-        pageIndex: state.pageIndex,
-        settingsSort: getSettingsSort(state.novelSettings),
-        settingsFilter: getSettingsFilter(state.novelSettings),
-        batchInformation: state.batchInformation,
-        onBatchLoaded: (batch, chapters) => {
-          set(curr => ({
-            batchInformation: {
-              ...curr.batchInformation,
-              batch,
-            },
-            chapters: curr.chapters.concat(transformChapters(chapters)),
-          }));
-        },
-      });
+      await queueLoadUpToBatch(targetBatch);
     },
 
     updateChapter: (index, update) => {
@@ -236,7 +281,7 @@ export const createNovelStoreChapterActions = ({
         settingsSort: getSettingsSort(state.novelSettings),
         settingsFilter: getSettingsFilter(state.novelSettings),
         currentPage: state.pages[state.pageIndex] ?? '1',
-        transformChapters,
+        transformChapters: chs => chs,
         setChapters,
         deps: chapterActionsDependencies,
       });

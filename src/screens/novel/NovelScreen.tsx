@@ -36,7 +36,6 @@ import { LegendListRef } from '@legendapp/list';
 const Novel = ({ route, navigation }: NovelScreenProps) => {
   const novel = useNovelValue('novel');
   const chapters = useNovelValue('chapters');
-  console.log('Novel render', novel?.name, chapters.length);
   const {
     setNovel,
     bookmarkChapters,

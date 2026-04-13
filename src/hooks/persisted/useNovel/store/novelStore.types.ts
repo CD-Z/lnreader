@@ -1,5 +1,4 @@
 import { StoreApi } from 'zustand/vanilla';
-import { ChapterFilterKey, ChapterOrderKey } from '@database/constants';
 import { ChapterInfo, NovelInfo } from '@database/types';
 import { ChapterActionsDependencies } from './chapterActions';
 import { createBootstrapService } from '../store-helper/bootstrapService';
@@ -66,7 +65,7 @@ export interface NovelStoreNovelActions {
   openPage: (index: number) => Promise<void>;
   setNovelSettings: (settings: NovelSettings) => void;
   setLastRead: (chapter: ChapterInfo) => void;
-  followNovel: () => void;
+  followNovel: () => Promise<void>;
 }
 
 export type NovelStoreActions = NovelStoreNovelActions &
@@ -88,18 +87,6 @@ export interface NovelStoreDependencies {
   switchNovelToLibrary?: (novelPath: string, pluginId: string) => Promise<void>;
 }
 
-export interface CreateNovelStoreParams {
-  pluginId: string;
-  novelPath: string;
-  novel?: NovelInfo;
-  defaultChapterSort?: ChapterOrderKey;
-  getDefaultChapterSort?: () => ChapterOrderKey;
-  initialPageIndex?: number;
-  initialNovelSettings?: NovelSettings;
-  initialLastRead?: ChapterInfo;
-  dependencies?: Partial<NovelStoreDependencies>;
-}
-
 export type SetState = {
   (
     partial:
@@ -117,7 +104,3 @@ export type SetState = {
 };
 
 export type GetState = () => NovelStoreState;
-
-export type GetSettingsSort = (settings: NovelSettings) => ChapterOrderKey;
-
-export type GetSettingsFilter = (settings: NovelSettings) => ChapterFilterKey[];

@@ -483,7 +483,6 @@ const NovelScreenList = ({
     [lastRead],
   );
 
-  console.log('rendering chapter', fetching, chapters.length);
   return (
     <>
       <LegendList

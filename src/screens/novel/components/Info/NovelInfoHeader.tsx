@@ -290,7 +290,9 @@ const NovelInfoHeader = ({
       showNotAvailable();
       return;
     }
-    followNovel();
+    followNovel().catch(error =>
+      showToast('Failed updating: ' + (error as Error).message),
+    );
     if (novel.inLibrary && chapters.some(chapter => chapter.isDownloaded)) {
       deleteDownloadsSnackbar.setTrue();
     }

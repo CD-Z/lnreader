@@ -170,6 +170,32 @@ describe('novelStore.chapterActions', () => {
     expect(harness.getState().chapters[1].name).toBe('[tx] Chapter 2');
   });
 
+  it('getNextChapterBatch dedupes concurrent calls', async () => {
+    const harness = createHarness();
+    harness.bootstrapService.getNextChapterBatch.mockImplementation(
+      () =>
+        new Promise(resolve => {
+          setTimeout(
+            () =>
+              resolve({
+                batch: 1,
+                chapters: [makeChapter(2)],
+              }),
+            1,
+          );
+        }),
+    );
+
+    await Promise.all([
+      harness.actions.getNextChapterBatch(),
+      harness.actions.getNextChapterBatch(),
+    ]);
+
+    expect(harness.bootstrapService.getNextChapterBatch).toHaveBeenCalledTimes(1);
+    expect(harness.getState().batchInformation.batch).toBe(1);
+    expect(harness.getState().chapters.map(ch => ch.id)).toEqual([1, 2]);
+  });
+
   it('getNextChapterBatch guard keeps state stable when bootstrap returns no result', async () => {
     const harness = createHarness();
     const before = harness.getState();
@@ -200,6 +226,42 @@ describe('novelStore.chapterActions', () => {
     );
     expect(harness.getState().batchInformation.batch).toBe(2);
     expect(harness.getState().chapters.map(ch => ch.id)).toEqual([1, 2, 3]);
+  });
+
+  it('loadUpToBatch coalesces overlapping in-flight targets', async () => {
+    const harness = createHarness();
+    harness.bootstrapService.loadUpToBatch.mockImplementation(async params => {
+      if (params.targetBatch === 2) {
+        params.onBatchLoaded(1, [makeChapter(2)]);
+        params.onBatchLoaded(2, [makeChapter(3)]);
+        await Promise.resolve();
+        return;
+      }
+
+      if (params.targetBatch === 4) {
+        params.onBatchLoaded(3, [makeChapter(4)]);
+        params.onBatchLoaded(4, [makeChapter(5)]);
+      }
+    });
+
+    const first = harness.actions.loadUpToBatch(2);
+    const second = harness.actions.loadUpToBatch(4);
+    await Promise.all([first, second]);
+
+    expect(harness.bootstrapService.loadUpToBatch).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        targetBatch: 2,
+      }),
+    );
+    expect(harness.bootstrapService.loadUpToBatch).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        targetBatch: 4,
+      }),
+    );
+    expect(harness.getState().batchInformation.batch).toBe(4);
+    expect(harness.getState().chapters.map(ch => ch.id)).toEqual([1, 2, 3, 4, 5]);
   });
 
   it('chapterTextCache supports read/write/remove/clear through state-backed cache', () => {

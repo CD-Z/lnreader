@@ -68,14 +68,32 @@ export const defaultChapterActionsDependencies: ChapterActionsDependencies = {
   getString: translateGetString,
 };
 
+const getErrorMessage = (error: unknown) => {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return String(error);
+};
+
+const runAsyncAction = (
+  promise: Promise<unknown>,
+  deps: ChapterActionsDependencies,
+) => {
+  promise.catch(error => {
+    deps.showToast(getErrorMessage(error));
+  });
+};
+
 export const bookmarkChaptersAction = (
   _chapters: ChapterInfo[],
   mutateChapters: MutateChapters,
   deps: ChapterActionsDependencies = defaultChapterActionsDependencies,
 ) => {
-  _chapters.forEach(_chapter => {
-    deps.bookmarkChapter(_chapter.id);
-  });
+  runAsyncAction(
+    Promise.all(_chapters.map(_chapter => deps.bookmarkChapter(_chapter.id))),
+    deps,
+  );
 
   mutateChapters(chs =>
     chs.map(chapter => {
@@ -97,7 +115,7 @@ export const markPreviouschaptersReadAction = (
   deps: ChapterActionsDependencies = defaultChapterActionsDependencies,
 ) => {
   if (novel) {
-    deps.markPreviuschaptersRead(chapterId, novel.id);
+    runAsyncAction(deps.markPreviuschaptersRead(chapterId, novel.id), deps);
     mutateChapters(chs =>
       chs.map(chapter =>
         chapter.id <= chapterId ? { ...chapter, unread: false } : chapter,
@@ -111,7 +129,7 @@ export const markChapterReadAction = (
   mutateChapters: MutateChapters,
   deps: ChapterActionsDependencies = defaultChapterActionsDependencies,
 ) => {
-  deps.markChapterRead(chapterId);
+  runAsyncAction(deps.markChapterRead(chapterId), deps);
 
   mutateChapters(chs =>
     chs.map(c => {
@@ -133,7 +151,7 @@ export const markChaptersReadAction = (
   deps: ChapterActionsDependencies = defaultChapterActionsDependencies,
 ) => {
   const chapterIds = _chapters.map(chapter => chapter.id);
-  deps.markChaptersRead(chapterIds);
+  runAsyncAction(deps.markChaptersRead(chapterIds), deps);
 
   mutateChapters(chs =>
     chs.map(chapter => {
@@ -155,7 +173,7 @@ export const markPreviousChaptersUnreadAction = (
   deps: ChapterActionsDependencies = defaultChapterActionsDependencies,
 ) => {
   if (novel) {
-    deps.markPreviousChaptersUnread(chapterId, novel.id);
+    runAsyncAction(deps.markPreviousChaptersUnread(chapterId, novel.id), deps);
     mutateChapters(chs =>
       chs.map(chapter =>
         chapter.id <= chapterId ? { ...chapter, unread: true } : chapter,
@@ -170,7 +188,7 @@ export const markChaptersUnreadAction = (
   deps: ChapterActionsDependencies = defaultChapterActionsDependencies,
 ) => {
   const chapterIds = _chapters.map(chapter => chapter.id);
-  deps.markChaptersUnread(chapterIds);
+  runAsyncAction(deps.markChaptersUnread(chapterIds), deps);
 
   mutateChapters(chs =>
     chs.map(chapter => {
@@ -191,7 +209,11 @@ export const updateChapterProgressAction = (
   mutateChapters: MutateChapters,
   deps: ChapterActionsDependencies = defaultChapterActionsDependencies,
 ) => {
-  deps.updateChapterProgress(chapterId, Math.min(progress, 100));
+  const normalizedProgress = Math.min(progress, 100);
+  runAsyncAction(
+    deps.updateChapterProgress(chapterId, normalizedProgress),
+    deps,
+  );
 
   mutateChapters(chs =>
     chs.map(c => {
@@ -201,7 +223,7 @@ export const updateChapterProgressAction = (
 
       return {
         ...c,
-        progress,
+        progress: normalizedProgress,
       };
     }),
   );
@@ -214,22 +236,26 @@ export const deleteChapterAction = (
   deps: ChapterActionsDependencies = defaultChapterActionsDependencies,
 ) => {
   if (novel) {
-    deps.deleteChapter(novel.pluginId, novel.id, _chapter.id).then(() => {
-      mutateChapters(chs =>
-        chs.map(chapter => {
-          if (chapter.id !== _chapter.id) {
-            return chapter;
-          }
+    runAsyncAction(
+      (async () => {
+        await deps.deleteChapter(novel.pluginId, novel.id, _chapter.id);
+        mutateChapters(chs =>
+          chs.map(chapter => {
+            if (chapter.id !== _chapter.id) {
+              return chapter;
+            }
 
-          return {
-            ...chapter,
-            isDownloaded: false,
-          };
-        }),
-      );
+            return {
+              ...chapter,
+              isDownloaded: false,
+            };
+          }),
+        );
 
-      deps.showToast(deps.getString('common.deleted', { name: _chapter.name }));
-    });
+        deps.showToast(deps.getString('common.deleted', { name: _chapter.name }));
+      })(),
+      deps,
+    );
   }
 };
 
@@ -240,25 +266,29 @@ export const deleteChaptersAction = (
   deps: ChapterActionsDependencies = defaultChapterActionsDependencies,
 ) => {
   if (novel) {
-    deps.deleteChapters(novel.pluginId, novel.id, _chapters).then(() => {
-      deps.showToast(
-        deps.getString('updatesScreen.deletedChapters', {
-          num: _chapters.length,
-        }),
-      );
+    runAsyncAction(
+      (async () => {
+        await deps.deleteChapters(novel.pluginId, novel.id, _chapters);
+        deps.showToast(
+          deps.getString('updatesScreen.deletedChapters', {
+            num: _chapters.length,
+          }),
+        );
 
-      mutateChapters(chs =>
-        chs.map(chapter => {
-          if (_chapters.some(_c => _c.id === chapter.id)) {
-            return {
-              ...chapter,
-              isDownloaded: false,
-            };
-          }
-          return chapter;
-        }),
-      );
-    });
+        mutateChapters(chs =>
+          chs.map(chapter => {
+            if (_chapters.some(_c => _c.id === chapter.id)) {
+              return {
+                ...chapter,
+                isDownloaded: false,
+              };
+            }
+            return chapter;
+          }),
+        );
+      })(),
+      deps,
+    );
   }
 };
 
@@ -284,10 +314,13 @@ export const refreshChaptersAction = ({
   deps = defaultChapterActionsDependencies,
 }: RefreshChaptersParams) => {
   if (novel?.id && !fetching) {
-    deps
-      .getPageChapters(novel.id, settingsSort, settingsFilter, currentPage)
-      .then(chs => {
-        setChapters(transformChapters(chs));
-      });
+    runAsyncAction(
+      deps
+        .getPageChapters(novel.id, settingsSort, settingsFilter, currentPage)
+        .then(chs => {
+          setChapters(transformChapters(chs));
+        }),
+      deps,
+    );
   }
 };

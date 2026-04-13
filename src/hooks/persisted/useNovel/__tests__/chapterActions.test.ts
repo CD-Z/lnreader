@@ -146,14 +146,14 @@ describe('chapterActions', () => {
     expect(state.getState().map(ch => ch.unread)).toEqual([false, true]);
   });
 
-  it('updateChapterProgressAction clamps persisted value but keeps raw in-memory value', () => {
+  it('updateChapterProgressAction clamps persisted and in-memory progress values', () => {
     const deps = createDeps();
     const state = createStateMutator([makeChapter(1, { progress: 10 })]);
 
     updateChapterProgressAction(1, 145, state.mutate, deps);
 
     expect(deps.updateChapterProgress).toHaveBeenCalledWith(1, 100);
-    expect(state.getState()[0].progress).toBe(145);
+    expect(state.getState()[0].progress).toBe(100);
   });
 
   it('deleteChapterAction is safe no-op when novel is absent', async () => {

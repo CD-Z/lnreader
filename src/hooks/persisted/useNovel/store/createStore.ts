@@ -30,15 +30,14 @@ export function createStore({
   pluginId,
   switchNovelToLibrary,
 }: Props): NovelStoreApi {
-  console.time(`Creating novel store for ${pluginId} - ${path}`);
-  const persistendInput = {
+  const persistenceInput = {
     pluginId,
     novelPath: path,
   };
 
   const novelSettings: NovelSettings = {
     sort: defaultChapterSort,
-    ...novelPersistence.readSettings(persistendInput),
+    ...novelPersistence.readSettings(persistenceInput),
   };
 
   const bootstrapService = createBootstrapService();
@@ -47,12 +46,12 @@ export function createStore({
     chapterActionsDependencies: defaultChapterActionsDependencies,
     transformChapters: c => c,
     persistPageIndex: value =>
-      novelPersistence.writePageIndex(persistendInput, value),
+      novelPersistence.writePageIndex(persistenceInput, value),
     persistNovelSettings: value => {
-      novelPersistence.writeSettings(persistendInput, value);
+      novelPersistence.writeSettings(persistenceInput, value);
     },
     persistLastRead: chapter =>
-      novelPersistence.writeLastRead(persistendInput, chapter),
+      novelPersistence.writeLastRead(persistenceInput, chapter),
     switchNovelToLibrary,
   };
 
@@ -85,7 +84,7 @@ export function createStore({
           novelPath: path,
         }),
         initialNovelSettings: novelSettings,
-        initialLastRead: novelPersistence.readLastRead(persistendInput),
+        initialLastRead: novelPersistence.readLastRead(persistenceInput),
       }),
       ...chapterSlice,
       actions,
@@ -97,7 +96,6 @@ export function createStore({
     // If bootstrapNovelSync fails, it means the novel or chapters are not in the db
     store.getState().actions.bootstrapNovel();
   }
-  console.timeEnd(`Creating novel store for ${pluginId} - ${path}`);
 
   return store;
 }
