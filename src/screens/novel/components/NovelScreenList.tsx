@@ -527,12 +527,7 @@ const NovelScreenList = ({
         <>
           <NovelBottomSheet
             bottomSheetRef={novelBottomSheetRef}
-            sortAndFilterChapters={sortAndFilterChapters}
-            setShowChapterTitles={setShowChapterTitles}
-            sort={sort}
             theme={theme}
-            filter={filter}
-            showChapterTitles={showChapterTitles}
           />
           <TrackSheet bottomSheetRef={trackerSheetRef} novel={novel} />
           {(novel.totalPages ?? 0) > 1 || pages.length > 1 ? (

@@ -451,6 +451,28 @@ export const getChapterCount = async (
     ),
   );
 
+export const getChapterCountSync = (
+  novelId: number,
+  page: string = '1',
+  filter?: ChapterFilterKey[],
+): number => {
+  // Using count(*) as name because the current drizzle version generates wrong type
+  const result = dbManager.getSync(
+    dbManager
+      .select({ 'count(*)': count() })
+      .from(chapterSchema)
+      .where(
+        and(
+          eq(chapterSchema.novelId, novelId),
+          eq(chapterSchema.page, page),
+          chapterFilterToSQL(filter),
+        ),
+      ),
+  );
+
+  return result?.['count(*)'] ?? 0;
+};
+
 export const getPageChaptersBatched = async (
   novelId: number,
   sort?: ChapterOrderKey,

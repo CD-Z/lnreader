@@ -3,13 +3,16 @@ import { ChapterFilterKey, ChapterOrderKey } from '@database/constants';
 import { ChapterInfo, NovelInfo } from '@database/types';
 import {
   getChapterCount,
+  getChapterCountSync,
   getCustomPages,
   getFirstUnreadChapter,
+  getNovelChaptersSync,
   getPageChapters,
   getPageChaptersBatched,
   insertChapters,
 } from '@database/queries/ChapterQueries';
 import {
+  getNovelById,
   getNovelByPath,
   insertNovelAndChapters,
 } from '@database/queries/NovelQueries';
@@ -56,6 +59,9 @@ const mockGetCustomPages = getCustomPages as jest.MockedFunction<
 const mockGetNovelByPath = getNovelByPath as jest.MockedFunction<
   typeof getNovelByPath
 >;
+const mockGetNovelById = getNovelById as jest.MockedFunction<
+  typeof getNovelById
+>;
 const mockFetchNovel = fetchNovel as jest.MockedFunction<typeof fetchNovel>;
 const mockInsertNovelAndChapters = insertNovelAndChapters as jest.MockedFunction<
   typeof insertNovelAndChapters
@@ -63,8 +69,14 @@ const mockInsertNovelAndChapters = insertNovelAndChapters as jest.MockedFunction
 const mockGetChapterCount = getChapterCount as jest.MockedFunction<
   typeof getChapterCount
 >;
+const mockGetChapterCountSync = getChapterCountSync as jest.MockedFunction<
+  typeof getChapterCountSync
+>;
 const mockGetPageChaptersBatched = getPageChaptersBatched as jest.MockedFunction<
   typeof getPageChaptersBatched
+>;
+const mockGetNovelChaptersSync = getNovelChaptersSync as jest.MockedFunction<
+  typeof getNovelChaptersSync
 >;
 const mockFetchPage = fetchPage as jest.MockedFunction<typeof fetchPage>;
 const mockInsertChapters = insertChapters as jest.MockedFunction<
@@ -79,9 +91,12 @@ const mockGetFirstUnreadChapter = getFirstUnreadChapter as jest.MockedFunction<
 
 const setupDbFirstSuccess = () => {
   mockGetCustomPages.mockReturnValue([]);
+  mockGetNovelById.mockReturnValue(mockNovel);
   mockGetNovelByPath.mockReturnValue(mockNovel);
   mockGetChapterCount.mockResolvedValue(mockChapters.length);
+  mockGetChapterCountSync.mockReturnValue(mockChapters.length);
   mockGetPageChaptersBatched.mockResolvedValue(mockChapters);
+  mockGetNovelChaptersSync.mockReturnValue(mockChapters);
   mockGetFirstUnreadChapter.mockReturnValue(mockChapters[0]);
 };
 
@@ -119,7 +134,11 @@ describe('bootstrapService', () => {
       totalChapters: mockChapters.length,
     });
     expect(mockGetNovelByPath).toHaveBeenCalledWith(NOVEL_PATH, PLUGIN_ID);
-    expect(mockGetChapterCount).toHaveBeenCalledWith(mockNovel.id, '1');
+    expect(mockGetChapterCount).toHaveBeenCalledWith(
+      mockNovel.id,
+      '1',
+      settingsFilter,
+    );
   });
 
   it('falls back to source page and inserts chapters when db count is 0', async () => {
@@ -244,7 +263,11 @@ describe('bootstrapService', () => {
     if (!result.ok) return;
 
     expect(result.pages).toEqual(['1', '3']);
-    expect(mockGetChapterCount).toHaveBeenCalledWith(mockNovel.id, '3');
+    expect(mockGetChapterCount).toHaveBeenCalledWith(
+      mockNovel.id,
+      '3',
+      settingsFilter,
+    );
     expect(mockGetPageChaptersBatched).toHaveBeenCalledWith(
       mockNovel.id,
       settingsSort,
@@ -316,5 +339,60 @@ describe('bootstrapService', () => {
       1,
       [expect.objectContaining({ id: 11 })],
     );
+  });
+
+  it('bootstrapNovelSync uses filtered sync count for totalChapters', () => {
+    setupDbFirstSuccess();
+    mockGetChapterCountSync.mockReturnValue(2);
+    mockGetNovelByPath.mockReturnValue({
+      ...mockNovel,
+      totalChapters: 999,
+    });
+    mockGetNovelChaptersSync.mockReturnValue([mockChapters[0], mockChapters[2]]);
+    const service = createBootstrapService();
+
+    const result = service.bootstrapNovelSync({
+      novel: undefined,
+      novelPath: NOVEL_PATH,
+      pluginId: PLUGIN_ID,
+      pageIndex: 0,
+      settingsSort,
+      settingsFilter: ['not-read'],
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.batchInformation.totalChapters).toBe(2);
+    expect(mockGetChapterCountSync).toHaveBeenCalledWith(
+      mockNovel.id,
+      '1',
+      ['not-read'],
+    );
+  });
+
+  it('bootstrapNovelSync returns missing-chapters only when unfiltered count is zero', () => {
+    setupDbFirstSuccess();
+    mockGetChapterCountSync.mockReturnValue(0);
+    const service = createBootstrapService();
+
+    const unfiltered = service.bootstrapNovelSync({
+      novel: mockNovel,
+      novelPath: NOVEL_PATH,
+      pluginId: PLUGIN_ID,
+      pageIndex: 0,
+      settingsSort,
+      settingsFilter: [],
+    });
+    expect(unfiltered).toEqual({ ok: false, reason: 'missing-chapters' });
+
+    const filtered = service.bootstrapNovelSync({
+      novel: mockNovel,
+      novelPath: NOVEL_PATH,
+      pluginId: PLUGIN_ID,
+      pageIndex: 0,
+      settingsSort,
+      settingsFilter: ['not-read'],
+    });
+    expect(filtered.ok).toBe(true);
   });
 });

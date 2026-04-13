@@ -1,6 +1,7 @@
 import { ChapterFilterKey, ChapterOrderKey } from '@database/constants';
 import {
   getChapterCount as defaultGetChapterCount,
+  getChapterCountSync as defaultGetChapterCountSync,
   getCustomPages as defaultGetCustomPages,
   getFirstUnreadChapter as defaultGetFirstUnreadChapter,
   getNovelChaptersSync as defaultGetNovelChaptersSync,
@@ -48,6 +49,7 @@ export interface BootstrapServiceDependencies {
   fetchNovel: typeof defaultFetchNovel;
   insertNovelAndChapters: typeof defaultInsertNovelAndChapters;
   getChapterCount: typeof defaultGetChapterCount;
+  getChapterCountSync: typeof defaultGetChapterCountSync;
   getPageChaptersBatched: typeof defaultGetPageChaptersBatched;
   getNovelChaptersSync: typeof defaultGetNovelChaptersSync;
   fetchPage: typeof defaultFetchPage;
@@ -69,6 +71,7 @@ const defaultBootstrapServiceDependencies: BootstrapServiceDependencies = {
   fetchNovel: defaultFetchNovel,
   insertNovelAndChapters: defaultInsertNovelAndChapters,
   getChapterCount: defaultGetChapterCount,
+  getChapterCountSync: defaultGetChapterCountSync,
   getPageChaptersBatched: defaultGetPageChaptersBatched,
   getNovelChaptersSync: defaultGetNovelChaptersSync,
   fetchPage: defaultFetchPage,
@@ -108,9 +111,11 @@ export const createBootstrapService = (
   ): Promise<NovelInfo | undefined> => {
     let tmpNovel = deps.getNovelByPath(novelPath, pluginId);
     if (!tmpNovel) {
-      const sourceNovel = await deps.fetchNovel(pluginId, novelPath).catch(() => {
-        throw new Error(deps.getString('updatesScreen.unableToGetNovel'));
-      });
+      const sourceNovel = await deps
+        .fetchNovel(pluginId, novelPath)
+        .catch(() => {
+          throw new Error(deps.getString('updatesScreen.unableToGetNovel'));
+        });
       await deps.insertNovelAndChapters(pluginId, sourceNovel);
       tmpNovel = deps.getNovelByPath(novelPath, pluginId);
 
@@ -139,18 +144,22 @@ export const createBootstrapService = (
     settingsSort: ChapterOrderKey;
     settingsFilter: ChapterFilterKey[];
   }): Promise<ChapterLoadResult> => {
-    const page = pages[pageIndex] ?? '1';
+    const page = pages[pageIndex];
     let newChapters: ChapterInfo[] = [];
     const config = [novel.id, settingsSort, settingsFilter, page] as const;
 
-    let chapterCount = await deps.getChapterCount(novel.id, page);
+    let chapterCount = await deps.getChapterCount(
+      novel.id,
+      page,
+      settingsFilter,
+    );
     if (chapterCount) {
       try {
         newChapters = (await deps.getPageChaptersBatched(...config)) || [];
       } catch {
         newChapters = [];
       }
-    } else if (Number(page)) {
+    } else if (settingsFilter.length === 0) {
       const sourcePage = await deps.fetchPage(pluginId, novelPath, page);
       const sourceChapters = sourcePage.chapters.map(ch => {
         return {
@@ -160,7 +169,7 @@ export const createBootstrapService = (
       });
       await deps.insertChapters(novel.id, sourceChapters);
       newChapters = await deps.getPageChapters(...config);
-      chapterCount = await deps.getChapterCount(novel.id, page);
+      chapterCount = await deps.getChapterCount(novel.id, page, settingsFilter);
     }
 
     const batchInformation: BatchInfo = {
@@ -353,15 +362,21 @@ export const createBootstrapService = (
           ok: false,
           reason: 'missing-novel',
         } satisfies BootstrapFailureResult;
-      } else if (!novel.totalChapters) {
+      }
+
+      const pages = calculatePages(novel);
+      const page = pages[pageIndex] ?? '1';
+      const chapterCount =
+        settingsFilter.length === 0
+          ? novel.totalChapters ?? 0
+          : deps.getChapterCountSync(novel.id, page, settingsFilter);
+      if (chapterCount === 0 && settingsFilter.length === 0) {
         return {
           ok: false,
           reason: 'missing-chapters',
         } satisfies BootstrapFailureResult;
       }
 
-      const pages = calculatePages(novel);
-      const page = pages[pageIndex] ?? '1';
       const config = [
         novel.id,
         settingsSort,
@@ -370,7 +385,6 @@ export const createBootstrapService = (
         1000,
       ] as const;
 
-      const chapterCount = novel.totalChapters;
       const newChapters = deps.getNovelChaptersSync(...config);
 
       const batchInformation: BatchInfo = {
