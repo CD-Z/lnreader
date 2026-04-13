@@ -1,6 +1,6 @@
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
-import Config from 'react-native-config';
+import Config from '@env';
 import { AuthenticationResult, Tracker } from './index';
 
 const apiEndpoint = 'https://graphql.anilist.co';

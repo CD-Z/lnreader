@@ -27,6 +27,7 @@ export default function (api) {
             '@type': './src/type',
             '@specs': './specs',
             '@test-utils': './__tests-modules__/test-utils',
+            '@env': './src/generated/build-info',
             'react-native-vector-icons/MaterialCommunityIcons':
               '@react-native-vector-icons/material-design-icons',
           },

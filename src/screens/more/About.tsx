@@ -8,7 +8,7 @@ import { MoreHeader } from './components/MoreHeader';
 import { useTheme } from '@hooks/persisted';
 import { List, SafeAreaView } from '@components';
 import { AboutScreenProps } from '@navigators/types';
-import Config from 'react-native-config';
+import Config from '@env';
 import * as Clipboard from 'expo-clipboard';
 import { version } from '../../../package.json';
 

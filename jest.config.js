@@ -17,6 +17,7 @@ const baseModuleNameMapper = {
   '^@type/(.*)$': '<rootDir>/src/type/$1',
   '^@specs/(.*)$': '<rootDir>/specs/$1',
   '^@test-utils$': '<rootDir>/__tests-modules__/test-utils',
+  '^@env$': '<rootDir>/src/generated/build-info',
   // Mock static assets
   '\\.(jpg|jpeg|png|gif|webp|svg)$': '<rootDir>/__mocks__/fileMock.js',
 };
