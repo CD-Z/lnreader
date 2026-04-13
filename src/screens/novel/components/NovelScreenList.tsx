@@ -1,7 +1,14 @@
 import * as React from 'react';
 import ChapterItem from './ChapterItem';
 import NovelInfoHeader from './Info/NovelInfoHeader';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 import { pickCustomNovelCover } from '@database/queries/NovelQueries';
 import { ChapterInfo, NovelInfo } from '@database/types';
 import { useBoolean } from '@hooks/index';
@@ -35,6 +42,10 @@ import FileManager from '@specs/NativeFile';
 import { downloadFile } from '@plugins/helpers/fetch';
 import { StorageAccessFramework } from 'expo-file-system/legacy';
 import PagePaginationControl from './PagePaginationControl';
+import {
+  NovelStoreApi,
+  NovelStoreState,
+} from '@hooks/persisted/useNovel/novelStore';
 
 type NovelScreenListProps = {
   headerOpacity: SharedValue<number>;
@@ -53,6 +64,47 @@ type NovelScreenListProps = {
 
 const chapterKeyExtractor = (item: ChapterInfo) => 'c' + item.id;
 
+type NovelContextWithOptionalStore = ReturnType<typeof useNovelContext> & {
+  novelStore?: NovelStoreApi;
+};
+
+const noopUnsubscribe = () => {};
+
+const selectChapters = (state: NovelStoreState) => state.chapters;
+const selectDeleteChapter = (state: NovelStoreState) => state.deleteChapter;
+const selectFetching = (state: NovelStoreState) => state.fetching;
+const selectFirstUnreadChapter = (state: NovelStoreState) =>
+  state.firstUnreadChapter;
+const selectLoading = (state: NovelStoreState) => state.loading;
+const selectNovelSettings = (state: NovelStoreState) => state.novelSettings;
+const selectSetNovel = (state: NovelStoreState) => state.setNovel;
+const selectNovel = (state: NovelStoreState) => state.novel;
+const selectBatchInformation = (state: NovelStoreState) =>
+  state.batchInformation;
+const selectPageIndex = (state: NovelStoreState) => state.pageIndex;
+const selectPages = (state: NovelStoreState) => state.pages;
+const selectOpenPage = (state: NovelStoreState) => state.openPage;
+const selectUpdateChapter = (state: NovelStoreState) => state.updateChapter;
+
+const useNovelDomainValue = <T,>(
+  novelStore: NovelStoreApi | undefined,
+  selector: (state: NovelStoreState) => T,
+  fallback: T,
+) => {
+  const subscribe = useCallback(
+    (onStoreChange: () => void) =>
+      novelStore ? novelStore.subscribe(onStoreChange) : noopUnsubscribe,
+    [novelStore],
+  );
+
+  const getSnapshot = useCallback(
+    () => (novelStore ? selector(novelStore.getState()) : fallback),
+    [fallback, novelStore, selector],
+  );
+
+  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+};
+
 const NovelScreenList = ({
   headerOpacity,
   listRef,
@@ -62,25 +114,76 @@ const NovelScreenList = ({
   setSelected,
   getNextChapterBatch,
 }: NovelScreenListProps) => {
-  const {
-    chapters,
-    deleteChapter,
-    fetching,
-    firstUnreadChapter,
-    getNovel,
-    lastRead,
-    loading,
-    novelSettings,
-    pages,
-    setNovel,
-    sortAndFilterChapters,
-    setShowChapterTitles,
-    novel: fetchedNovel,
-    batchInformation,
-    pageIndex,
-    openPage,
-    updateChapter,
-  } = useNovelContext();
+  const novelContext = useNovelContext() as NovelContextWithOptionalStore;
+
+  const chapters = useNovelDomainValue(
+    novelContext.novelStore,
+    selectChapters,
+    novelContext.chapters,
+  );
+  const deleteChapter = useNovelDomainValue(
+    novelContext.novelStore,
+    selectDeleteChapter,
+    novelContext.deleteChapter,
+  );
+  const fetching = useNovelDomainValue(
+    novelContext.novelStore,
+    selectFetching,
+    novelContext.fetching,
+  );
+  const firstUnreadChapter = useNovelDomainValue(
+    novelContext.novelStore,
+    selectFirstUnreadChapter,
+    novelContext.firstUnreadChapter,
+  );
+  const loading = useNovelDomainValue(
+    novelContext.novelStore,
+    selectLoading,
+    novelContext.loading,
+  );
+  const novelSettings = useNovelDomainValue(
+    novelContext.novelStore,
+    selectNovelSettings,
+    novelContext.novelSettings,
+  );
+  const pages = useNovelDomainValue(
+    novelContext.novelStore,
+    selectPages,
+    novelContext.pages,
+  );
+  const setNovel = useNovelDomainValue(
+    novelContext.novelStore,
+    selectSetNovel,
+    novelContext.setNovel,
+  );
+  const fetchedNovel = useNovelDomainValue(
+    novelContext.novelStore,
+    selectNovel,
+    novelContext.novel,
+  );
+  const batchInformation = useNovelDomainValue(
+    novelContext.novelStore,
+    selectBatchInformation,
+    novelContext.batchInformation,
+  );
+  const pageIndex = useNovelDomainValue(
+    novelContext.novelStore,
+    selectPageIndex,
+    novelContext.pageIndex,
+  );
+  const openPage = useNovelDomainValue(
+    novelContext.novelStore,
+    selectOpenPage,
+    novelContext.openPage,
+  );
+  const updateChapter = useNovelDomainValue(
+    novelContext.novelStore,
+    selectUpdateChapter,
+    novelContext.updateChapter,
+  );
+
+  const getNovel = novelContext.getNovel;
+  const lastRead = novelContext.lastRead;
 
   const { pluginId } = routeBaseNovel;
   const routeNovel: Omit<NovelInfo, 'id'> & { id: 'NO_ID' } = {
