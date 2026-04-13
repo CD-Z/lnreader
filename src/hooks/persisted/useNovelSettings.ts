@@ -9,26 +9,14 @@ import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useAppSettings } from './useSettings';
 import { ChapterFilterObject, FilterStates } from '@database/utils/filter';
 import { useNovelContext } from '@screens/novel/NovelContext';
+import {
+  defaultNovelSettings,
+  NovelSettings,
+  NOVEL_PAGE_INDEX_PREFIX,
+  NOVEL_SETTINGS_PREFIX,
+} from './useNovel/types';
 
-// #region constants
-
-export const NOVEL_PAGE_INDEX_PREFIX = 'NOVEL_PAGE_INDEX_PREFIX';
-export const NOVEL_SETTINGS_PREFIX = 'NOVEL_SETTINGS';
-export const LAST_READ_PREFIX = 'LAST_READ_PREFIX';
-
-const defaultNovelSettings: NovelSettings = {
-  showChapterTitles: true,
-  filter: [],
-};
-
-// #endregion
-// #region types
-
-export interface NovelSettings {
-  sort?: ChapterOrderKey;
-  filter: ChapterFilterKey[];
-  showChapterTitles?: boolean;
-}
+export { NOVEL_PAGE_INDEX_PREFIX, NOVEL_SETTINGS_PREFIX };
 
 // #endregion
 // #region definition useNovel
