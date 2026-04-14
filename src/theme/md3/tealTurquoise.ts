@@ -2,7 +2,6 @@ import { getString } from '@strings/translations';
 
 export const tealTurquoise = {
   light: {
-    id: 8,
     name: getString('appearanceScreen.theme.teal'),
     isDark: false,
     primary: 'rgb(0, 106, 106)',
@@ -39,7 +38,6 @@ export const tealTurquoise = {
     backdrop: 'rgba(41, 50, 50, 0.4)',
   },
   dark: {
-    id: 9,
     name: getString('appearanceScreen.theme.turquoise'),
     isDark: true,
     primary: 'rgb(76, 218, 218)',

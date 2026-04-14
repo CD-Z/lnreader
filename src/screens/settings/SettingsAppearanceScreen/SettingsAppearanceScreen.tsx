@@ -1,5 +1,11 @@
 import React, { useMemo, useState } from 'react';
-import { ScrollView, Text, StyleSheet, View } from 'react-native';
+import {
+  ScrollView,
+  StyleSheet,
+  View,
+  Appearance,
+  GestureResponderEvent,
+} from 'react-native';
 
 import { ThemePicker } from '@components/ThemePicker/ThemePicker';
 import type { SegmentedControlOption } from '@components/SegmentedControl';
@@ -18,13 +24,17 @@ import { AppearanceSettingsScreenProps } from '@navigators/types';
 import { getString } from '@strings/translations';
 import { darkThemes, lightThemes } from '@theme/md3';
 import { ThemeColors } from '@theme/types';
+import switchTheme from 'react-native-theme-switch-animation';
 
 type ThemeMode = 'light' | 'dark' | 'system';
 
 const AppearanceSettings = ({ navigation }: AppearanceSettingsScreenProps) => {
   const theme = useTheme();
   const [, setThemeId] = useMMKVNumber('APP_THEME_ID');
-  const [themeMode = 'system', setThemeMode] = useMMKVString('THEME_MODE');
+  const [themeMode = 'system', setThemeMode] = useMMKVString('THEME_MODE') as [
+    ThemeMode,
+    (mode: ThemeMode) => void,
+  ];
   const [isAmoledBlack = false, setAmoledBlack] =
     useMMKVBoolean('AMOLED_BLACK');
   const [, setCustomAccentColor] = useMMKVString('CUSTOM_ACCENT_COLOR');
@@ -38,7 +48,13 @@ const AppearanceSettings = ({ navigation }: AppearanceSettingsScreenProps) => {
     setAppSettings,
   } = useAppSettings();
 
-  const currentMode = themeMode as ThemeMode;
+  const colorScheme = Appearance.getColorScheme() ?? 'light';
+  const actualThemeMode: Exclude<ThemeMode, 'system'> =
+    themeMode !== 'system'
+      ? themeMode
+      : colorScheme === 'unspecified'
+      ? 'light'
+      : colorScheme;
 
   /**
    * Accent Color Modal
@@ -117,26 +133,63 @@ const AppearanceSettings = ({ navigation }: AppearanceSettingsScreenProps) => {
     [],
   );
 
-  const handleModeChange = (mode: ThemeMode) => {
+  // const handleModeChange = (mode: ThemeMode) => {
+  //   setThemeMode(mode);
+
+  //   if (mode !== 'system') {
+  //     const themes = mode === 'dark' ? darkThemes : lightThemes;
+  //     const currentThemeInMode = themes.find(t => t.id === theme.id);
+
+  //     if (!currentThemeInMode) {
+  //       setThemeId(themes[0].id);
+  //     }
+  //   }
+  // };
+
+  // const handleThemeSelect = (selectedTheme: ThemeColors) => {
+  //   setThemeId(selectedTheme.id);
+  //   setCustomAccentColor(undefined);
+
+  //   if (actualThemeMode !== 'system') {
+  //     setThemeMode(selectedTheme.isDark ? 'dark' : 'light');
+  //   }
+  // };
+
+  const handleModeChange = (mode: ThemeMode, event: GestureResponderEvent) => {
     setThemeMode(mode);
-
-    if (mode !== 'system') {
-      const themes = mode === 'dark' ? darkThemes : lightThemes;
-      const currentThemeInMode = themes.find(t => t.id === theme.id);
-
-      if (!currentThemeInMode) {
-        setThemeId(themes[0].id);
-      }
-    }
+    event.currentTarget.measure((_x1, _y1, width, height, px, py) => {
+      switchTheme({
+        switchThemeFunction: () => {},
+        animationConfig: {
+          type: 'circular',
+          duration: 900,
+          startingPoint: {
+            cy: py + height / 2,
+            cx: px + width / 2,
+          },
+        },
+      });
+    });
   };
 
-  const handleThemeSelect = (selectedTheme: ThemeColors) => {
+  const handleThemeSelect = (
+    selectedTheme: ThemeColors,
+    event: GestureResponderEvent,
+  ) => {
     setThemeId(selectedTheme.id);
-    setCustomAccentColor(undefined);
-
-    if (currentMode !== 'system') {
-      setThemeMode(selectedTheme.isDark ? 'dark' : 'light');
-    }
+    event.currentTarget.measure((_x1, _y1, width, height, px, py) => {
+      switchTheme({
+        switchThemeFunction: () => {},
+        animationConfig: {
+          type: 'circular',
+          duration: 900,
+          startingPoint: {
+            cy: py + height / 2,
+            cx: px + width / 2,
+          },
+        },
+      });
+    });
   };
 
   return (
@@ -159,52 +212,38 @@ const AppearanceSettings = ({ navigation }: AppearanceSettingsScreenProps) => {
           <View style={styles.segmentedControlContainer}>
             <SegmentedControl
               options={themeModeOptions}
-              value={currentMode}
+              value={themeMode}
               onChange={handleModeChange}
               theme={theme}
             />
           </View>
 
           {/* Light Themes */}
-          <Text style={[{ color: theme.onSurface }, styles.themeSectionText]}>
+          {/*<Text style={[{ color: theme.onSurface }, styles.themeSectionText]}>
             {getString('appearanceScreen.lightTheme')}
-          </Text>
-          <ScrollView
-            contentContainerStyle={styles.themePickerRow}
-            horizontal={true}
-            showsHorizontalScrollIndicator={false}
-          >
-            {lightThemes.map(item => (
-              <ThemePicker
-                horizontal
-                key={item.id}
-                currentTheme={theme}
-                theme={item}
-                onPress={() => handleThemeSelect(item)}
-              />
-            ))}
-          </ScrollView>
-
-          {/* Dark Themes */}
-          <Text style={[{ color: theme.onSurface }, styles.themeSectionText]}>
-            {getString('appearanceScreen.darkTheme')}
-          </Text>
-          <ScrollView
-            contentContainerStyle={styles.themePickerRow}
-            horizontal={true}
-            showsHorizontalScrollIndicator={false}
-          >
-            {darkThemes.map(item => (
-              <ThemePicker
-                horizontal
-                key={item.id}
-                currentTheme={theme}
-                theme={item}
-                onPress={() => handleThemeSelect(item)}
-              />
-            ))}
-          </ScrollView>
-
+          </Text>*/}
+          <View style={styles.scrollViewContainer}>
+            <ScrollView
+              contentContainerStyle={[
+                styles.themePickerRow,
+                { backgroundColor: theme.surfaceVariant },
+              ]}
+              horizontal={true}
+              showsHorizontalScrollIndicator={false}
+            >
+              {(actualThemeMode === 'light' ? lightThemes : darkThemes).map(
+                item => (
+                  <ThemePicker
+                    horizontal
+                    key={item.id}
+                    currentTheme={theme}
+                    theme={item}
+                    onPress={e => handleThemeSelect(item, e)}
+                  />
+                ),
+              )}
+            </ScrollView>
+          </View>
           {theme.isDark ? (
             <SettingSwitch
               label={getString('appearanceScreen.pureBlackDarkMode')}
@@ -303,9 +342,16 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   themePickerRow: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    borderRadius: 24,
+    //marginHorizontal: 8,
+    paddingHorizontal: 4,
+    paddingTop: 8,
+    paddingBottom: 2,
     flexDirection: 'row',
+    alignItems: 'center',
+  },
+  scrollViewContainer: {
+    paddingHorizontal: 8,
   },
   segmentedControlContainer: {
     paddingHorizontal: 16,

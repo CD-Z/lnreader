@@ -1,5 +1,11 @@
 import React from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Pressable,
+  GestureResponderEvent,
+} from 'react-native';
 import MaterialCommunityIcons from '@react-native-vector-icons/material-design-icons';
 import { ThemeColors } from '@theme/types';
 
@@ -12,7 +18,7 @@ export interface SegmentedControlOption<T extends string = string> {
 export interface SegmentedControlProps<T extends string = string> {
   options: SegmentedControlOption<T>[];
   value: T;
-  onChange: (value: T) => void;
+  onChange: (value: T, event: GestureResponderEvent) => void;
   theme: ThemeColors;
   showCheckIcon?: boolean;
 }
@@ -52,7 +58,7 @@ export function SegmentedControl<T extends string = string>({
           <View key={option.value} style={buttonStyles}>
             <Pressable
               style={styles.segmentPressable}
-              onPress={() => onChange(option.value)}
+              onPress={e => onChange(option.value, e)}
               android_ripple={{
                 color: theme.rippleColor,
                 borderless: false,

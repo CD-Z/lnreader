@@ -2,7 +2,6 @@ import { getString } from '@strings/translations';
 
 export const midnightDusk = {
   light: {
-    id: 10,
     name: getString('appearanceScreen.theme.daybreakBloom'),
     isDark: false,
     primary: 'rgb(240, 36, 117)',
@@ -39,7 +38,6 @@ export const midnightDusk = {
     backdrop: 'rgba(58, 45, 47, 0.4)',
   },
   dark: {
-    id: 11,
     name: getString('appearanceScreen.theme.midnightDusk'),
     isDark: true,
     primary: 'rgb(240, 36, 117)',

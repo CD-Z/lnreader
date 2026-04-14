@@ -2,7 +2,6 @@ import { getString } from '@strings/translations';
 
 export const yinyangTheme = {
   light: {
-    id: 9,
     name: getString('appearanceScreen.theme.yinyang'),
     isDark: false,
     primary: '#000000',
@@ -39,7 +38,6 @@ export const yinyangTheme = {
     backdrop: 'rgba(0, 0, 0, 0.4)',
   },
   dark: {
-    id: 10,
     name: getString('appearanceScreen.theme.yinyang'),
     isDark: true,
     primary: '#FFFFFF',

@@ -2,7 +2,6 @@ import { getString } from '@strings/translations';
 
 export const lavenderTheme = {
   light: {
-    id: 14,
     name: getString('appearanceScreen.theme.lavender'),
     isDark: false,
     primary: 'rgb(121, 68, 173)',
@@ -39,7 +38,6 @@ export const lavenderTheme = {
     backdrop: 'rgba(52, 47, 55, 0.4)',
   },
   dark: {
-    id: 15,
     name: getString('appearanceScreen.theme.lavender'),
     isDark: true,
     primary: 'rgb(221, 184, 255)',
