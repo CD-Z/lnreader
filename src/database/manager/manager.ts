@@ -1,11 +1,18 @@
 import { db, drizzleDb } from '@database/db';
-import type { SQLBatchTuple } from '@op-engineering/op-sqlite';
+import type { SQLBatchTuple, Scalar } from '@op-engineering/op-sqlite';
 import { IDbManager } from './manager.d';
 import { DbTaskQueue } from './queue';
 import { Schema } from '../schema';
 import { useEffect, useState } from 'react';
 import { GetSelectTableName } from 'drizzle-orm/query-builders/select.types';
-import { AnyColumn, Query, sql } from 'drizzle-orm';
+import {
+  AnyColumn,
+  fillPlaceholders,
+  Placeholder,
+  Query,
+  sql,
+} from 'drizzle-orm';
+import { SQLitePreparedQuery } from 'drizzle-orm/sqlite-core';
 
 type DrizzleDb = typeof drizzleDb;
 type TransactionParameter = Parameters<
@@ -80,7 +87,28 @@ class DbManager implements IDbManager {
     >;
   }
 
-  public async batch(commands: SQLBatchTuple[]) {
+  public async batch<T extends Record<string, unknown>>(
+    data: T[],
+    fn: (
+      tx: TransactionParameter,
+      ph: (arg: Extract<keyof T, string>) => Placeholder,
+    ) => SQLitePreparedQuery<any>,
+  ) {
+    if (!data.length) {
+      return;
+    }
+
+    const ph = (arg: Extract<keyof T, string>) => sql.placeholder(arg);
+    const prepared = fn(this.db as unknown as TransactionParameter, ph);
+    const query = prepared.getQuery();
+    const params = data.map(item => {
+      const values = fillPlaceholders(query.params, item);
+      return values.map(value =>
+        value === undefined ? null : (value as Scalar),
+      ) as Scalar[];
+    });
+    const commands: SQLBatchTuple[] = [[query.sql, params]];
+
     await this.queue.enqueue({
       id: 'write',
       run: async () => {

@@ -1,6 +1,7 @@
 // db-manager.types.ts
 import type { SQLiteTransaction, TablesRelationalConfig } from 'drizzle-orm';
-import type { SQLBatchTuple } from '@op-engineering/op-sqlite';
+import { Placeholder } from 'drizzle-orm';
+import { SQLitePreparedQuery } from 'drizzle-orm/sqlite-core';
 
 // Define the TransactionParameter type based on your DrizzleDb
 export type TransactionParameter = SQLiteTransaction<
@@ -16,13 +17,16 @@ export type TransactionParameter = SQLiteTransaction<
  */
 export interface IDbManager {
   /**
-   * Executes one or more SQL batch commands through op-sqlite.
-   *
-   * Each command is a tuple of SQL string and either:
-   * - a single parameter array for one execution, or
-   * - an array of parameter arrays for repeated execution.
+   * Efficiently executes a Drizzle query for multiple data rows using
+   * op-sqlite executeBatch under the hood.
    */
-  batch(commands: SQLBatchTuple[]): Promise<void>;
+  batch<T extends Record<string, unknown>>(
+    data: T[],
+    fn: (
+      tx: TransactionParameter,
+      ph: (arg: Extract<keyof T, string>) => Placeholder,
+    ) => SQLitePreparedQuery<any>,
+  ): Promise<void>;
 
   /**
    * Creates a subquery that defines a temporary named result set as a CTE.

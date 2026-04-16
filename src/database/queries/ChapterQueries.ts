@@ -40,35 +40,47 @@ export const insertChapters = async (
     return;
   }
 
-  const insertSql = `
-    INSERT INTO Chapter (path, name, releaseTime, novelId, chapterNumber, page, position)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-    ON CONFLICT(novelId, path) DO UPDATE SET
-      page = excluded.page,
-      position = excluded.position,
-      name = excluded.name,
-      releaseTime = excluded.releaseTime,
-      chapterNumber = excluded.chapterNumber
-    WHERE NOT (
-      Chapter.page IS excluded.page
-      AND Chapter.position IS excluded.position
-      AND Chapter.name IS excluded.name
-      AND Chapter.releaseTime IS excluded.releaseTime
-      AND Chapter.chapterNumber IS excluded.chapterNumber
-    )
-  `;
-
-  const params = chapters.map((c, index) => [
-    c.path,
-    c.name || `Chapter ${index + 1}`,
-    c.releaseTime || '',
+  const rows = chapters.map((c, index) => ({
+    path: c.path,
+    name: c.name || `Chapter ${index + 1}`,
+    releaseTime: c.releaseTime || '',
     novelId,
-    c.chapterNumber ?? null,
-    c.page || '1',
-    index,
-  ]);
+    chapterNumber: c.chapterNumber ?? null,
+    page: c.page || '1',
+    position: index,
+  }));
 
-  await dbManager.batch([[insertSql, params]]);
+  await dbManager.batch(rows, (tx, ph) =>
+    tx
+      .insert(chapterSchema)
+      .values({
+        path: ph('path'),
+        name: ph('name'),
+        releaseTime: ph('releaseTime'),
+        novelId: ph('novelId'),
+        chapterNumber: ph('chapterNumber'),
+        page: ph('page'),
+        position: ph('position'),
+      })
+      .onConflictDoUpdate({
+        target: [chapterSchema.novelId, chapterSchema.path],
+        set: {
+          page: sql`excluded.page`,
+          position: sql`excluded.position`,
+          name: sql`excluded.name`,
+          releaseTime: sql`excluded.releaseTime`,
+          chapterNumber: sql`excluded.chapterNumber`,
+        },
+        where: sql`NOT (
+          ${chapterSchema.page} IS excluded.page
+          AND ${chapterSchema.position} IS excluded.position
+          AND ${chapterSchema.name} IS excluded.name
+          AND ${chapterSchema.releaseTime} IS excluded.releaseTime
+          AND ${chapterSchema.chapterNumber} IS excluded.chapterNumber
+        )`,
+      })
+      .prepare(),
+  );
 };
 
 export const markChapterRead = async (chapterId: number): Promise<void> => {
