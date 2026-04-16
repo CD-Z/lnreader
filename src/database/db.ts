@@ -69,6 +69,10 @@ const populateDatabase = (executor: SqlExecutor) => {
 
 const createDbTriggers = (executor: SqlExecutor) => {
   console.log('Creating database triggers');
+  executor.executeSync('DROP TRIGGER IF EXISTS update_novel_stats');
+  executor.executeSync('DROP TRIGGER IF EXISTS update_novel_stats_on_update');
+  executor.executeSync('DROP TRIGGER IF EXISTS update_novel_stats_on_delete');
+  executor.executeSync('DROP TRIGGER IF EXISTS add_category');
   executor.executeSync(createCategoryTriggerQuery);
   executor.executeSync(createNovelTriggerQueryDelete);
   executor.executeSync(createNovelTriggerQueryInsert);

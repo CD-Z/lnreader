@@ -105,7 +105,7 @@ class DbManager implements IDbManager {
     await this.write(async tx => {
       const prep = fn(tx, ph);
       for (let index = 0; index < data.length; index++) {
-        prep.run(data[index]);
+        await prep.run(data[index]);
       }
     });
   }
