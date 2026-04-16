@@ -8,7 +8,9 @@
 // @ts-ignore
 global.__DEV__ ??= false;
 
-import { createTestDb, cleanupTestDb, type TestDb } from './testDb';
+import type { TestDb } from './testDb';
+
+const getTestDbModule = () => require('./testDb') as typeof import('./testDb');
 
 // Module-level variable to hold the test database
 // Using 'mock' prefix so Jest allows it in jest.mock() factory
@@ -19,6 +21,7 @@ let mockTestDbInstance: TestDb | null = null;
  * This should be called in beforeEach of test files
  */
 export function setupTestDatabase(): TestDb {
+  const { createTestDb, cleanupTestDb } = getTestDbModule();
   if (mockTestDbInstance) {
     cleanupTestDb(mockTestDbInstance);
   }
@@ -42,6 +45,7 @@ export function getTestDb(): TestDb {
  * Cleans up the test database
  */
 export function teardownTestDatabase() {
+  const { cleanupTestDb } = getTestDbModule();
   if (mockTestDbInstance) {
     cleanupTestDb(mockTestDbInstance);
     mockTestDbInstance = null;

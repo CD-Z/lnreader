@@ -25,7 +25,11 @@ interface ExecutableSelect<TResult = any> {
   get(): Promise<TResult | undefined>;
 }
 
-let _dbManager: DbManager;
+let _dbManager: DbManager | undefined;
+
+export const __resetDbManagerForTests = () => {
+  _dbManager = undefined;
+};
 
 export function castInt(value: number | string | AnyColumn) {
   return sql`CAST(${value} AS INTEGER)`;
@@ -73,18 +77,16 @@ class DbManager implements IDbManager {
     query: T,
   ): Awaited<ReturnType<T['get']>> {
     const { sql: sqlString, params } = query.toSQL();
-    return db.executeSync(sqlString, params as any[]).rows[0] as Awaited<
-      ReturnType<T['get']>
-    >;
+    return this.db.$client.executeSync(sqlString, params as any[])
+      .rows[0] as Awaited<ReturnType<T['get']>>;
   }
 
   public allSync<T extends ExecutableSelect>(
     query: T,
   ): Awaited<ReturnType<T['all']>> {
     const { sql: sqlString, params } = query.toSQL();
-    return db.executeSync(sqlString, params as any[]).rows as Awaited<
-      ReturnType<T['all']>
-    >;
+    return this.db.$client.executeSync(sqlString, params as any[])
+      .rows as Awaited<ReturnType<T['all']>>;
   }
 
   public async batch<T extends Record<string, unknown>>(
@@ -112,8 +114,8 @@ class DbManager implements IDbManager {
     await this.queue.enqueue({
       id: 'write',
       run: async () => {
-        await db.executeBatch(commands);
-        db?.flushPendingReactiveQueries();
+        await this.db.$client.executeBatch(commands);
+        this.db.$client?.flushPendingReactiveQueries();
       },
     });
   }
@@ -126,7 +128,7 @@ class DbManager implements IDbManager {
       run: async () =>
         await this.db.transaction(async tx => {
           const result = await fn(tx);
-          db?.flushPendingReactiveQueries();
+          this.db.$client?.flushPendingReactiveQueries();
           return result;
         }),
     });
