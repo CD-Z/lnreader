@@ -4,10 +4,9 @@
  */
 
 import type { IDbManager } from '@database/manager/manager.d';
+import type { SQLBatchTuple } from '@op-engineering/op-sqlite';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import Database from 'better-sqlite3';
-import { Placeholder, sql as drizzleSql } from 'drizzle-orm';
-import { SQLitePreparedQuery } from 'drizzle-orm/sqlite-core';
 
 interface ExecutableSelect<TResult = any> {
   toSQL(): { sql: string; params: unknown[] };
@@ -101,18 +100,23 @@ export function createTestDbManager(
       return results;
     },
 
-    async batch<T extends Record<string, unknown>>(
-      data: T[],
-      fn: (
-        tx: TransactionParameter,
-        ph: (arg: Extract<keyof T, string>) => Placeholder,
-      ) => SQLitePreparedQuery<any>,
-    ) {
-      const ph = (arg: Extract<keyof T, string>) => drizzleSql.placeholder(arg);
-      await this.write(async tx => {
-        const prep = fn(tx, ph);
-        for (let index = 0; index < data.length; index++) {
-          prep.run(data[index]);
+    async batch(commands: SQLBatchTuple[]) {
+      await this.write(async () => {
+        for (const [statement, args] of commands) {
+          const stmt = sqlite.prepare(statement);
+          if (args === undefined) {
+            stmt.run();
+            continue;
+          }
+
+          if (Array.isArray(args[0])) {
+            for (const rowArgs of args as unknown[][]) {
+              stmt.run(rowArgs as any[]);
+            }
+            continue;
+          }
+
+          stmt.run(args as unknown[] as any[]);
         }
       });
     },

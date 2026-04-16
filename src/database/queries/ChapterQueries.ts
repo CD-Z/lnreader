@@ -40,43 +40,35 @@ export const insertChapters = async (
     return;
   }
 
-  const chunkSize = 100;
-  const rows = chapters.map((c, i) => ({
-    path: c.path,
-    name: c.name || `Chapter ${i + 1}`,
-    releaseTime: c.releaseTime || '',
+  const insertSql = `
+    INSERT INTO Chapter (path, name, releaseTime, novelId, chapterNumber, page, position)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(novelId, path) DO UPDATE SET
+      page = excluded.page,
+      position = excluded.position,
+      name = excluded.name,
+      releaseTime = excluded.releaseTime,
+      chapterNumber = excluded.chapterNumber
+    WHERE NOT (
+      Chapter.page IS excluded.page
+      AND Chapter.position IS excluded.position
+      AND Chapter.name IS excluded.name
+      AND Chapter.releaseTime IS excluded.releaseTime
+      AND Chapter.chapterNumber IS excluded.chapterNumber
+    )
+  `;
+
+  const params = chapters.map((c, index) => [
+    c.path,
+    c.name || `Chapter ${index + 1}`,
+    c.releaseTime || '',
     novelId,
-    chapterNumber: c.chapterNumber ?? null,
-    page: c.page || '1',
-    position: i,
-  }));
+    c.chapterNumber ?? null,
+    c.page || '1',
+    index,
+  ]);
 
-  await dbManager.write(async tx => {
-    for (let i = 0; i < rows.length; i += chunkSize) {
-      const chunk = rows.slice(i, i + chunkSize);
-
-      tx.insert(chapterSchema)
-        .values(chunk)
-        .onConflictDoUpdate({
-          target: [chapterSchema.novelId, chapterSchema.path],
-          set: {
-            page: sql`excluded.page`,
-            position: sql`excluded.position`,
-            name: sql`excluded.name`,
-            releaseTime: sql`excluded.releaseTime`,
-            chapterNumber: sql`excluded.chapterNumber`,
-          },
-          where: sql`NOT (
-            ${chapterSchema.page} IS excluded.page
-            AND ${chapterSchema.position} IS excluded.position
-            AND ${chapterSchema.name} IS excluded.name
-            AND ${chapterSchema.releaseTime} IS excluded.releaseTime
-            AND ${chapterSchema.chapterNumber} IS excluded.chapterNumber
-          )`,
-        })
-        .run();
-    }
-  });
+  await dbManager.batch([[insertSql, params]]);
 };
 
 export const markChapterRead = async (chapterId: number): Promise<void> => {

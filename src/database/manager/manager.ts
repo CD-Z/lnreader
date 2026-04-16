@@ -1,11 +1,11 @@
 import { db, drizzleDb } from '@database/db';
+import type { SQLBatchTuple } from '@op-engineering/op-sqlite';
 import { IDbManager } from './manager.d';
 import { DbTaskQueue } from './queue';
 import { Schema } from '../schema';
 import { useEffect, useState } from 'react';
 import { GetSelectTableName } from 'drizzle-orm/query-builders/select.types';
-import { AnyColumn, Placeholder, Query, sql } from 'drizzle-orm';
-import { SQLitePreparedQuery } from 'drizzle-orm/sqlite-core';
+import { AnyColumn, Query, sql } from 'drizzle-orm';
 
 type DrizzleDb = typeof drizzleDb;
 type TransactionParameter = Parameters<
@@ -80,33 +80,13 @@ class DbManager implements IDbManager {
     >;
   }
 
-  /**
-   * Efficiently executes a Drizzle query for multiple data rows using a single
-   * prepared statement within a write transaction.
-   *
-   * @param data - Array of objects containing the parameters for each execution.
-   * @param fn - Callback to build the query. Use `ph("key")` to bind to properties in your data.
-   *             Must return a prepared query via `.prepare()`.
-   *
-   * @example
-   * await dbManager.batch(
-   *   [{ id: 1, val: 'a' }, { id: 2, val: 'b' }],
-   *   (tx, ph) => tx.insert(table).values({ id: ph('id'), val: ph('val') }).prepare()
-   * );
-   */
-  public async batch<T extends Record<string, unknown>>(
-    data: T[],
-    fn: (
-      tx: TransactionParameter,
-      ph: (arg: Extract<keyof T, string>) => Placeholder,
-    ) => SQLitePreparedQuery<any>,
-  ) {
-    const ph = (arg: Extract<keyof T, string>) => sql.placeholder(arg);
-    await this.write(async tx => {
-      const prep = fn(tx, ph);
-      for (let index = 0; index < data.length; index++) {
-        await prep.run(data[index]);
-      }
+  public async batch(commands: SQLBatchTuple[]) {
+    await this.queue.enqueue({
+      id: 'write',
+      run: async () => {
+        await db.executeBatch(commands);
+        db?.flushPendingReactiveQueries();
+      },
     });
   }
 
