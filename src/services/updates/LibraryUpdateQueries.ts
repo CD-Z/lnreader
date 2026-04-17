@@ -6,8 +6,9 @@ import { downloadFile } from '@plugins/helpers/fetch';
 import ServiceManager from '@services/ServiceManager';
 import { dbManager } from '@database/db';
 import { novelSchema, chapterSchema } from '@database/schema';
-import { eq, and, ne, or, sql } from 'drizzle-orm';
+import { eq, and, inArray } from 'drizzle-orm';
 import NativeFile from '@specs/NativeFile';
+import { insertChapters } from '@database/queries/ChapterQueries';
 
 /**
  * Update novel metadata in the database including cover image.
@@ -81,80 +82,71 @@ const updateNovelChapters = async (
   downloadNewChapters?: boolean,
   page?: string,
 ) => {
-  await dbManager.write(async tx => {
-    for (let position = 0; position < chapters.length; position++) {
-      const chapter = chapters[position];
-      const {
-        name,
-        path,
-        releaseTime,
-        page: customPage,
-        chapterNumber,
-      } = chapter;
-      const chapterPage = page || customPage || '1';
+  if (!chapters.length) {
+    return;
+  }
 
-      // Check if chapter already exists
-      const existing = await tx
-        .select({ id: chapterSchema.id })
+  const incomingPaths = Array.from(
+    new Set(chapters.map(chapter => chapter.path)),
+  );
+  const existingChapters = incomingPaths.length
+    ? await dbManager
+        .select({ path: chapterSchema.path })
         .from(chapterSchema)
         .where(
-          and(eq(chapterSchema.novelId, novelId), eq(chapterSchema.path, path)),
+          and(
+            eq(chapterSchema.novelId, novelId),
+            inArray(chapterSchema.path, incomingPaths),
+          ),
         )
-        .get();
+        .all()
+    : [];
 
-      if (!existing) {
-        // Insert new chapter
-        const newChapter = await tx
-          .insert(chapterSchema)
-          .values({
-            path,
-            name,
-            releaseTime: releaseTime || null,
-            novelId,
-            updatedTime: sql`datetime('now','localtime')`,
-            chapterNumber: chapterNumber || null,
-            page: chapterPage,
-            position: position,
-          })
-          .returning()
-          .get();
+  const existingPathSet = new Set(
+    existingChapters.map(chapter => chapter.path),
+  );
+  const newPaths = incomingPaths.filter(path => !existingPathSet.has(path));
 
-        if (newChapter && downloadNewChapters) {
-          ServiceManager.manager.addTask({
-            name: 'DOWNLOAD_CHAPTER',
-            data: {
-              chapterId: newChapter.id,
-              novelName: novelName,
-              chapterName: name,
-            },
-          });
-        }
-      } else {
-        // Update existing chapter if metadata changed
-        tx.update(chapterSchema)
-          .set({
-            name,
-            releaseTime: releaseTime || null,
-            updatedTime: sql`datetime('now','localtime')`,
-            page: chapterPage,
-            position: position,
-          })
-          .where(
-            and(
-              eq(chapterSchema.id, existing.id),
-              eq(chapterSchema.novelId, novelId),
-              or(
-                ne(chapterSchema.name, name),
-                ne(chapterSchema.releaseTime, releaseTime!),
-                ne(chapterSchema.page, chapterPage),
-                ne(chapterSchema.position, position),
-              ),
-            ),
-          )
-          .run();
-      }
-    }
+  await insertChapters(novelId, chapters, {
+    page,
+    touchUpdatedTime: true,
   });
+
+  if (downloadNewChapters && newPaths.length) {
+    const insertedNewChapters = await dbManager
+      .select({
+        id: chapterSchema.id,
+        path: chapterSchema.path,
+        name: chapterSchema.name,
+      })
+      .from(chapterSchema)
+      .where(
+        and(
+          eq(chapterSchema.novelId, novelId),
+          inArray(chapterSchema.path, newPaths),
+        ),
+      )
+      .all();
+
+    const chapterNameByPath = new Map(
+      chapters.map((chapter, index) => [
+        chapter.path,
+        chapter.name || `Chapter ${index + 1}`,
+      ]),
+    );
+
+    for (const insertedChapter of insertedNewChapters) {
+      ServiceManager.manager.addTask({
+        name: 'DOWNLOAD_CHAPTER',
+        data: {
+          chapterId: insertedChapter.id,
+          novelName,
+          chapterName:
+            chapterNameByPath.get(insertedChapter.path) || insertedChapter.name,
+        },
+      });
+    }
+  }
 };
 
 export interface UpdateNovelOptions {
@@ -189,11 +181,12 @@ const updateNovel = async (
   const oldTotalPages = await getStoredTotalPages(novelId);
 
   const novel = await fetchNovel(pluginId, novelPath);
+  console.log('Fetched novel data', { novel });
+  console.log(novel.chapters?.[1]);
 
   if (refreshNovelMetadata) {
     await updateNovelMetadata(pluginId, novelId, novel);
   } else if (novel.totalPages) {
-    await updateNovelTotalPages(novelId, novel.totalPages);
     await updateNovelTotalPages(novelId, novel.totalPages);
   }
   await updateNovelChapters(

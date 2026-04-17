@@ -91,17 +91,12 @@ const NovelScreenList = ({
   const [updating, setUpdating] = useState(false);
   const {
     useFabForContinueReading,
-    defaultChapterSort,
     disableHapticFeedback,
     downloadNewChapters,
     refreshNovelMetadata,
   } = useAppSettings();
 
-  const {
-    sort = defaultChapterSort,
-    filter,
-    showChapterTitles = false,
-  } = novelSettings;
+  const { filter, showChapterTitles = false } = novelSettings;
 
   const theme = useTheme();
   const { top: topInset, bottom: bottomInset } = useSafeAreaInsets();

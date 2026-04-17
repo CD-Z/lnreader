@@ -35,21 +35,27 @@ import { castInt } from '@database/manager/manager';
 export const insertChapters = async (
   novelId: number,
   chapters?: ChapterItem[],
+  options?: {
+    page?: string;
+    touchUpdatedTime?: boolean;
+    preferNullReleaseTime?: boolean;
+  },
 ): Promise<void> => {
   if (!chapters?.length) {
     return;
   }
 
+  const nowSql = sql`datetime('now','localtime')`;
+
   const rows = chapters.map((c, index) => ({
     path: c.path,
     name: c.name || `Chapter ${index + 1}`,
-    releaseTime: c.releaseTime || '',
+    releaseTime: c.releaseTime ?? (options?.preferNullReleaseTime ? null : ''),
     novelId,
-    chapterNumber: c.chapterNumber ?? null,
-    page: c.page || '1',
+    chapterNumber: c.chapterNumber ?? index + 1,
+    page: options?.page ?? c.page ?? '1',
     position: index,
   }));
-
   await dbManager.batch(rows, (tx, ph) =>
     tx
       .insert(chapterSchema)
@@ -61,6 +67,7 @@ export const insertChapters = async (
         chapterNumber: ph('chapterNumber'),
         page: ph('page'),
         position: ph('position'),
+        ...(options?.touchUpdatedTime ? { updatedTime: nowSql } : {}),
       })
       .onConflictDoUpdate({
         target: [chapterSchema.novelId, chapterSchema.path],
@@ -70,6 +77,7 @@ export const insertChapters = async (
           name: sql`excluded.name`,
           releaseTime: sql`excluded.releaseTime`,
           chapterNumber: sql`excluded.chapterNumber`,
+          ...(options?.touchUpdatedTime ? { updatedTime: nowSql } : {}),
         },
         where: sql`NOT (
           ${chapterSchema.page} IS excluded.page
