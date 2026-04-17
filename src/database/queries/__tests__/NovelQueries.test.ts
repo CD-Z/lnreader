@@ -9,6 +9,7 @@ import { setupTestDatabase, getTestDb, teardownTestDatabase } from './setup';
 import {
   insertTestNovel,
   insertTestNovelCategory,
+  insertTestCategory,
   clearAllTables,
 } from './testData';
 import { categorySchema, novelCategorySchema } from '@database/schema';
@@ -222,11 +223,9 @@ describe('NovelQueries', () => {
     it('should clean up categories when removing from library', async () => {
       const testDb = getTestDb();
       const novelId = await insertTestNovel(testDb, { inLibrary: true });
-      const categoryId = await testDb.drizzleDb
-        .insert(categorySchema)
-        .values({ name: 'Test Category' })
-        .returning()
-        .get().id;
+      const categoryId = await insertTestCategory(testDb, {
+        name: 'Test Category',
+      });
       await insertTestNovelCategory(testDb, novelId, categoryId);
 
       await removeNovelsFromLibrary([novelId]);
@@ -379,11 +378,9 @@ describe('NovelQueries', () => {
     it('should add categories to a novel', async () => {
       const testDb = getTestDb();
       const novelId = await insertTestNovel(testDb, { inLibrary: true });
-      const categoryId = await testDb.drizzleDb
-        .insert(categorySchema)
-        .values({ name: 'Test Category' })
-        .returning()
-        .get().id;
+      const categoryId = await insertTestCategory(testDb, {
+        name: 'Test Category',
+      });
 
       await updateNovelCategoryById(novelId, [categoryId]);
 
@@ -402,11 +399,9 @@ describe('NovelQueries', () => {
       const testDb = getTestDb();
       const novelId1 = await insertTestNovel(testDb, { inLibrary: true });
       const novelId2 = await insertTestNovel(testDb, { inLibrary: true });
-      const categoryId = await testDb.drizzleDb
-        .insert(categorySchema)
-        .values({ name: 'Test Category' })
-        .returning()
-        .get().id;
+      const categoryId = await insertTestCategory(testDb, {
+        name: 'Test Category',
+      });
 
       await updateNovelCategories([novelId1, novelId2], [categoryId]);
 
