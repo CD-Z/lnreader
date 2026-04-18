@@ -35,7 +35,7 @@ const ChapterDrawer = () => {
   const pages = useNovelValue('pages');
   const fetching = useNovelValue('fetching');
   const batchInformation = useNovelValue('batchInformation');
-  const { getNextChapterBatch, setPageIndex } = useNovelActions();
+  const { getNextChapterBatch, openPage } = useNovelActions();
 
   const theme = useTheme();
   const insets = useSafeAreaInsets();
@@ -67,8 +67,8 @@ const ChapterDrawer = () => {
     if (pageIndex === -1) {
       pageIndex = 0;
     }
-    setPageIndex(pageIndex);
-  }, [chapter, pages, setPageIndex]);
+    openPage(pageIndex);
+  }, [chapter, pages, openPage]);
 
   const calculateScrollToIndex = useCallback(() => {
     if (chapters.length < 1) {
