@@ -367,7 +367,7 @@ export const createBootstrapService = (
       const pages = calculatePages(novel);
       const page = pages[pageIndex] ?? '1';
       const chapterCount =
-        settingsFilter.length === 0
+        settingsFilter.length === 0 && pages.length === 1
           ? novel.totalChapters ?? 0
           : deps.getChapterCountSync(novel.id, page, settingsFilter);
       if (chapterCount === 0 && settingsFilter.length === 0) {
