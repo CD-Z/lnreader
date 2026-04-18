@@ -228,10 +228,7 @@ const Novel = ({ route, navigation }: NovelScreenProps) => {
   const clearSelection = useCallback(() => setSelected([]), []);
   const selectAll = useCallback(() => setSelected(chapters), [chapters]);
 
-  const snackbarTheme = useMemo(
-    () => ({ colors: { primary: theme.primary } }),
-    [theme.primary],
-  );
+  const snackbarTheme = useMemo(() => ({ colors: theme }), [theme]);
   const snackbarTextStyle = useMemo(
     () => ({ color: theme.onSurface }),
     [theme.onSurface],
@@ -307,6 +304,7 @@ const Novel = ({ route, navigation }: NovelScreenProps) => {
               routeBaseNovel={route.params}
               selected={selected}
               setSelected={setSelected}
+              deleteDownloadSnackbar={deleteDownloadsSnackbar}
             />
           </Suspense>
         </SafeAreaView>

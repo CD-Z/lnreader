@@ -53,7 +53,7 @@ import { useNovelAction } from '@screens/novel/NovelContext';
 
 interface NovelInfoHeaderProps {
   chapters: ChapterInfo[];
-  deleteDownloadsSnackbar: UseBooleanReturnType;
+  deleteDownloadSnackbar: UseBooleanReturnType;
   fetching: boolean;
   filter?: ChapterFilterKey[];
   firstUnreadChapter?: ChapterInfo;
@@ -234,7 +234,7 @@ const showNotAvailable = async () => {
 
 const NovelInfoHeader = ({
   chapters,
-  deleteDownloadsSnackbar,
+  deleteDownloadSnackbar,
   fetching,
   filter = [],
   firstUnreadChapter,
@@ -294,14 +294,16 @@ const NovelInfoHeader = ({
       showToast('Failed updating: ' + (error as Error).message),
     );
     if (novel.inLibrary && chapters.some(chapter => chapter.isDownloaded)) {
-      deleteDownloadsSnackbar.setTrue();
+      deleteDownloadSnackbar.setTrue();
+    } else {
+      deleteDownloadSnackbar.setFalse();
     }
   }, [
     isLoading,
     followNovel,
     novel.inLibrary,
     chapters,
-    deleteDownloadsSnackbar,
+    deleteDownloadSnackbar,
   ]);
 
   const handleTrackerSheet = useCallback(

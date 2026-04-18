@@ -4,7 +4,6 @@ import NovelInfoHeader from './Info/NovelInfoHeader';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { pickCustomNovelCover } from '@database/queries/NovelQueries';
 import { ChapterInfo, NovelInfo } from '@database/types';
-import { useBoolean } from '@hooks/index';
 import { useAppSettings, useDownload, useTheme } from '@hooks/persisted';
 import {
   updateNovel,
@@ -35,6 +34,7 @@ import { downloadFile } from '@plugins/helpers/fetch';
 import { StorageAccessFramework } from 'expo-file-system/legacy';
 import PagePaginationControl from './PagePaginationControl';
 import { useNovelActions, useNovelValue } from '../NovelContext';
+import { UseBooleanReturnType } from '@hooks/index';
 
 type NovelScreenListProps = {
   headerOpacity: SharedValue<number>;
@@ -48,6 +48,7 @@ type NovelScreenListProps = {
     pluginId: string;
     cover?: string | null;
   };
+  deleteDownloadSnackbar: UseBooleanReturnType;
 };
 
 const chapterKeyExtractor = (item: ChapterInfo) => 'c' + item.id;
@@ -59,6 +60,7 @@ const NovelScreenList = ({
   routeBaseNovel,
   selected,
   setSelected,
+  deleteDownloadSnackbar,
 }: NovelScreenListProps) => {
   const chapters = useNovelValue('chapters');
   const fetching = useNovelValue('fetching');
@@ -127,8 +129,6 @@ const NovelScreenList = ({
   const novelBottomSheetRef = useRef<BottomSheetModalMethods>(null);
   const trackerSheetRef = useRef<BottomSheetModalMethods>(null);
   const pageNavigationSheetRef = useRef<BottomSheetModalMethods>(null);
-
-  const deleteDownloadsSnackbar = useBoolean();
 
   // Derive selectedIds Set for O(1) lookups
   const selectedIds = useMemo(
@@ -408,7 +408,7 @@ const NovelScreenList = ({
       <>
         <NovelInfoHeader
           chapters={chapters}
-          deleteDownloadsSnackbar={deleteDownloadsSnackbar}
+          deleteDownloadSnackbar={deleteDownloadSnackbar}
           fetching={fetching}
           filter={filter}
           firstUnreadChapter={firstUnreadChapter}
@@ -434,7 +434,7 @@ const NovelScreenList = ({
     ),
     [
       chapters,
-      deleteDownloadsSnackbar,
+      deleteDownloadSnackbar,
       fetching,
       filter,
       firstUnreadChapter,
