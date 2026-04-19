@@ -1,4 +1,3 @@
-import React from 'react';
 import {
   render,
   screen,
@@ -117,6 +116,7 @@ const createStore = (overrides: Record<string, unknown> = {}) => {
     batchInformation: { batch: 0, total: 1, totalChapters: 2 },
     getNextChapterBatch: jest.fn(),
     setPageIndex: jest.fn(),
+    openPage: jest.fn(),
     ...overrides,
   };
 
@@ -144,13 +144,13 @@ describe('ChapterDrawer (task 12 context boundary cutover)', () => {
     );
     mockUseNovelActions.mockReturnValue({
       getNextChapterBatch: store.state.getNextChapterBatch,
-      setPageIndex: store.state.setPageIndex,
+      openPage: store.state.openPage,
     });
 
     render(<ChapterDrawer />);
 
     await waitFor(() => {
-      expect(store.state.setPageIndex).toHaveBeenCalledWith(1);
+      expect(store.state.openPage).toHaveBeenCalledWith(1);
     });
 
     fireEvent.press(screen.getByTestId('legend-end-reached'));

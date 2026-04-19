@@ -17,6 +17,7 @@ export const mmkvZustandAdapter = {
       const value = MMKVStorage.getString(key);
       return value ?? null;
     } catch (error) {
+      // eslint-disable-next-line no-console
       console.error(
         `[mmkvZustandAdapter] Error getting item for key "${key}":`,
         error,
@@ -33,6 +34,7 @@ export const mmkvZustandAdapter = {
     try {
       MMKVStorage.set(key, value);
     } catch (error) {
+      // eslint-disable-next-line no-console
       console.error(
         `[mmkvZustandAdapter] Error setting item for key "${key}":`,
         error,
@@ -45,8 +47,9 @@ export const mmkvZustandAdapter = {
    */
   removeItem: (key: string): void => {
     try {
-      MMKVStorage.delete(key);
+      MMKVStorage.remove(key);
     } catch (error) {
+      // eslint-disable-next-line no-console
       console.error(
         `[mmkvZustandAdapter] Error removing item for key "${key}":`,
         error,
