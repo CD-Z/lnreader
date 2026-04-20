@@ -1,6 +1,6 @@
 import '../../../__tests__/mocks';
 import { ChapterFilterKey, ChapterOrderKey } from '@database/constants';
-import { ChapterInfo, NovelInfo } from '@database/types';
+import { ChapterInfo, DBNovelInfo } from '@database/types';
 import {
   getChapterCount,
   getChapterCountSync,
@@ -25,13 +25,18 @@ const NOVEL_PATH = '/novels/test';
 const settingsSort: ChapterOrderKey = 'positionAsc';
 const settingsFilter: ChapterFilterKey[] = [];
 
-const mockNovel: NovelInfo = {
+const mockNovel: DBNovelInfo = {
   id: 1,
   path: NOVEL_PATH,
   pluginId: PLUGIN_ID,
   name: 'Test Novel',
   inLibrary: false,
   totalPages: 0,
+  chaptersDownloaded: 0,
+  chaptersUnread: 0,
+  totalChapters: 0,
+  lastReadAt: null,
+  lastUpdatedAt: null,
 };
 
 const makeChapter = (id: number, overrides: Partial<ChapterInfo> = {}) => ({
@@ -39,7 +44,6 @@ const makeChapter = (id: number, overrides: Partial<ChapterInfo> = {}) => ({
   novelId: mockNovel.id,
   name: `Chapter ${id}`,
   path: `/chapter/${id}`,
-  releaseTime: '2024-01-01',
   updatedTime: '2024-01-02',
   readTime: '2024-01-03',
   chapterNumber: id,
@@ -48,10 +52,16 @@ const makeChapter = (id: number, overrides: Partial<ChapterInfo> = {}) => ({
   bookmark: false,
   progress: 0,
   page: '1',
+  position: id,
   ...overrides,
+  releaseTime: overrides.releaseTime || '2024-01-01',
 });
 
-const mockChapters: ChapterInfo[] = [makeChapter(1), makeChapter(2), makeChapter(3)];
+const mockChapters: ChapterInfo[] = [
+  makeChapter(1),
+  makeChapter(2),
+  makeChapter(3),
+];
 
 const mockGetCustomPages = getCustomPages as jest.MockedFunction<
   typeof getCustomPages
@@ -63,18 +73,16 @@ const mockGetNovelById = getNovelById as jest.MockedFunction<
   typeof getNovelById
 >;
 const mockFetchNovel = fetchNovel as jest.MockedFunction<typeof fetchNovel>;
-const mockInsertNovelAndChapters = insertNovelAndChapters as jest.MockedFunction<
-  typeof insertNovelAndChapters
->;
+const mockInsertNovelAndChapters =
+  insertNovelAndChapters as jest.MockedFunction<typeof insertNovelAndChapters>;
 const mockGetChapterCount = getChapterCount as jest.MockedFunction<
   typeof getChapterCount
 >;
 const mockGetChapterCountSync = getChapterCountSync as jest.MockedFunction<
   typeof getChapterCountSync
 >;
-const mockGetPageChaptersBatched = getPageChaptersBatched as jest.MockedFunction<
-  typeof getPageChaptersBatched
->;
+const mockGetPageChaptersBatched =
+  getPageChaptersBatched as jest.MockedFunction<typeof getPageChaptersBatched>;
 const mockGetNovelChaptersSync = getNovelChaptersSync as jest.MockedFunction<
   typeof getNovelChaptersSync
 >;
@@ -94,9 +102,9 @@ const setupDbFirstSuccess = () => {
   mockGetNovelById.mockReturnValue(mockNovel);
   mockGetNovelByPath.mockReturnValue(mockNovel);
   mockGetChapterCount.mockResolvedValue(mockChapters.length);
-  mockGetChapterCountSync.mockReturnValue(mockChapters.length);
+  mockGetChapterCountSync.mockReturnValue(mockChapters.length); //@ts-ignore
   mockGetPageChaptersBatched.mockResolvedValue(mockChapters);
-  mockGetNovelChaptersSync.mockReturnValue(mockChapters);
+  mockGetNovelChaptersSync.mockReturnValue(mockChapters); //@ts-ignore
   mockGetFirstUnreadChapter.mockReturnValue(mockChapters[0]);
 };
 
@@ -176,7 +184,9 @@ describe('bootstrapService', () => {
   });
 
   it('returns missing-novel when source insert path still resolves no novel', async () => {
-    mockGetNovelByPath.mockReturnValueOnce(undefined).mockReturnValueOnce(undefined);
+    mockGetNovelByPath
+      .mockReturnValueOnce(undefined)
+      .mockReturnValueOnce(undefined);
     mockFetchNovel.mockResolvedValue({ ...mockNovel, chapters: [] } as never);
     mockInsertNovelAndChapters.mockResolvedValue(undefined);
     const service = createBootstrapService();
@@ -215,7 +225,10 @@ describe('bootstrapService', () => {
   it('dedupes in-flight bootstrap per ${pluginId}_${novelPath}', async () => {
     setupDbFirstSuccess();
     mockGetChapterCount.mockImplementation(
-      () => new Promise(resolve => setTimeout(() => resolve(mockChapters.length), 10)),
+      () =>
+        new Promise(resolve =>
+          setTimeout(() => resolve(mockChapters.length), 10),
+        ),
     );
     const service = createBootstrapService();
 
@@ -245,9 +258,10 @@ describe('bootstrapService', () => {
 
   it('uses custom pages and selected page index when custom pages are available', async () => {
     setupDbFirstSuccess();
-    mockGetCustomPages.mockReturnValue(
-      [{ page: '1' }, { page: '3' }] as ReturnType<typeof getCustomPages>,
-    );
+    mockGetCustomPages.mockReturnValue([
+      { page: '1' },
+      { page: '3' },
+    ] as ReturnType<typeof getCustomPages>);
     const service = createBootstrapService();
 
     const result = await service.bootstrapNovelAsync({
@@ -335,10 +349,9 @@ describe('bootstrapService', () => {
     });
 
     expect(mockGetPageChaptersBatched).toHaveBeenCalledTimes(1);
-    expect(onBatchLoaded).toHaveBeenCalledWith(
-      1,
-      [expect.objectContaining({ id: 11 })],
-    );
+    expect(onBatchLoaded).toHaveBeenCalledWith(1, [
+      expect.objectContaining({ id: 11 }),
+    ]);
   });
 
   it('bootstrapNovelSync uses filtered sync count for totalChapters', () => {
@@ -347,8 +360,15 @@ describe('bootstrapService', () => {
     mockGetNovelByPath.mockReturnValue({
       ...mockNovel,
       totalChapters: 999,
+      chaptersDownloaded: 3,
+      chaptersUnread: 3,
+      lastReadAt: null,
+      lastUpdatedAt: null,
     });
-    mockGetNovelChaptersSync.mockReturnValue([mockChapters[0], mockChapters[2]]);
+    mockGetNovelChaptersSync.mockReturnValue([
+      mockChapters[0],
+      mockChapters[2],
+    ]);
     const service = createBootstrapService();
 
     const result = service.bootstrapNovelSync({
@@ -363,11 +383,9 @@ describe('bootstrapService', () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.batchInformation.totalChapters).toBe(2);
-    expect(mockGetChapterCountSync).toHaveBeenCalledWith(
-      mockNovel.id,
-      '1',
-      ['not-read'],
-    );
+    expect(mockGetChapterCountSync).toHaveBeenCalledWith(mockNovel.id, '1', [
+      'not-read',
+    ]);
   });
 
   it('bootstrapNovelSync returns missing-chapters only when unfiltered count is zero', () => {

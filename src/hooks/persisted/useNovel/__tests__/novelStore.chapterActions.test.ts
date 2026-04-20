@@ -15,7 +15,7 @@ import {
   updateChapterProgressAction,
 } from '../store/chapterActions';
 import { createNovelStoreChapterActions } from '../store/novelStore.chapterActions';
-import { BatchInfo, NovelSettings } from '../types';
+import { BatchInfo, NovelSettingsWithoutSort } from '../types';
 
 jest.mock('../store/chapterActions', () => {
   const actual = jest.requireActual('../store/chapterActions');
@@ -46,7 +46,7 @@ interface TestState {
   chapters: ChapterInfo[];
   chapterTextCache: Record<number, string | Promise<string>>;
   fetching: boolean;
-  novelSettings: NovelSettings;
+  novelSettings: NovelSettingsWithoutSort;
   batchInformation: BatchInfo;
 }
 
@@ -103,7 +103,7 @@ const createHarness = (overrides: Partial<TestState> = {}) => {
     chapters: [makeChapter(1)],
     chapterTextCache: {},
     fetching: false,
-    novelSettings: { filter: [] },
+    novelSettings: { filter: [], showChapterTitles: true },
     batchInformation: { batch: 0, total: 4 },
     ...overrides,
   };
@@ -125,7 +125,8 @@ const createHarness = (overrides: Partial<TestState> = {}) => {
   );
 
   const actions = createNovelStoreChapterActions({
-    set,
+    //@ts-expect-error partial state/actions for testing
+    set, //@ts-expect-error
     get,
     bootstrapService,
     chapterActionsDependencies: chapterDeps,
@@ -191,7 +192,9 @@ describe('novelStore.chapterActions', () => {
       harness.actions.getNextChapterBatch(),
     ]);
 
-    expect(harness.bootstrapService.getNextChapterBatch).toHaveBeenCalledTimes(1);
+    expect(harness.bootstrapService.getNextChapterBatch).toHaveBeenCalledTimes(
+      1,
+    );
     expect(harness.getState().batchInformation.batch).toBe(1);
     expect(harness.getState().chapters.map(ch => ch.id)).toEqual([1, 2]);
   });
@@ -261,7 +264,9 @@ describe('novelStore.chapterActions', () => {
       }),
     );
     expect(harness.getState().batchInformation.batch).toBe(4);
-    expect(harness.getState().chapters.map(ch => ch.id)).toEqual([1, 2, 3, 4, 5]);
+    expect(harness.getState().chapters.map(ch => ch.id)).toEqual([
+      1, 2, 3, 4, 5,
+    ]);
   });
 
   it('chapterTextCache supports read/write/remove/clear through state-backed cache', () => {

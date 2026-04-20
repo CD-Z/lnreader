@@ -48,7 +48,7 @@ type NovelScreenListProps = {
     pluginId: string;
     cover?: string | null;
   };
-  deleteDownloadSnackbar: UseBooleanReturnType;
+  deleteDownloadSnackbar?: UseBooleanReturnType;
 };
 
 const chapterKeyExtractor = (item: ChapterInfo) => 'c' + item.id;

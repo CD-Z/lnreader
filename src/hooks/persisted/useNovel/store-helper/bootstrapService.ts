@@ -42,29 +42,12 @@ export interface BootstrapFailureResult {
 
 export type BootstrapResult = BootstrapSuccessResult | BootstrapFailureResult;
 
-export interface BootstrapServiceDependencies {
-  getCustomPages: typeof defaultGetCustomPages;
-  getNovelByPath: typeof defaultGetNovelByPath;
-  getNovelById: typeof defaultGetNovelById;
-  fetchNovel: typeof defaultFetchNovel;
-  insertNovelAndChapters: typeof defaultInsertNovelAndChapters;
-  getChapterCount: typeof defaultGetChapterCount;
-  getChapterCountSync: typeof defaultGetChapterCountSync;
-  getPageChaptersBatched: typeof defaultGetPageChaptersBatched;
-  getNovelChaptersSync: typeof defaultGetNovelChaptersSync;
-  fetchPage: typeof defaultFetchPage;
-  insertChapters: typeof defaultInsertChapters;
-  getPageChapters: typeof defaultGetPageChapters;
-  getFirstUnreadChapter: typeof defaultGetFirstUnreadChapter;
-  getString: typeof defaultGetString;
-}
-
 const inflightBootstraps = new Map<string, Promise<BootstrapResult>>();
 
 const getBootstrapKey = (pluginId: string, novelPath: string) =>
   `${pluginId}_${novelPath}`;
 
-const defaultBootstrapServiceDependencies: BootstrapServiceDependencies = {
+const defaultBootstrapServiceDependencies = {
   getCustomPages: defaultGetCustomPages,
   getNovelByPath: defaultGetNovelByPath,
   getNovelById: defaultGetNovelById,
@@ -79,7 +62,9 @@ const defaultBootstrapServiceDependencies: BootstrapServiceDependencies = {
   getPageChapters: defaultGetPageChapters,
   getFirstUnreadChapter: defaultGetFirstUnreadChapter,
   getString: defaultGetString,
-};
+} as const;
+export type BootstrapServiceDependencies =
+  typeof defaultBootstrapServiceDependencies;
 
 export const createBootstrapService = (
   dependencies: Partial<BootstrapServiceDependencies> = {},

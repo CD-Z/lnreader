@@ -131,7 +131,10 @@ export const mockUseNovelState = jest.fn((selector: (state: any) => unknown) => 
 });
 export const mockUseNovelActions = jest.fn(() => {
   const state = mockUseNovelContext()?.novelStore?.getState?.() ?? {};
-  return state.actions ?? state;
+  const stateWithOptionalActions = state as Record<string, unknown> & {
+    actions?: Record<string, unknown>;
+  };
+  return stateWithOptionalActions.actions ?? stateWithOptionalActions;
 });
 export const mockUseNovelAction = jest.fn((key: string) => {
   const actions = mockUseNovelActions();

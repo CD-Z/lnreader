@@ -114,7 +114,7 @@ export const createNovelPersistenceBridge = (
 
   const writeSettings = (
     input: NovelPersistenceInput,
-    value: NovelSettings,
+    value: NovelSettingsWithoutSort,
   ) => {
     const key = keys.settings(input);
     storage.set(key, JSON.stringify(value));

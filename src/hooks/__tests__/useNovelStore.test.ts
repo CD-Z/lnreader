@@ -15,11 +15,10 @@ const mockNovel: NovelInfo = {
   summary: '',
   author: '',
   artist: '',
-  genres: [],
+  genres: 'Genre1, Genre2',
   status: 'Unknown',
   totalPages: 0,
   inLibrary: false,
-  tracker: [],
 };
 
 const createNovelStore = (
@@ -44,12 +43,12 @@ describe('useNovel store', () => {
       filter: [],
       showChapterTitles: true,
     });
-    jest.spyOn(novelPersistence, 'writePageIndex').mockImplementation(
-      () => undefined,
-    );
-    jest.spyOn(novelPersistence, 'writeSettings').mockImplementation(
-      () => undefined,
-    );
+    jest
+      .spyOn(novelPersistence, 'writePageIndex')
+      .mockImplementation(() => undefined);
+    jest
+      .spyOn(novelPersistence, 'writeSettings')
+      .mockImplementation(() => undefined);
   });
 
   it('hydrates persisted page index and settings defaults', () => {

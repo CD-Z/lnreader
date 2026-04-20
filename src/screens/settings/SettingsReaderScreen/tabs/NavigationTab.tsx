@@ -47,17 +47,21 @@ const NavigationTab: React.FC = () => {
         {useVolumeButtons && (
           <View style={styles.inputContainer}>
             <TextInput
-              label={getString('readerSettings.volumeButtonsOffset')}
+              label={getString('readerSettings.volumeButtonOffset')}
               mode="outlined"
               keyboardType="numeric"
               defaultValue={defaultTo(
-                volumeButtonsOffset,
-                Math.round(screenHeight * 0.75),
+                volumeButtonsOffset
+                  ? Math.round(volumeButtonsOffset / screenHeight)
+                  : null,
+                0.75,
               ).toString()}
               onChangeText={text => {
-                if (text) {
+                if (!isNaN(Number(text))) {
                   setChapterGeneralSettings({
-                    volumeButtonsOffset: Number(text),
+                    volumeButtonsOffset: Math.round(
+                      Number(text) * screenHeight,
+                    ),
                   });
                 }
               }}

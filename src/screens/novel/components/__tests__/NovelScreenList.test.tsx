@@ -245,7 +245,6 @@ const wireStoreSelectors = (store: ReturnType<typeof createStore>) => {
   mockUseNovelActions.mockReturnValue({
     deleteChapter: store.state.deleteChapter,
     setNovel: store.state.setNovel,
-    getNextChapterBatch: store.state.getNextChapterBatch,
     openPage: store.state.openPage,
     updateChapter: store.state.updateChapter,
     refreshNovel: store.state.refreshNovel,
@@ -269,7 +268,6 @@ const renderList = () =>
       }}
       selected={[]}
       setSelected={jest.fn()}
-      getNextChapterBatch={jest.fn()}
     />,
   );
 
@@ -311,7 +309,6 @@ describe('NovelScreenList (task 12 context boundary cutover)', () => {
         }}
         selected={[]}
         setSelected={jest.fn()}
-        getNextChapterBatch={jest.fn()}
       />,
     );
 

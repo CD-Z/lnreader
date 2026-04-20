@@ -53,7 +53,7 @@ import { useNovelAction } from '@screens/novel/NovelContext';
 
 interface NovelInfoHeaderProps {
   chapters: ChapterInfo[];
-  deleteDownloadSnackbar: UseBooleanReturnType;
+  deleteDownloadSnackbar?: UseBooleanReturnType;
   fetching: boolean;
   filter?: ChapterFilterKey[];
   firstUnreadChapter?: ChapterInfo;
@@ -294,9 +294,9 @@ const NovelInfoHeader = ({
       showToast('Failed updating: ' + (error as Error).message),
     );
     if (novel.inLibrary && chapters.some(chapter => chapter.isDownloaded)) {
-      deleteDownloadSnackbar.setTrue();
+      deleteDownloadSnackbar?.setTrue();
     } else {
-      deleteDownloadSnackbar.setFalse();
+      deleteDownloadSnackbar?.setFalse();
     }
   }, [
     isLoading,
