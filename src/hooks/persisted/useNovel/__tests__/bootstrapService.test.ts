@@ -111,9 +111,6 @@ const setupDbFirstSuccess = () => {
 describe('bootstrapService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    jest.spyOn(console, 'time').mockImplementation(() => {});
-    jest.spyOn(console, 'timeEnd').mockImplementation(() => {});
-    jest.spyOn(console, 'error').mockImplementation(() => {});
   });
 
   it('returns success payload from db-first branch', async () => {

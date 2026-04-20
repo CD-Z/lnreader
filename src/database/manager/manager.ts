@@ -3,7 +3,7 @@ import type { SQLBatchTuple, Scalar } from '@op-engineering/op-sqlite';
 import { IDbManager } from './manager.d';
 import { DbTaskQueue } from './queue';
 import { Schema } from '../schema';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { GetSelectTableName } from 'drizzle-orm/query-builders/select.types';
 import {
   AnyColumn,
@@ -152,10 +152,11 @@ export function useLiveQuery<T extends ExecutableSelect>(
   const { sql: sqlString, params } = query.toSQL();
   const paramsKey = JSON.stringify(params);
   const fireOnKey = JSON.stringify(fireOn);
+  const cb = useRef(callback ?? (() => {}));
 
   const [data, setData] = useState<ReturnValue>(() => {
     const r = db.executeSync(sqlString, params as any[]).rows as ReturnValue;
-    if (callback) callback(r);
+    cb.current(r);
     return r;
   });
 
@@ -166,42 +167,7 @@ export function useLiveQuery<T extends ExecutableSelect>(
       fireOn,
       callback: (result: { rows: ReturnValue }) => {
         setData(result.rows);
-        if (callback) callback(result.rows);
-      },
-    });
-    return unsub;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sqlString, paramsKey, fireOnKey]);
-
-  return data;
-}
-export function useLiveQueryAsync<T extends ExecutableSelect>(
-  query: T,
-  fireOn: FireOn,
-  callback?: (data: Awaited<ReturnType<T['all']>>) => void,
-) {
-  type ReturnValue = Awaited<ReturnType<T['all']>>;
-
-  const { sql: sqlString, params } = query.toSQL();
-  const paramsKey = JSON.stringify(params);
-  const fireOnKey = JSON.stringify(fireOn);
-
-  const [data, setData] = useState<ReturnValue>(
-    () =>
-      db.execute(sqlString, params as any[]).then(result => {
-        callback?.(result.rows as ReturnValue);
-        return result.rows;
-      }) as ReturnValue,
-  );
-
-  useEffect(() => {
-    const unsub = db.reactiveExecute({
-      query: sqlString,
-      arguments: params as any[],
-      fireOn,
-      callback: (result: { rows: ReturnValue }) => {
-        setData(result.rows);
-        if (callback) callback(result.rows);
+        cb.current(result.rows);
       },
     });
     return unsub;

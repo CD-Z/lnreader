@@ -105,7 +105,10 @@ export const createNovelStoreChapterActions = ({
   };
 
   const queueLoadUpToBatch = (targetBatch: number): Promise<void> => {
-    pendingTargetBatch = Math.max(pendingTargetBatch ?? targetBatch, targetBatch);
+    pendingTargetBatch = Math.max(
+      pendingTargetBatch ?? targetBatch,
+      targetBatch,
+    );
 
     if (inflightLoadUpToBatch) {
       return inflightLoadUpToBatch;
@@ -281,7 +284,7 @@ export const createNovelStoreChapterActions = ({
         settingsSort: getSettingsSort(state.novelSettings),
         settingsFilter: getSettingsFilter(state.novelSettings),
         currentPage: state.pages[state.pageIndex] ?? '1',
-        transformChapters: chs => chs,
+        transformChapters,
         setChapters,
         deps: chapterActionsDependencies,
       });
