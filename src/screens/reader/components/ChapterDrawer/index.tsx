@@ -14,9 +14,9 @@ import { getString } from '@strings/translations';
 import { ThemeColors } from '@theme/types';
 import renderListChapter from './RenderListChapter';
 import { useChapterContext } from '@screens/reader/ChapterContext';
-import { useNovelContext } from '@screens/novel/NovelContext';
 import { LegendList, LegendListRef, ViewToken } from '@legendapp/list';
 import { noop } from 'lodash-es';
+import { useNovelActions, useNovelValue } from '@screens/novel/NovelContext';
 
 type ButtonProperties = {
   text: string;
@@ -30,15 +30,13 @@ type ButtonsProperties = {
 
 const ChapterDrawer = () => {
   const { chapter, getChapter, setLoading } = useChapterContext();
-  const {
-    chapters,
-    novelSettings,
-    pages,
-    fetching,
-    batchInformation,
-    getNextChapterBatch,
-    setPageIndex,
-  } = useNovelContext();
+  const chapters = useNovelValue('chapters');
+  const novelSettings = useNovelValue('novelSettings');
+  const pages = useNovelValue('pages');
+  const fetching = useNovelValue('fetching');
+  const batchInformation = useNovelValue('batchInformation');
+  const { getNextChapterBatch, openPage } = useNovelActions();
+
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const { defaultChapterSort } = useAppSettings();
@@ -69,8 +67,8 @@ const ChapterDrawer = () => {
     if (pageIndex === -1) {
       pageIndex = 0;
     }
-    setPageIndex(pageIndex);
-  }, [chapter, pages, setPageIndex]);
+    openPage(pageIndex);
+  }, [chapter, pages, openPage]);
 
   const calculateScrollToIndex = useCallback(() => {
     if (chapters.length < 1) {

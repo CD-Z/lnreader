@@ -95,7 +95,7 @@ export const useTheme = (): ThemeColors => {
   const [customAccent] = useMMKVString('CUSTOM_ACCENT_COLOR');
 
   const [systemColorScheme, setSystemColorScheme] = useState<ColorSchemeName>(
-    Appearance.getColorScheme(),
+    Appearance.getColorScheme() ?? 'light',
   );
 
   useEffect(() => {

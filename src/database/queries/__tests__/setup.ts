@@ -8,7 +8,9 @@
 // @ts-ignore
 global.__DEV__ ??= false;
 
-import { createTestDb, cleanupTestDb, type TestDb } from './testDb';
+import type { TestDb } from './testDb';
+
+const getTestDbModule = () => require('./testDb') as typeof import('./testDb');
 
 // Module-level variable to hold the test database
 // Using 'mock' prefix so Jest allows it in jest.mock() factory
@@ -19,6 +21,7 @@ let mockTestDbInstance: TestDb | null = null;
  * This should be called in beforeEach of test files
  */
 export function setupTestDatabase(): TestDb {
+  const { createTestDb, cleanupTestDb } = getTestDbModule();
   if (mockTestDbInstance) {
     cleanupTestDb(mockTestDbInstance);
   }
@@ -42,6 +45,7 @@ export function getTestDb(): TestDb {
  * Cleans up the test database
  */
 export function teardownTestDatabase() {
+  const { cleanupTestDb } = getTestDbModule();
   if (mockTestDbInstance) {
     cleanupTestDb(mockTestDbInstance);
     mockTestDbInstance = null;
@@ -112,43 +116,6 @@ jest.mock('expo-document-picker', () => ({
     canceled: true,
     assets: null,
   }),
-}));
-
-// Mock database utilities
-jest.mock('@database/utils/parser', () => {
-  const { sql } = require('drizzle-orm');
-  return {
-    chapterFilterToSQL: jest.fn().mockImplementation(filter => {
-      if (!filter || !filter.length) return undefined;
-      const map: Record<string, string> = {
-        'read': '`unread`=0',
-        'not-read': '`unread`=1',
-        'downloaded': 'isDownloaded=1',
-        'not-downloaded': 'isDownloaded=0',
-        'bookmarked': 'bookmark=1',
-        'not-bookmarked': 'bookmark=0',
-      };
-      const parts = filter.map((f: string) => map[f]).filter(Boolean);
-      if (!parts.length) return undefined;
-      return sql.raw(parts.join(' AND '));
-    }),
-    chapterOrderToSQL: jest.fn().mockReturnValue(undefined),
-  };
-});
-
-// Mock database constants
-jest.mock('@database/constants', () => ({
-  ChapterFilterKey: {
-    UNREAD: 'unread',
-    DOWNLOADED: 'downloaded',
-    BOOKMARKED: 'bookmarked',
-  },
-  ChapterOrderKey: {
-    BY_SOURCE: 'bySource',
-    BY_SOURCE_DESC: 'bySourceDesc',
-    BY_CHAPTER_NUMBER: 'byChapterNumber',
-    BY_CHAPTER_NUMBER_DESC: 'byChapterNumberDesc',
-  },
 }));
 
 // Mock lodash-es to avoid ES module issues

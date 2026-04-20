@@ -1,89 +1,65 @@
- 
-import { useMMKVObject } from 'react-native-mmkv';
 import {
   ChapterFilterKey,
   ChapterFilterPositiveKey,
   ChapterOrderKey,
 } from '@database/constants';
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import { useAppSettings } from './useSettings';
 import { ChapterFilterObject, FilterStates } from '@database/utils/filter';
-import { useNovelContext } from '@screens/novel/NovelContext';
+import {
+  defaultNovelSettings,
+  NOVEL_PAGE_INDEX_PREFIX,
+  NOVEL_SETTINGS_PREFIX,
+} from './useNovel/types';
+import { useNovelAction, useNovelValue } from '@screens/novel/NovelContext';
 
-// #region constants
-
-export const NOVEL_PAGE_INDEX_PREFIX = 'NOVEL_PAGE_INDEX_PREFIX';
-export const NOVEL_SETTINGS_PREFIX = 'NOVEL_SETTINGS';
-export const LAST_READ_PREFIX = 'LAST_READ_PREFIX';
-
-const defaultNovelSettings: NovelSettings = {
-  showChapterTitles: true,
-  filter: [],
-};
-
-// #endregion
-// #region types
-
-export interface NovelSettings {
-  sort?: ChapterOrderKey;
-  filter: ChapterFilterKey[];
-  showChapterTitles?: boolean;
-}
-
-// #endregion
-// #region definition useNovel
+export { NOVEL_PAGE_INDEX_PREFIX, NOVEL_SETTINGS_PREFIX };
 
 export const useNovelSettings = () => {
-  const { novel } = useNovelContext();
   const { defaultChapterSort } = useAppSettings();
+  const novel = useNovelValue('novel');
+  const domainNovelSettings = useNovelValue('novelSettings');
+  const writeNovelSettings = useNovelAction('setNovelSettings');
 
-  const [ns, setNovelSettings] = useMMKVObject<NovelSettings>(
-    `${NOVEL_SETTINGS_PREFIX}_${novel?.pluginId}_${novel?.path}`,
-  );
   const novelSettings = useMemo(
-    () => ({ ...defaultNovelSettings, ...ns }),
-    [ns],
+    () => ({ ...defaultNovelSettings, ...domainNovelSettings }),
+    [domainNovelSettings],
   );
 
   const _sort: ChapterOrderKey = novelSettings.sort ?? defaultChapterSort;
   const _filter: ChapterFilterKey[] = novelSettings.filter;
-  const filterManager = useRef<ChapterFilterObject | null>(null);
 
   // #endregion
   // #region setters
 
   const setChapterSort = useCallback(
-    async (sort?: ChapterOrderKey) => {
+    async (sort: ChapterOrderKey) => {
       if (novel) {
-        setNovelSettings({
+        writeNovelSettings({
           showChapterTitles: novelSettings?.showChapterTitles,
           sort,
           filter: _filter,
         });
       }
     },
-    [novel, setNovelSettings, novelSettings?.showChapterTitles, _filter],
+    [novel, writeNovelSettings, novelSettings?.showChapterTitles, _filter],
   );
   const setChapterFilter = useCallback(
     async (filter?: ChapterFilterKey[]) => {
       if (novel) {
-        setNovelSettings({
+        writeNovelSettings({
           showChapterTitles: novelSettings?.showChapterTitles,
           sort: _sort,
           filter: filter ?? [],
         });
       }
     },
-    [novel, setNovelSettings, novelSettings?.showChapterTitles, _sort],
+    [novel, writeNovelSettings, novelSettings?.showChapterTitles, _sort],
   );
-  useEffect(() => {
-    if (!filterManager.current) {
-      filterManager.current = new ChapterFilterObject(
-        _filter,
-        setChapterFilter,
-      );
-    }
-  }, [_filter, setChapterFilter]);
+
+  const filterManager = useRef<ChapterFilterObject>(
+    new ChapterFilterObject(_filter, setChapterFilter),
+  );
 
   const cycleChapterFilter = useCallback(
     (key: ChapterFilterPositiveKey) => {
@@ -114,9 +90,9 @@ export const useNovelSettings = () => {
 
   const setShowChapterTitles = useCallback(
     (v: boolean) => {
-      setNovelSettings({ ...novelSettings, showChapterTitles: v });
+      writeNovelSettings({ ...novelSettings, showChapterTitles: v });
     },
-    [novelSettings, setNovelSettings],
+    [novelSettings, writeNovelSettings],
   );
 
   // #endregion

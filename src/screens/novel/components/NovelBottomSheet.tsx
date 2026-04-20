@@ -28,12 +28,20 @@ const ChaptersSettingsSheet = ({
     setChapterSort,
     getChapterFilterState,
     cycleChapterFilter,
+    setChapterFilterValue,
     setShowChapterTitles,
     sort,
     showChapterTitles,
   } = useNovelSettings();
 
   const { left, right } = useSafeAreaInsets();
+  const readStatus = getChapterFilterState('read');
+  const unreadStatus =
+    readStatus === 'indeterminate'
+      ? true
+      : readStatus
+      ? 'indeterminate'
+      : false;
 
   const FirstRoute = useCallback(
     () => (
@@ -49,9 +57,18 @@ const ChaptersSettingsSheet = ({
         <Checkbox
           theme={theme}
           label={getString('novelScreen.bottomSheet.filters.unread')}
-          status={getChapterFilterState('read')}
+          status={unreadStatus}
           onPress={() => {
-            cycleChapterFilter('read');
+            switch (readStatus) {
+              case 'indeterminate':
+                setChapterFilterValue('read', 'ON');
+                break;
+              case true:
+                setChapterFilterValue('read', 'OFF');
+                break;
+              default:
+                setChapterFilterValue('read', 'INDETERMINATE');
+            }
           }}
         />
         <Checkbox
@@ -64,7 +81,14 @@ const ChaptersSettingsSheet = ({
         />
       </View>
     ),
-    [cycleChapterFilter, getChapterFilterState, theme],
+    [
+      cycleChapterFilter,
+      getChapterFilterState,
+      readStatus,
+      setChapterFilterValue,
+      theme,
+      unreadStatus,
+    ],
   );
 
   const SecondRoute = useCallback(

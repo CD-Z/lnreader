@@ -324,6 +324,89 @@ describe('ChapterQueries', () => {
       const chapters = await getNovelChapters(novelId);
       expect(chapters[0].name).toBe('Chapter 1');
     });
+
+    it('should force page override option when inserting chapters', async () => {
+      const testDb = getTestDb();
+      const novelId = await insertTestNovel(testDb, { inLibrary: true });
+
+      await insertChapters(
+        novelId,
+        [
+          {
+            path: '/chapter/1',
+            name: 'Chapter 1',
+            page: '99',
+          },
+        ],
+        { page: '2' },
+      );
+
+      const chapters = await getNovelChapters(novelId);
+      expect(chapters).toHaveLength(1);
+      expect(chapters[0].page).toBe('2');
+    });
+
+    it('should set updatedTime when touchUpdatedTime is enabled on insert', async () => {
+      const testDb = getTestDb();
+      const novelId = await insertTestNovel(testDb, { inLibrary: true });
+
+      await insertChapters(
+        novelId,
+        [
+          {
+            path: '/chapter/1',
+            name: 'Chapter 1',
+          },
+        ],
+        { touchUpdatedTime: true },
+      );
+
+      const chapters = await getNovelChapters(novelId);
+      expect(chapters).toHaveLength(1);
+      expect(chapters[0].updatedTime).not.toBeNull();
+    });
+
+    it('should set releaseTime to null when preferNullReleaseTime is enabled', async () => {
+      const testDb = getTestDb();
+      const novelId = await insertTestNovel(testDb, { inLibrary: true });
+
+      await insertChapters(
+        novelId,
+        [
+          {
+            path: '/chapter/1',
+            name: 'Chapter 1',
+          },
+        ],
+        { preferNullReleaseTime: true },
+      );
+
+      const chapters = await getNovelChapters(novelId);
+      expect(chapters).toHaveLength(1);
+      expect(chapters[0].releaseTime).toBeNull();
+    });
+
+    it('should backfill chapterNumber with index fallback over existing null', async () => {
+      const testDb = getTestDb();
+      const novelId = await insertTestNovel(testDb, { inLibrary: true });
+
+      await insertTestChapter(testDb, novelId, {
+        path: '/chapter/1',
+        chapterNumber: null,
+      });
+
+      await insertChapters(novelId, [
+        {
+          path: '/chapter/1',
+          name: 'Chapter 1',
+        },
+      ]);
+
+      const chapters = await getNovelChapters(novelId);
+      expect(chapters).toHaveLength(1);
+      expect(chapters[0].chapterNumber).toBe(1);
+      expect(chapters[0].chapterNumber).not.toBeNull();
+    });
   });
 
   describe('deleteChapter', () => {

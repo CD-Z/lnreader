@@ -35,42 +35,59 @@ import { castInt } from '@database/manager/manager';
 export const insertChapters = async (
   novelId: number,
   chapters?: ChapterItem[],
+  options?: {
+    page?: string;
+    touchUpdatedTime?: boolean;
+    preferNullReleaseTime?: boolean;
+  },
 ): Promise<void> => {
   if (!chapters?.length) {
     return;
   }
-  await dbManager.batch(
-    chapters.map((c, i) => ({
-      path: c.path,
-      name: c.name || 'Chapter ' + (i + 1),
-      releaseTime: c.releaseTime || '',
-      chapterNumber: c.chapterNumber ?? null,
-      page: c.page || '1',
-      position: i,
-    })),
-    (tx, ph) =>
-      tx
-        .insert(chapterSchema)
-        .values({
-          path: ph('path'),
-          name: ph('name'),
-          releaseTime: ph('releaseTime'),
-          novelId,
-          chapterNumber: ph('chapterNumber'),
-          page: ph('page'),
-          position: ph('position'),
-        })
-        .onConflictDoUpdate({
-          target: [chapterSchema.novelId, chapterSchema.path],
-          set: {
-            page: ph('page'),
-            position: ph('position'),
-            name: ph('name'),
-            releaseTime: ph('releaseTime'),
-            chapterNumber: ph('chapterNumber'),
-          },
-        })
-        .prepare(),
+
+  const nowSql = sql`datetime('now','localtime')`;
+
+  const rows = chapters.map((c, index) => ({
+    path: c.path,
+    name: c.name || `Chapter ${index + 1}`,
+    releaseTime: c.releaseTime ?? (options?.preferNullReleaseTime ? null : ''),
+    novelId,
+    chapterNumber: c.chapterNumber ?? index + 1,
+    page: options?.page ?? c.page ?? '1',
+    position: index,
+  }));
+  await dbManager.batch(rows, (tx, ph) =>
+    tx
+      .insert(chapterSchema)
+      .values({
+        path: ph('path'),
+        name: ph('name'),
+        releaseTime: ph('releaseTime'),
+        novelId: ph('novelId'),
+        chapterNumber: ph('chapterNumber'),
+        page: ph('page'),
+        position: ph('position'),
+        ...(options?.touchUpdatedTime ? { updatedTime: nowSql } : {}),
+      })
+      .onConflictDoUpdate({
+        target: [chapterSchema.novelId, chapterSchema.path],
+        set: {
+          page: sql`excluded.page`,
+          position: sql`excluded.position`,
+          name: sql`excluded.name`,
+          releaseTime: sql`excluded.releaseTime`,
+          chapterNumber: sql`excluded.chapterNumber`,
+          ...(options?.touchUpdatedTime ? { updatedTime: nowSql } : {}),
+        },
+        where: sql`NOT (
+          ${chapterSchema.page} IS excluded.page
+          AND ${chapterSchema.position} IS excluded.position
+          AND ${chapterSchema.name} IS excluded.name
+          AND ${chapterSchema.releaseTime} IS excluded.releaseTime
+          AND ${chapterSchema.chapterNumber} IS excluded.chapterNumber
+        )`,
+      })
+      .prepare(),
   );
 };
 
@@ -300,23 +317,61 @@ export const clearUpdates = async (): Promise<void> => {
 // #endregion
 // #region Selectors
 
-export const getCustomPages = async (novelId: number) => {
-  return await dbManager
-    .selectDistinct({ page: chapterSchema.page })
-    .from(chapterSchema)
-    .where(eq(chapterSchema.novelId, novelId))
-    .orderBy(asc(castInt(chapterSchema.page)))
-    .all();
+export const getCustomPages = (novelId: number) => {
+  return dbManager.allSync(
+    dbManager
+      .selectDistinct({ page: chapterSchema.page })
+      .from(chapterSchema)
+      .where(eq(chapterSchema.novelId, novelId))
+      .orderBy(asc(castInt(chapterSchema.page))),
+  );
 };
 
 export const getNovelChapters = async (
   novelId: number,
+  sort?: ChapterOrderKey,
+  filter?: ChapterFilterKey[],
+  page?: string,
+  limit: number = 1000,
 ): Promise<ChapterInfo[]> =>
   dbManager
     .select()
     .from(chapterSchema)
-    .where(eq(chapterSchema.novelId, novelId));
+    .where(
+      and(
+        eq(chapterSchema.novelId, novelId),
+        !page ? sql.raw('true') : eq(chapterSchema.page, page),
+        chapterFilterToSQL(filter),
+      ),
+    )
+    .orderBy(chapterOrderToSQL(sort))
+    .limit(limit)
+    .all();
 
+export const getNovelChaptersSync = (
+  novelId: number,
+  sort?: ChapterOrderKey,
+  filter?: ChapterFilterKey[],
+  page?: string,
+  limit: number = 1000,
+): ChapterInfo[] =>
+  dbManager.allSync(
+    dbManager
+      .select()
+      .from(chapterSchema)
+      .where(
+        and(
+          eq(chapterSchema.novelId, novelId),
+          !page ? sql.raw('true') : eq(chapterSchema.page, page),
+          chapterFilterToSQL(filter),
+        ),
+      )
+      .orderBy(chapterOrderToSQL(sort))
+      .limit(limit), // Adding a limit to prevent potential performance issues with large datasets
+  );
+/**
+ * @deprecated, use getNovelChapters with whereConditions instead
+ */
 export const getUnreadNovelChapters = async (
   novelId: number,
 ): Promise<ChapterInfo[]> =>
@@ -326,7 +381,9 @@ export const getUnreadNovelChapters = async (
     .where(
       and(eq(chapterSchema.novelId, novelId), eq(chapterSchema.unread, true)),
     );
-
+/**
+ * @deprecated, use getNovelChapters with whereConditions instead
+ */
 export const getAllUndownloadedChapters = async (
   novelId: number,
 ): Promise<ChapterInfo[]> =>
@@ -339,7 +396,9 @@ export const getAllUndownloadedChapters = async (
         eq(chapterSchema.isDownloaded, false),
       ),
     );
-
+/**
+ * @deprecated, use getNovelChapters with whereConditions instead
+ */
 export const getAllUndownloadedAndUnreadChapters = async (
   novelId: number,
 ): Promise<ChapterInfo[]> =>
@@ -409,6 +468,28 @@ export const getChapterCount = async (
     ),
   );
 
+export const getChapterCountSync = (
+  novelId: number,
+  page: string = '1',
+  filter?: ChapterFilterKey[],
+): number => {
+  // Using count(*) as name because the current drizzle version generates wrong type
+  const result = dbManager.getSync(
+    dbManager
+      .select({ 'count(*)': count() })
+      .from(chapterSchema)
+      .where(
+        and(
+          eq(chapterSchema.novelId, novelId),
+          eq(chapterSchema.page, page),
+          chapterFilterToSQL(filter),
+        ),
+      ),
+  );
+
+  return result?.['count(*)'] ?? 0;
+};
+
 export const getPageChaptersBatched = async (
   novelId: number,
   sort?: ChapterOrderKey,
@@ -416,8 +497,8 @@ export const getPageChaptersBatched = async (
   page?: string,
   batch: number = 0,
 ) => {
-  const limit = 300;
-  const offset = 300 * batch;
+  const limit = 1000;
+  const offset = 1000 * batch;
   const query = dbManager
     .select()
     .from(chapterSchema)
@@ -459,20 +540,21 @@ export const getFirstUnreadChapter = (
   filter?: ChapterFilterKey[],
   page?: string,
 ) =>
-  dbManager
-    .select()
-    .from(chapterSchema)
-    .where(
-      and(
-        eq(chapterSchema.novelId, novelId),
-        eq(chapterSchema.page, page || '1'),
-        eq(chapterSchema.unread, true),
-        chapterFilterToSQL(filter),
-      ),
-    )
-    .orderBy(asc(chapterSchema.position))
-    .limit(1)
-    .get();
+  dbManager.getSync(
+    dbManager
+      .select()
+      .from(chapterSchema)
+      .where(
+        and(
+          eq(chapterSchema.novelId, novelId),
+          eq(chapterSchema.page, page || '1'),
+          eq(chapterSchema.unread, true),
+          chapterFilterToSQL(filter),
+        ),
+      )
+      .orderBy(asc(chapterSchema.position))
+      .limit(1),
+  );
 
 export const getNovelChaptersByName = async (
   novelId: number,

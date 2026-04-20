@@ -21,13 +21,11 @@ import {
  */
 export function clearAllTables(testDb: TestDb) {
   const { sqlite } = testDb;
-  sqlite.exec(`
-    DELETE FROM NovelCategory;
-    DELETE FROM Chapter;
-    DELETE FROM Novel;
-    DELETE FROM Repository;
-    DELETE FROM Category WHERE id > 2;
-  `);
+  sqlite.executeSync('DELETE FROM NovelCategory');
+  sqlite.executeSync('DELETE FROM Chapter');
+  sqlite.executeSync('DELETE FROM Novel');
+  sqlite.executeSync('DELETE FROM Repository');
+  sqlite.executeSync('DELETE FROM Category WHERE id > 2');
 }
 
 /**
@@ -60,7 +58,7 @@ export async function insertTestNovel(
     ...data,
   };
 
-  const result = drizzleDb
+  const result = await drizzleDb
     .insert(novelSchema)
     .values(novelData)
     .returning()
@@ -96,7 +94,7 @@ export async function insertTestChapter(
     novelId,
   };
 
-  const result = drizzleDb
+  const result = await drizzleDb
     .insert(chapterSchema)
     .values(chapterData)
     .returning()
@@ -118,7 +116,7 @@ export async function insertTestCategory(
     sort: data.sort ?? null,
   };
 
-  const result = drizzleDb
+  const result = await drizzleDb
     .insert(categorySchema)
     .values(categoryData)
     .returning()
@@ -139,7 +137,7 @@ export async function insertTestRepository(
     url: data.url ?? `https://test-repo-${Date.now()}.example.com`,
   };
 
-  const result = drizzleDb
+  const result = await drizzleDb
     .insert(repositorySchema)
     .values(repoData)
     .returning()
@@ -162,7 +160,7 @@ export async function insertTestNovelCategory(
     categoryId,
   };
 
-  const result = drizzleDb
+  const result = await drizzleDb
     .insert(novelCategorySchema)
     .values(data)
     .returning()

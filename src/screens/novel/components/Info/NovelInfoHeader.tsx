@@ -37,7 +37,6 @@ import {
   NovelMetaSkeleton,
   VerticalBarSkeleton,
 } from '@components/Skeleton/Skeleton';
-import { useNovelContext } from '@screens/novel/NovelContext';
 import Animated, {
   useAnimatedProps,
   useSharedValue,
@@ -50,10 +49,11 @@ import useLoadingColors from '@components/Skeleton/useLoadingColors';
 
 const AnimatedLinearGradient = Animated.createAnimatedComponent(LinearGradient);
 import { ChapterFilterKey } from '@database/constants';
+import { useNovelAction } from '@screens/novel/NovelContext';
 
 interface NovelInfoHeaderProps {
   chapters: ChapterInfo[];
-  deleteDownloadsSnackbar: UseBooleanReturnType;
+  deleteDownloadSnackbar?: UseBooleanReturnType;
   fetching: boolean;
   filter?: ChapterFilterKey[];
   firstUnreadChapter?: ChapterInfo;
@@ -234,7 +234,7 @@ const showNotAvailable = async () => {
 
 const NovelInfoHeader = ({
   chapters,
-  deleteDownloadsSnackbar,
+  deleteDownloadSnackbar,
   fetching,
   filter = [],
   firstUnreadChapter,
@@ -251,7 +251,7 @@ const NovelInfoHeader = ({
   trackerSheetRef,
 }: NovelInfoHeaderProps) => {
   const { hideBackdrop = false } = useAppSettings();
-  const { followNovel } = useNovelContext();
+  const followNovel = useNovelAction('followNovel');
 
   const pluginName = useMemo(
     () =>
@@ -261,7 +261,15 @@ const NovelInfoHeader = ({
     [novel.pluginId],
   );
 
-  const coverSource = useMemo(() => ({ uri: novel.cover }), [novel.cover]);
+  const coverSource = useMemo(
+    () => ({ uri: novel.cover ?? undefined }),
+    [novel.cover],
+  );
+
+  const novelStatus = useMemo(
+    () => (novel.id !== 'NO_ID' ? novel.status ?? undefined : undefined),
+    [novel.id, novel.status],
+  );
 
   const handleTitlePress = useCallback(
     () =>
@@ -282,16 +290,20 @@ const NovelInfoHeader = ({
       showNotAvailable();
       return;
     }
-    followNovel();
+    followNovel().catch(error =>
+      showToast('Failed updating: ' + (error as Error).message),
+    );
     if (novel.inLibrary && chapters.some(chapter => chapter.isDownloaded)) {
-      deleteDownloadsSnackbar.setTrue();
+      deleteDownloadSnackbar?.setTrue();
+    } else {
+      deleteDownloadSnackbar?.setFalse();
     }
   }, [
     isLoading,
     followNovel,
     novel.inLibrary,
     chapters,
-    deleteDownloadsSnackbar,
+    deleteDownloadSnackbar,
   ]);
 
   const handleTrackerSheet = useCallback(
@@ -363,16 +375,14 @@ const NovelInfoHeader = ({
                 ) : null}
                 <Row style={styles.infoRow}>
                   <MaterialCommunityIcons
-                    name={getStatusIcon(
-                      novel.id !== 'NO_ID' ? novel.status : undefined,
-                    )}
+                    name={getStatusIcon(novelStatus)}
                     size={14}
                     color={theme.onSurfaceVariant}
                     style={styles.marginRight}
                   />
                   <NovelInfo theme={theme}>
-                    {(novel.id !== 'NO_ID'
-                      ? translateNovelStatus(novel.status)
+                    {(novelStatus
+                      ? translateNovelStatus(novelStatus)
                       : getString('novelScreen.unknownStatus')) +
                       ' • ' +
                       pluginName}

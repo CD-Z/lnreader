@@ -4,13 +4,13 @@ import {
   insertTestNovel,
   insertTestChapter,
   insertTestNovelCategory,
+  insertTestCategory,
 } from './testData';
 import {
   getLibraryNovelsFromDb,
   getLibraryWithCategory,
 } from '../LibraryQueries';
 import { TestDb } from './testDb';
-import { categorySchema } from '@database/schema';
 import { setupTestDatabase, teardownTestDatabase } from './setup';
 
 describe('LibraryQueries', () => {
@@ -140,22 +140,65 @@ describe('LibraryQueries', () => {
 
     it('should combine all filters (sort, search, downloaded only, exclude local)', async () => {
       // Setup: Insert multiple novels with varying properties
-      const novel1Id = await insertTestNovel(testDb, {
+      const novelId1 = await insertTestNovel(testDb, {
         inLibrary: true,
         name: 'The Great Local Novel',
         author: 'Author One',
         isLocal: true,
       });
-      await insertTestChapter(testDb, novel1Id, { isDownloaded: true });
+      const novelId2 = await insertTestNovel(testDb, {
+        inLibrary: true,
+        name: 'Novel 2',
+        isLocal: false,
+      });
+      const categoryId1 = await insertTestCategory(testDb, {
+        name: 'Category A',
+      });
+      await insertTestNovelCategory(testDb, novelId1, categoryId1);
+      await insertTestNovelCategory(testDb, novelId2, categoryId1);
 
-      const novel2Id = await insertTestNovel(testDb, {
+      const novels = await getLibraryWithCategory(categoryId1, undefined, true);
+      expect(novels).toHaveLength(1);
+      expect(novels[0].name).toBe('Novel 2');
+    });
+
+    it('should not filter by excludeLocalNovels = false', async () => {
+      const novelId1 = await insertTestNovel(testDb, {
+        inLibrary: true,
+        name: 'Novel 1',
+        isLocal: true,
+      });
+      const novelId2 = await insertTestNovel(testDb, {
+        inLibrary: true,
+        name: 'Novel 2',
+        isLocal: false,
+      });
+      const categoryId1 = await insertTestCategory(testDb, {
+        name: 'Category A',
+      });
+      await insertTestNovelCategory(testDb, novelId1, categoryId1);
+      await insertTestNovelCategory(testDb, novelId2, categoryId1);
+
+      const novels = await getLibraryWithCategory(
+        categoryId1,
+        undefined,
+        false,
+      );
+      expect(novels).toHaveLength(2);
+      expect(novels.map(n => n.name).sort()).toEqual(['Novel 1', 'Novel 2']);
+    });
+
+    it('should handle novels belonging to multiple categories', async () => {
+      // Test Case 1: Filter by remote novels with downloaded chapters
+      const novel1Id = await insertTestNovel(testDb, {
         inLibrary: true,
         name: 'A Good Remote Story',
         author: 'Author Two',
         isLocal: false,
       });
-      await insertTestChapter(testDb, novel2Id, { isDownloaded: true });
+      await insertTestChapter(testDb, novel1Id, { isDownloaded: true });
 
+      // Novel 2: Remote but not downloaded
       await insertTestNovel(testDb, {
         inLibrary: true,
         name: 'Another Remote Novel',
@@ -163,14 +206,14 @@ describe('LibraryQueries', () => {
         isLocal: false,
       });
 
+      // Novel 3: Downloaded but not matching author filter
       await insertTestNovel(testDb, {
         inLibrary: true,
-        name: 'Downloaded Local Book',
+        name: 'Downloaded Book',
         author: 'Author One',
         isLocal: false,
       }); // No chapters, so chaptersDownloaded is 0
 
-      // Test Case 1: All filters combined, expecting specific result
       const novels1 = await getLibraryNovelsFromDb(
         'name ASC', // sortOrder
         "author = 'Author Two'", // filter
@@ -181,11 +224,18 @@ describe('LibraryQueries', () => {
       expect(novels1).toHaveLength(1);
       expect(novels1[0].name).toBe('A Good Remote Story');
 
-      // Test Case 2: Different combination, expecting a different result
-      // Looking for local, downloaded novels by Author One, sorted by name DESC
-      const novel3Id = await insertTestNovel(testDb, {
+      // Test Case 2: Filter by local novels with downloaded chapters by Author One
+      const novel2Id = await insertTestNovel(testDb, {
         inLibrary: true,
         name: 'An Old Local Story',
+        author: 'Author One',
+        isLocal: true,
+      });
+      await insertTestChapter(testDb, novel2Id, { isDownloaded: true });
+
+      const novel3Id = await insertTestNovel(testDb, {
+        inLibrary: true,
+        name: 'The Great Local Novel',
         author: 'Author One',
         isLocal: true,
       });
@@ -199,16 +249,8 @@ describe('LibraryQueries', () => {
         false, // Include local novels
       );
 
-      // We expect 'The Great Local Novel' and 'An Old Local Story'
       // Both are local, by Author One, and have downloaded chapters.
       // Sorted DESC, so 'The Great Local Novel' comes first.
-      expect(
-        novels2.map(n => ({
-          name: n.name,
-          isLocal: n.isLocal,
-          chaptersDownloaded: n.chaptersDownloaded,
-        })),
-      ).toHaveLength(2);
       expect(novels2.map(n => n.name)).toEqual([
         'The Great Local Novel',
         'An Old Local Story',
@@ -258,16 +300,12 @@ describe('LibraryQueries', () => {
         name: 'Novel 3',
       });
 
-      const categoryId1 = await testDb.drizzleDb
-        .insert(categorySchema)
-        .values({ name: 'Category A' })
-        .returning()
-        .get().id;
-      const categoryId2 = await testDb.drizzleDb
-        .insert(categorySchema)
-        .values({ name: 'Category B' })
-        .returning()
-        .get().id;
+      const categoryId1 = await insertTestCategory(testDb, {
+        name: 'Category A',
+      });
+      const categoryId2 = await insertTestCategory(testDb, {
+        name: 'Category B',
+      });
 
       await insertTestNovelCategory(testDb, novelId1, categoryId1);
       await insertTestNovelCategory(testDb, novelId2, categoryId1);
@@ -288,11 +326,9 @@ describe('LibraryQueries', () => {
         name: 'Novel 2',
       });
 
-      const categoryId1 = await testDb.drizzleDb
-        .insert(categorySchema)
-        .values({ name: 'Category A' })
-        .returning()
-        .get().id;
+      const categoryId1 = await insertTestCategory(testDb, {
+        name: 'Category A',
+      });
 
       await insertTestNovelCategory(testDb, novelId1, categoryId1);
       await insertTestNovelCategory(testDb, novelId2, categoryId1);
@@ -307,16 +343,12 @@ describe('LibraryQueries', () => {
         inLibrary: true,
         name: 'Novel 1',
       });
-      const categoryId1 = await testDb.drizzleDb
-        .insert(categorySchema)
-        .values({ name: 'Category A' })
-        .returning()
-        .get().id;
-      const categoryId2 = await testDb.drizzleDb
-        .insert(categorySchema)
-        .values({ name: 'Category B' })
-        .returning()
-        .get().id;
+      const categoryId1 = await insertTestCategory(testDb, {
+        name: 'Category A',
+      });
+      const categoryId2 = await insertTestCategory(testDb, {
+        name: 'Category B',
+      });
 
       await insertTestNovelCategory(testDb, novelId1, categoryId1);
 
@@ -329,11 +361,9 @@ describe('LibraryQueries', () => {
       await insertTestNovel(testDb, { inLibrary: true, name: 'Novel 1' });
       await insertTestNovel(testDb, { inLibrary: true, name: 'Novel 2' });
 
-      const categoryId1 = await testDb.drizzleDb
-        .insert(categorySchema)
-        .values({ name: 'Category A' })
-        .returning()
-        .get().id;
+      const categoryId1 = await insertTestCategory(testDb, {
+        name: 'Category A',
+      });
 
       // No novel-category associations made for categoryId1
 
@@ -358,11 +388,9 @@ describe('LibraryQueries', () => {
         name: 'Novel 2',
         status: 'Completed',
       });
-      const categoryId1 = await testDb.drizzleDb
-        .insert(categorySchema)
-        .values({ name: 'Category A' })
-        .returning()
-        .get().id;
+      const categoryId1 = await insertTestCategory(testDb, {
+        name: 'Category A',
+      });
       await insertTestNovelCategory(testDb, novelId1, categoryId1);
       await insertTestNovelCategory(testDb, novelId2, categoryId1);
 
@@ -382,11 +410,9 @@ describe('LibraryQueries', () => {
         name: 'Novel 2',
         status: 'Completed',
       });
-      const categoryId1 = await testDb.drizzleDb
-        .insert(categorySchema)
-        .values({ name: 'Category A' })
-        .returning()
-        .get().id;
+      const categoryId1 = await insertTestCategory(testDb, {
+        name: 'Category A',
+      });
       await insertTestNovelCategory(testDb, novelId1, categoryId1);
       await insertTestNovelCategory(testDb, novelId2, categoryId1);
 
@@ -406,11 +432,9 @@ describe('LibraryQueries', () => {
         name: 'Novel 2',
         isLocal: false,
       });
-      const categoryId1 = await testDb.drizzleDb
-        .insert(categorySchema)
-        .values({ name: 'Category A' })
-        .returning()
-        .get().id;
+      const categoryId1 = await insertTestCategory(testDb, {
+        name: 'Category A',
+      });
       await insertTestNovelCategory(testDb, novelId1, categoryId1);
       await insertTestNovelCategory(testDb, novelId2, categoryId1);
 
@@ -430,11 +454,9 @@ describe('LibraryQueries', () => {
         name: 'Novel 2',
         isLocal: false,
       });
-      const categoryId1 = await testDb.drizzleDb
-        .insert(categorySchema)
-        .values({ name: 'Category A' })
-        .returning()
-        .get().id;
+      const categoryId1 = await insertTestCategory(testDb, {
+        name: 'Category A',
+      });
       await insertTestNovelCategory(testDb, novelId1, categoryId1);
       await insertTestNovelCategory(testDb, novelId2, categoryId1);
 
@@ -457,16 +479,12 @@ describe('LibraryQueries', () => {
         name: 'Novel 2',
       });
 
-      const categoryId1 = await testDb.drizzleDb
-        .insert(categorySchema)
-        .values({ name: 'Category A' })
-        .returning()
-        .get().id;
-      const categoryId2 = await testDb.drizzleDb
-        .insert(categorySchema)
-        .values({ name: 'Category B' })
-        .returning()
-        .get().id;
+      const categoryId1 = await insertTestCategory(testDb, {
+        name: 'Category A',
+      });
+      const categoryId2 = await insertTestCategory(testDb, {
+        name: 'Category B',
+      });
 
       await insertTestNovelCategory(testDb, novelId1, categoryId1);
       await insertTestNovelCategory(testDb, novelId1, categoryId2); // Novel 1 in two categories
@@ -495,11 +513,9 @@ describe('LibraryQueries', () => {
       });
       await insertTestNovel(testDb, { inLibrary: false, name: 'Novel 3' });
 
-      const categoryId1 = await testDb.drizzleDb
-        .insert(categorySchema)
-        .values({ name: 'Category A' })
-        .returning()
-        .get().id;
+      const categoryId1 = await insertTestCategory(testDb, {
+        name: 'Category A',
+      });
 
       await insertTestNovelCategory(testDb, novelId1, categoryId1);
       await insertTestNovelCategory(testDb, novelId2, categoryId1);
@@ -520,11 +536,9 @@ describe('LibraryQueries', () => {
       });
       await insertTestNovel(testDb, { inLibrary: false, name: 'Novel 3' });
 
-      const categoryId1 = await testDb.drizzleDb
-        .insert(categorySchema)
-        .values({ name: 'Category A' })
-        .returning()
-        .get().id;
+      const categoryId1 = await insertTestCategory(testDb, {
+        name: 'Category A',
+      });
 
       await insertTestNovelCategory(testDb, novelId1, categoryId1);
       await insertTestNovelCategory(testDb, novelId2, categoryId1);

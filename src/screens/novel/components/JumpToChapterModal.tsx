@@ -21,30 +21,30 @@ import {
   LegendListRef,
   LegendListRenderItemProps,
 } from '@legendapp/list';
+import { useNovelAction, useNovelValue } from '../NovelContext';
 
 interface JumpToChapterModalProps {
   hideModal: () => void;
   modalVisible: boolean;
   navigation: NovelScreenProps['navigation'];
   novel: NovelInfo;
-  chapters: ChapterInfo[];
   chapterListRef: React.RefObject<LegendListRef | null>;
-  loadUpToBatch: (batch: number) => Promise<void>;
-  totalChapters?: number;
 }
 
 const JumpToChapterModal = ({
   hideModal,
   modalVisible,
-  chapters: loadedChapters,
   navigation,
   novel,
   chapterListRef,
-  loadUpToBatch,
-  totalChapters,
 }: JumpToChapterModalProps) => {
   const minNumber = 1;
-  const maxNumber = totalChapters ?? -1;
+
+  const loadedChapters = useNovelValue('chapters');
+  const batchInformation = useNovelValue('batchInformation');
+  const loadUpToBatch = useNovelAction('loadUpToBatch');
+
+  const maxNumber = batchInformation.totalChapters ?? -1;
   const theme = useTheme();
   const [mode, setMode] = useState(false);
   const [openChapter, setOpenChapter] = useState(false);

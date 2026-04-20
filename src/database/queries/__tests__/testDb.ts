@@ -1,13 +1,16 @@
 /* eslint-disable no-console */
 /**
  * Test database factory for creating in-memory SQLite databases
- * Uses better-sqlite3 for Node.js testing environment
+ * Uses op-sqlite Node runtime for Jest testing environment
  */
 
-import Database from 'better-sqlite3';
-import { drizzle } from 'drizzle-orm/better-sqlite3';
+import { open } from '@op-engineering/op-sqlite';
+import { drizzle } from 'drizzle-orm/op-sqlite';
 import { schema } from '@database/schema';
-import { createTestDbManager } from './testDbManager';
+import {
+  __resetDbManagerForTests,
+  createDbManager,
+} from '@database/manager/manager';
 import {
   createCategoryTriggerQuery,
   createNovelTriggerQueryDelete,
@@ -84,20 +87,23 @@ const MIGRATION_STATEMENTS = [
  */
 export function createTestDb() {
   // Create in-memory database
-  const sqlite = new Database(':memory:');
+  const sqlite = open({ name: ':memory:' });
+  // drizzle-orm/op-sqlite expects executeAsync on the client
+  (sqlite as any).executeAsync ??= sqlite.execute;
+  (sqlite as any).executeRawAsync ??= sqlite.executeRaw;
 
   // Set pragmas for better performance and behavior
-  sqlite.pragma('journal_mode = WAL');
-  sqlite.pragma('synchronous = NORMAL');
-  sqlite.pragma('temp_store = MEMORY');
-  sqlite.pragma('busy_timeout = 5000');
-  sqlite.pragma('foreign_keys = ON');
+  sqlite.executeSync('PRAGMA journal_mode = WAL');
+  sqlite.executeSync('PRAGMA synchronous = NORMAL');
+  sqlite.executeSync('PRAGMA temp_store = MEMORY');
+  sqlite.executeSync('PRAGMA busy_timeout = 5000');
+  sqlite.executeSync('PRAGMA foreign_keys = ON');
 
   // Run migration SQL to create tables
   // Execute each statement separately
   for (const statement of MIGRATION_STATEMENTS) {
     try {
-      sqlite.exec(statement.trim());
+      sqlite.executeSync(statement.trim());
     } catch (error) {
       console.error('Migration error:', error);
       console.error('Failed statement:', statement);
@@ -106,9 +112,9 @@ export function createTestDb() {
   }
 
   // Verify tables were created (for debugging)
-  const tables = sqlite
-    .prepare("SELECT name FROM sqlite_master WHERE type='table'")
-    .all();
+  const tables = sqlite.executeSync(
+    "SELECT name FROM sqlite_master WHERE type='table'",
+  ).rows;
   const tableNames = tables
     .map((t: any) => t.name)
     .filter((n: string) => n !== 'sqlite_sequence');
@@ -123,23 +129,26 @@ export function createTestDb() {
   }
 
   // Create Drizzle instance
-  const drizzleDb = drizzle({ client: sqlite, schema });
+  const drizzleDb = drizzle(sqlite, { schema });
+
+  // Ensure singleton manager is bound to this test DB instance
+  __resetDbManagerForTests();
 
   // Create triggers (same as production)
-  sqlite.exec(createNovelTriggerQueryInsert);
-  sqlite.exec(createNovelTriggerQueryUpdate);
-  sqlite.exec(createNovelTriggerQueryDelete);
-  sqlite.exec(createCategoryTriggerQuery);
+  sqlite.executeSync(createNovelTriggerQueryInsert);
+  sqlite.executeSync(createNovelTriggerQueryUpdate);
+  sqlite.executeSync(createNovelTriggerQueryDelete);
+  sqlite.executeSync(createCategoryTriggerQuery);
 
   // Populate default categories
-  sqlite.exec(`
+  sqlite.executeSync(`
     INSERT OR IGNORE INTO Category (id, name, sort) VALUES
       (1, 'Default', 1),
       (2, 'Local', 2)
   `);
 
   // Create test-compatible dbManager
-  const dbManager = createTestDbManager(drizzleDb, sqlite);
+  const dbManager = createDbManager(drizzleDb);
 
   return {
     sqlite,
@@ -153,6 +162,7 @@ export function createTestDb() {
  */
 export function cleanupTestDb(testDb: ReturnType<typeof createTestDb>) {
   testDb.sqlite.close();
+  __resetDbManagerForTests();
 }
 
 /**

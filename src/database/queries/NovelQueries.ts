@@ -6,7 +6,7 @@ import { insertChapters } from './ChapterQueries';
 
 import { showToast } from '@utils/showToast';
 import { getString } from '@strings/translations';
-import { BackupNovel, NovelInfo } from '../types';
+import { BackupNovel, DBNovelInfo, NovelInfo } from '../types';
 import { SourceNovel } from '@plugins/types';
 import { NOVEL_STORAGE } from '@utils/Storages';
 import { downloadFile } from '@plugins/helpers/fetch';
@@ -82,21 +82,16 @@ export const getAllNovels = async (): Promise<NovelInfo[]> => {
   return dbManager.select().from(novelSchema).all();
 };
 
-export const getNovelById = async (
-  novelId: number,
-): Promise<NovelInfo | undefined> => {
-  const res = dbManager
-    .select()
-    .from(novelSchema)
-    .where(eq(novelSchema.id, novelId))
-    .get();
-  return res;
+export const getNovelById = (novelId: number): DBNovelInfo | undefined => {
+  return dbManager.getSync(
+    dbManager.select().from(novelSchema).where(eq(novelSchema.id, novelId)),
+  );
 };
 
 export const getNovelByPath = (
   novelPath: string,
   pluginId: string,
-): NovelInfo | undefined => {
+): DBNovelInfo | undefined => {
   const res = dbManager.getSync(
     dbManager
       .select()
