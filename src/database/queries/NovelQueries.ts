@@ -425,7 +425,15 @@ export const _restoreNovelAndChapters = async (backupNovel: BackupNovel) => {
     tx.delete(chapterSchema).where(eq(chapterSchema.novelId, novel.id)).run();
 
     // Restore novel
-    tx.insert(novelSchema).values(novel).run();
+    tx
+      .insert(novelSchema)
+      .values({
+        ...novel,
+        totalChapters: 0,
+        chaptersDownloaded: 0,
+        chaptersUnread: 0,
+      })
+      .run();
 
     // Restore chapters in batches
     if (chapters.length > 0) {
