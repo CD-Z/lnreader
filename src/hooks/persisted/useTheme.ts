@@ -1,4 +1,12 @@
-import { useEffect, useMemo, useState } from 'react';
+import {
+  createElement,
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  PropsWithChildren,
+} from 'react';
 import { Appearance, ColorSchemeName } from 'react-native';
 import {
   useMMKVBoolean,
@@ -116,7 +124,9 @@ const getBaseTheme = (
   return findThemeById(themeId, isDark);
 };
 
-export const useTheme = (): ThemeColors => {
+const ThemeContext = createContext<ThemeColors | null>(null);
+
+export const ThemeProvider = ({ children }: PropsWithChildren) => {
   const [themeId] = useMMKVNumber('APP_THEME_ID');
   const [themeMode = 'system'] = useMMKVString('THEME_MODE');
   const [isAmoledBlack = false] = useMMKVBoolean('AMOLED_BLACK');
@@ -134,7 +144,7 @@ export const useTheme = (): ThemeColors => {
     return () => subscription.remove();
   }, []);
 
-  const theme = useMemo(() => {
+  const theme = useMemo<ThemeColors>(() => {
     const baseTheme = getBaseTheme(themeMode, themeId, systemColorScheme);
     const withAmoled = applyAmoledBlack(baseTheme, isAmoledBlack);
     const withAccent = applyCustomAccent(withAmoled, customAccent);
@@ -142,6 +152,15 @@ export const useTheme = (): ThemeColors => {
 
     return finalTheme;
   }, [themeId, themeMode, systemColorScheme, isAmoledBlack, customAccent]);
+
+  return createElement(ThemeContext.Provider, { value: theme }, children);
+};
+
+export const useTheme = (): ThemeColors => {
+  const theme = useContext(ThemeContext);
+  if (!theme) {
+    throw new Error('useTheme must be used within a <ThemeProvider />');
+  }
 
   return theme;
 };

@@ -18,6 +18,7 @@ import AppErrorBoundary, {
 import Main from './src/navigators/Main';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { useInitDatabase } from '@database/db';
+import { ThemeProvider } from '@hooks/persisted/useTheme';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => {
@@ -49,12 +50,14 @@ const App = () => {
       <GestureHandlerRootView style={styles.flex}>
         <AppErrorBoundary>
           <SafeAreaProvider>
-            <PaperProvider>
-              <BottomSheetModalProvider>
-                <StatusBar translucent={true} backgroundColor="transparent" />
-                <Main />
-              </BottomSheetModalProvider>
-            </PaperProvider>
+            <ThemeProvider>
+              <PaperProvider>
+                <BottomSheetModalProvider>
+                  <StatusBar translucent={true} backgroundColor="transparent" />
+                  <Main />
+                </BottomSheetModalProvider>
+              </PaperProvider>
+            </ThemeProvider>
           </SafeAreaProvider>
         </AppErrorBoundary>
       </GestureHandlerRootView>

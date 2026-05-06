@@ -4,6 +4,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Provider as PaperProvider } from 'react-native-paper';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
+import { ThemeProvider } from '@hooks/persisted/useTheme';
 
 import AppErrorBoundary from '@components/AppErrorBoundary/AppErrorBoundary';
 import { NovelContextProvider } from '@screens/novel/NovelContext';
@@ -13,11 +14,13 @@ const AllTheProviders = ({ children }: { children: React.ReactElement }) => {
   return (
     <GestureHandlerRootView>
       <SafeAreaProvider>
-        <PaperProvider>
-          <BottomSheetModalProvider>
-            <AppErrorBoundary>{children}</AppErrorBoundary>
-          </BottomSheetModalProvider>
-        </PaperProvider>
+        <ThemeProvider>
+          <PaperProvider>
+            <BottomSheetModalProvider>
+              <AppErrorBoundary>{children}</AppErrorBoundary>
+            </BottomSheetModalProvider>
+          </PaperProvider>
+        </ThemeProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
