@@ -88,7 +88,7 @@ export default function ThemeSelectionStep() {
         switchThemeFunction: () => {},
         animationConfig: {
           type: 'circular',
-          duration: 900,
+          duration: 400,
           startingPoint: {
             cy: py + height / 2,
             cx: px + width / 2,
@@ -108,7 +108,7 @@ export default function ThemeSelectionStep() {
         switchThemeFunction: () => {},
         animationConfig: {
           type: 'circular',
-          duration: 900,
+          duration: 400,
           startingPoint: {
             cy: py + height / 2,
             cx: px + width / 2,

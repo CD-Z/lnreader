@@ -162,7 +162,7 @@ const AppearanceSettings = ({ navigation }: AppearanceSettingsScreenProps) => {
         switchThemeFunction: () => {},
         animationConfig: {
           type: 'circular',
-          duration: 900,
+          duration: 400,
           startingPoint: {
             cy: py + height / 2,
             cx: px + width / 2,
@@ -182,7 +182,7 @@ const AppearanceSettings = ({ navigation }: AppearanceSettingsScreenProps) => {
         switchThemeFunction: () => {},
         animationConfig: {
           type: 'circular',
-          duration: 900,
+          duration: 400,
           startingPoint: {
             cy: py + height / 2,
             cx: px + width / 2,
