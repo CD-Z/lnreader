@@ -2,7 +2,6 @@ import { getString } from '@strings/translations';
 
 export const catppuccinTheme = {
   light: {
-    id: 20,
     name: getString('appearanceScreen.theme.catppuccin'),
     isDark: false,
     primary: 'rgb(136, 57, 239)',
@@ -39,7 +38,6 @@ export const catppuccinTheme = {
     backdrop: 'rgba(196, 200, 208, 0.4)',
   },
   dark: {
-    id: 21,
     name: getString('appearanceScreen.theme.catppuccin'),
     isDark: true,
     primary: 'rgb(203, 166, 247)',

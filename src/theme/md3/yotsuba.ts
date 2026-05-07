@@ -2,7 +2,6 @@ import { getString } from '@strings/translations';
 
 export const yotsubaTheme = {
   light: {
-    id: 12,
     name: getString('appearanceScreen.theme.yotsuba'),
     isDark: false,
     primary: 'rgb(174, 50, 0)',
@@ -39,7 +38,6 @@ export const yotsubaTheme = {
     backdrop: 'rgba(59, 45, 41, 0.4)',
   },
   dark: {
-    id: 13,
     name: getString('appearanceScreen.theme.yotsuba'),
     isDark: true,
     primary: 'rgb(255, 181, 158)',
