@@ -119,7 +119,21 @@ export interface ChapterReaderSettings {
   epubUseAppTheme: boolean;
   epubUseCustomCSS: boolean;
   epubUseCustomJS: boolean;
+  /**
+   * Custom code
+   */
+  replaceText: Record<string, string>;
+  removeText: string[];
+  codeSnippetsCSS: CodeSnippet[];
+  codeSnippetsJS: CodeSnippet[];
 }
+
+type CodeSnippet = {
+  name: string;
+  code: string;
+  lang: 'js' | 'css';
+  active: boolean;
+};
 
 const initialAppSettings: AppSettings = {
   /**
@@ -209,6 +223,13 @@ export const initialChapterReaderSettings: ChapterReaderSettings = {
   epubUseAppTheme: false,
   epubUseCustomCSS: false,
   epubUseCustomJS: false,
+  /**
+   * Custom code
+   */
+  replaceText: {},
+  removeText: [],
+  codeSnippetsCSS: [],
+  codeSnippetsJS: [],
 };
 
 export const useAppSettings = () => {
@@ -280,6 +301,7 @@ export const useChapterReaderSettings = () => {
 
   // Ensure TTS settings have proper defaults (migration for existing users)
   const chapterReaderSettings = {
+    ...initialChapterReaderSettings,
     ...storedSettings,
     tts: {
       ...initialChapterReaderSettings.tts,

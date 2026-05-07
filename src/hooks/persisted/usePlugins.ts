@@ -8,6 +8,8 @@ import {
   installPlugin as _install,
   uninstallPlugin as _uninstall,
   updatePlugin as _update,
+  devNovelPlugin,
+  devPagedNovelPlugin,
 } from '@plugins/pluginManager';
 import { newer } from '@utils/compareVersion';
 import { MMKVStorage, getMMKVObject, setMMKVObject } from '@utils/mmkv/mmkv';
@@ -47,15 +49,43 @@ export default function usePlugins() {
         getMMKVObject<PluginItem[]>(INSTALLED_PLUGINS) || [];
       const availablePlugins =
         getMMKVObject<PluginItem[]>(AVAILABLE_PLUGINS) || [];
+
+      const devPlugins: PluginItem[] = __DEV__
+        ? [
+            {
+              id: devNovelPlugin.id,
+              name: devNovelPlugin.name,
+              site: devNovelPlugin.site,
+              lang: devNovelPlugin.lang,
+              version: devNovelPlugin.version,
+              url: devNovelPlugin.url,
+              iconUrl: devNovelPlugin.iconUrl,
+              hasSettings: !!devNovelPlugin.pluginSettings,
+            },
+            {
+              id: devPagedNovelPlugin.id,
+              name: devPagedNovelPlugin.name,
+              site: devPagedNovelPlugin.site,
+              lang: devPagedNovelPlugin.lang,
+              version: devPagedNovelPlugin.version,
+              url: devPagedNovelPlugin.url,
+              iconUrl: devPagedNovelPlugin.iconUrl,
+              hasSettings: !!devPagedNovelPlugin.pluginSettings,
+            },
+          ]
+        : [];
+
+      const allInstalledPlugins = [...devPlugins, ...installedPlugins];
+
       setFilteredInstalledPlugins(
-        installedPlugins.filter(plg => filter.includes(plg.lang)),
+        allInstalledPlugins.filter(plg => filter.includes(plg.lang)),
       );
       setFilteredAvailablePlugins(
         orderBy(
           availablePlugins
             .filter(
               avalilablePlugin =>
-                !installedPlugins.some(
+                !allInstalledPlugins.some(
                   installedPlugin => installedPlugin.id === avalilablePlugin.id,
                 ),
             )
@@ -136,6 +166,10 @@ export default function usePlugins() {
     }
     if (pinnedPlugins.includes(plugin.id)) {
       setPinnedPlugins(pinnedPlugins.filter(id => id !== plugin.id));
+    }
+    if (plugin.id === 'dev-novel' || plugin.id === 'dev-paged-novel') {
+      filterPlugins(languagesFilter);
+      return Promise.resolve();
     }
     const installedPlugins =
       getMMKVObject<PluginItem[]>(INSTALLED_PLUGINS) || [];

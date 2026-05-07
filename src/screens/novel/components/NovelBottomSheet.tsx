@@ -91,8 +91,8 @@ const ChaptersSettingsSheet = ({
     ],
   );
 
-  const SecondRoute = useCallback(
-    () => (
+  const SecondRoute = useCallback(() => {
+    return (
       <View style={styles.flex}>
         <SortItem
           label={getString('novelScreen.bottomSheet.order.bySource')}
@@ -127,9 +127,8 @@ const ChaptersSettingsSheet = ({
           theme={theme}
         />
       </View>
-    ),
-    [sort, setChapterSort, theme],
-  );
+    );
+  }, [sort, setChapterSort, theme]);
 
   const ThirdRoute = useCallback(
     () => (
