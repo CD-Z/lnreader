@@ -1,9 +1,9 @@
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
-import { MYANIMELIST_CLIENT_ID } from '@env';
+import Config from '@env';
 import { Tracker, UserListStatus } from './index';
 
-const clientId = MYANIMELIST_CLIENT_ID;
+const clientId = Config.MYANIMELIST_CLIENT_ID;
 const baseOAuthUrl = 'https://myanimelist.net/v1/oauth2/authorize';
 const tokenUrl = 'https://myanimelist.net/v1/oauth2/token';
 const baseApiUrl = 'https://api.myanimelist.net/v2';
@@ -49,11 +49,11 @@ export const myAnimeListTracker: Tracker = {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
-      },
+      }, // @ts-expect-error - If no clientId is set, which will only be set in production builds, this will error out.
       body: new URLSearchParams({
         client_id: clientId,
         grant_type: 'authorization_code',
-        code,
+        code: code,
         code_verifier: challenge,
       }).toString(),
     });

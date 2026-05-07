@@ -3,16 +3,21 @@ AFTER INSERT ON Chapter
 BEGIN
     UPDATE Novel
     SET 
-        totalChapters = (SELECT COUNT(*) FROM Chapter WHERE Chapter.novelId = Novel.id),
-        chaptersDownloaded = (SELECT COUNT(*) FROM Chapter WHERE Chapter.novelId = Novel.id AND Chapter.isDownloaded = 1),
-        chaptersUnread = (SELECT COUNT(*) FROM Chapter WHERE Chapter.novelId = Novel.id AND Chapter.unread = 1),
-        lastUpdatedAt = (SELECT MAX(updatedTime) FROM Chapter WHERE Chapter.novelId = Novel.id)
+        totalChapters = totalChapters + 1,
+        chaptersDownloaded = chaptersDownloaded + CASE WHEN NEW.isDownloaded = 1 THEN 1 ELSE 0 END,
+        chaptersUnread = chaptersUnread + CASE WHEN NEW.unread = 1 THEN 1 ELSE 0 END,
+        lastUpdatedAt = CASE 
+            WHEN NEW.updatedTime IS NOT NULL 
+                 AND (lastUpdatedAt IS NULL OR NEW.updatedTime > lastUpdatedAt)
+            THEN NEW.updatedTime
+            ELSE lastUpdatedAt
+        END
     WHERE id = NEW.novelId;
 END;
 
 `;
 export const createNovelTriggerQueryUpdate = `CREATE TRIGGER IF NOT EXISTS update_novel_stats_on_update 
-AFTER UPDATE ON Chapter
+AFTER UPDATE OF isDownloaded, unread, readTime, updatedTime ON Chapter
 BEGIN
     UPDATE Novel
     SET 

@@ -5,6 +5,7 @@ import { Pressable, View, StyleSheet } from 'react-native';
 import { Text } from 'react-native-paper';
 import { ThemeColors } from '@theme/types';
 import Animated from 'react-native-reanimated';
+import Color from 'color';
 
 interface CustomBottomTabBarProps extends BottomTabBarProps {
   theme: ThemeColors;
@@ -27,6 +28,7 @@ function CustomBottomTabBar({
   showLabelsInNav,
   renderIcon,
 }: CustomBottomTabBarProps) {
+  const transparentBg = Color(theme.primaryContainer).fade(1).rgb().toString();
   const getLabelText = useCallback(
     (route: any) => {
       if (!showLabelsInNav && route.name !== state.routeNames[state.index]) {
@@ -103,7 +105,7 @@ function CustomBottomTabBar({
                   width: isFocused ? 64 : 32,
                   backgroundColor: isFocused
                     ? theme.primaryContainer
-                    : 'transparent',
+                    : transparentBg,
                 },
               ]}
             >

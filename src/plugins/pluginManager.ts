@@ -132,7 +132,7 @@ const uninstallPlugin = async (_plugin: PluginItem) => {
   plugins[_plugin.id] = undefined;
   store.getAllKeys().forEach(key => {
     if (key.startsWith(_plugin.id)) {
-      store.delete(key);
+      store.remove(key);
     }
   });
   const pluginFilePath = `${PLUGIN_STORAGE}/${_plugin.id}/index.js`;

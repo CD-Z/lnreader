@@ -18,7 +18,7 @@ import NovelScreenLoading from './components/LoadingAnimation/NovelScreenLoading
 import { NovelScreenProps } from '@navigators/types';
 import { ChapterInfo } from '@database/types';
 import { getString } from '@strings/translations';
-import { isNumber, noop } from 'lodash-es';
+import { isNumber } from 'lodash-es';
 import NovelAppbar from './components/NovelAppbar';
 import { resolveUrl } from '@services/plugin/fetch';
 import {
@@ -30,17 +30,13 @@ import { MaterialDesignIconName } from '@type/icon';
 import NovelScreenList from './components/NovelScreenList';
 import { ThemeColors } from '@theme/types';
 import { SafeAreaView } from '@components';
-import { useNovelContext } from './NovelContext';
+import { useNovelActions, useNovelValue } from './NovelContext';
 import { LegendListRef } from '@legendapp/list';
 
 const Novel = ({ route, navigation }: NovelScreenProps) => {
+  const novel = useNovelValue('novel');
+  const chapters = useNovelValue('chapters');
   const {
-    novel,
-    chapters,
-    fetching,
-    batchInformation,
-    getNextChapterBatch,
-    loadUpToBatch,
     setNovel,
     bookmarkChapters,
     markChaptersRead,
@@ -49,7 +45,7 @@ const Novel = ({ route, navigation }: NovelScreenProps) => {
     markPreviousChaptersUnread,
     refreshChapters,
     deleteChapters,
-  } = useNovelContext();
+  } = useNovelActions();
 
   const theme = useTheme();
   const { downloadChapters } = useDownload();
@@ -224,29 +220,15 @@ const Novel = ({ route, navigation }: NovelScreenProps) => {
     }
   }, [novel, setNovel]);
 
-  const stableGetNextBatch = useMemo(
-    () =>
-      batchInformation.batch < batchInformation.total && !fetching
-        ? getNextChapterBatch
-        : noop,
-    [batchInformation.batch, batchInformation.total, fetching, getNextChapterBatch],
-  );
-
   const hideJumpToChapterModal = useCallback(
     () => showJumpToChapterModal(false),
     [],
   );
-  const hideEditInfoModal = useCallback(
-    () => showEditInfoModal(false),
-    [],
-  );
+  const hideEditInfoModal = useCallback(() => showEditInfoModal(false), []);
   const clearSelection = useCallback(() => setSelected([]), []);
   const selectAll = useCallback(() => setSelected(chapters), [chapters]);
 
-  const snackbarTheme = useMemo(
-    () => ({ colors: { primary: theme.primary } }),
-    [theme.primary],
-  );
+  const snackbarTheme = useMemo(() => ({ colors: theme }), [theme]);
   const snackbarTextStyle = useMemo(
     () => ({ color: theme.onSurface }),
     [theme.onSurface],
@@ -322,7 +304,7 @@ const Novel = ({ route, navigation }: NovelScreenProps) => {
               routeBaseNovel={route.params}
               selected={selected}
               setSelected={setSelected}
-              getNextChapterBatch={stableGetNextBatch}
+              deleteDownloadSnackbar={deleteDownloadsSnackbar}
             />
           </Suspense>
         </SafeAreaView>
@@ -350,9 +332,6 @@ const Novel = ({ route, navigation }: NovelScreenProps) => {
                 novel={novel}
                 chapterListRef={chapterListRef}
                 navigation={navigation}
-                loadUpToBatch={loadUpToBatch}
-                totalChapters={batchInformation.totalChapters}
-                chapters={chapters}
               />
               <EditInfoModal
                 modalVisible={editInfoModal}

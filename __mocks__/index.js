@@ -1,4 +1,4 @@
 require('./nativeModules');
-require('./react-native-mmkv');
+require('./react-native-nitro-modules');
 require('./database');
 require('./react-navigation');

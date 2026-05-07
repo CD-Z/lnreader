@@ -12,7 +12,7 @@ import Animated, {
 import { ThemeColors } from '@theme/types';
 import { bookmarkChapter } from '@database/queries/ChapterQueries';
 import { useChapterContext } from '../ChapterContext';
-import { useNovelContext } from '@screens/novel/NovelContext';
+import { useNovelLayout } from '@screens/novel/NovelContext';
 
 interface ReaderAppbarProps {
   theme: ThemeColors;
@@ -30,7 +30,7 @@ const ReaderAppbar = ({
   setBookmarked,
 }: ReaderAppbarProps) => {
   const { chapter, novel } = useChapterContext();
-  const { statusBarHeight } = useNovelContext();
+  const { statusBarHeight } = useNovelLayout();
 
   const entering = () => {
     'worklet';

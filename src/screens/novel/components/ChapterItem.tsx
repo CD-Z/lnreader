@@ -8,6 +8,7 @@ import { ThemeColors } from '@theme/types';
 import { ChapterInfo } from '@database/types';
 import MaterialCommunityIcons from '@react-native-vector-icons/material-design-icons';
 import { getString } from '@strings/translations';
+import dayjs from 'dayjs';
 
 interface ChapterItemProps {
   chapter: ChapterInfo;
@@ -93,6 +94,17 @@ const ChapterItem: React.FC<ChapterItemProps> = ({
     [theme.rippleColor],
   );
 
+  const releaseTimeStyle = {
+    color: theme.outline,
+    marginStart: chapter.releaseTime ? 5 : 0,
+  } as const;
+  function parseTime(time?: string | Date | null) {
+    if (!time) return undefined;
+    const parsedTime = dayjs(time);
+    return parsedTime.isValid() ? parsedTime.format('LL') : (time as string);
+  }
+  const parsedTime = parseTime(releaseTime);
+
   return (
     <View key={'chapterItem' + id}>
       <Pressable
@@ -143,24 +155,17 @@ const ChapterItem: React.FC<ChapterItemProps> = ({
               </Text>
             </View>
             <View style={styles.metaRow}>
-              {releaseTime && !isUpdateCard ? (
+              {parsedTime && !isUpdateCard ? (
                 <Text
-                  style={[{ color: releaseColor, marginTop: 4 }, styles.text]}
+                  style={[{ color: releaseColor }, styles.mt4, styles.text]}
                   numberOfLines={1}
                 >
-                  {releaseTime}
+                  {parsedTime}
                 </Text>
               ) : null}
               {!isUpdateCard && progress && progress > 0 && chapter.unread ? (
                 <Text
-                  style={[
-                    styles.text,
-                    {
-                      color: theme.outline,
-                      marginStart: chapter.releaseTime ? 5 : 0,
-                      marginTop: 4,
-                    },
-                  ]}
+                  style={[styles.text, styles.mt4, releaseTimeStyle]}
                   numberOfLines={1}
                 >
                   {chapter.releaseTime ? '•  ' : null}
@@ -225,5 +230,8 @@ const styles = StyleSheet.create({
   },
   updateCardName: {
     fontSize: 14,
+  },
+  mt4: {
+    marginTop: 4,
   },
 });

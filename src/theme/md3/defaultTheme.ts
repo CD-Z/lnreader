@@ -2,7 +2,6 @@ import { getString } from '@strings/translations';
 
 export const defaultTheme = {
   light: {
-    id: 1,
     name: getString('appearanceScreen.theme.default'),
     isDark: false,
     primary: 'rgb(0, 87, 206)',
@@ -39,7 +38,6 @@ export const defaultTheme = {
     backdrop: 'rgba(46, 48, 56, 0.4)',
   },
   dark: {
-    id: 2,
     name: getString('appearanceScreen.theme.default'),
     isDark: true,
     primary: 'rgb(177, 197, 255)',

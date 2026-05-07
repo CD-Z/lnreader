@@ -1,10 +1,17 @@
 import { db, drizzleDb } from '@database/db';
+import type { SQLBatchTuple, Scalar } from '@op-engineering/op-sqlite';
 import { IDbManager } from './manager.d';
 import { DbTaskQueue } from './queue';
 import { Schema } from '../schema';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { GetSelectTableName } from 'drizzle-orm/query-builders/select.types';
-import { AnyColumn, Placeholder, Query, sql } from 'drizzle-orm';
+import {
+  AnyColumn,
+  fillPlaceholders,
+  Placeholder,
+  Query,
+  sql,
+} from 'drizzle-orm';
 import { SQLitePreparedQuery } from 'drizzle-orm/sqlite-core';
 
 type DrizzleDb = typeof drizzleDb;
@@ -18,7 +25,11 @@ interface ExecutableSelect<TResult = any> {
   get(): Promise<TResult | undefined>;
 }
 
-let _dbManager: DbManager;
+let _dbManager: DbManager | undefined;
+
+export const __resetDbManagerForTests = () => {
+  _dbManager = undefined;
+};
 
 export function castInt(value: number | string | AnyColumn) {
   return sql`CAST(${value} AS INTEGER)`;
@@ -66,34 +77,18 @@ class DbManager implements IDbManager {
     query: T,
   ): Awaited<ReturnType<T['get']>> {
     const { sql: sqlString, params } = query.toSQL();
-    return db.executeSync(sqlString, params as any[]).rows[0] as Awaited<
-      ReturnType<T['get']>
-    >;
+    return this.db.$client.executeSync(sqlString, params as any[])
+      .rows[0] as Awaited<ReturnType<T['get']>>;
   }
 
-  public async allSync<T extends ExecutableSelect>(
+  public allSync<T extends ExecutableSelect>(
     query: T,
-  ): Promise<Awaited<ReturnType<T['all']>>> {
+  ): Awaited<ReturnType<T['all']>> {
     const { sql: sqlString, params } = query.toSQL();
-    return db.executeSync(sqlString, params as any[]).rows as Awaited<
-      ReturnType<T['all']>
-    >;
+    return this.db.$client.executeSync(sqlString, params as any[])
+      .rows as Awaited<ReturnType<T['all']>>;
   }
 
-  /**
-   * Efficiently executes a Drizzle query for multiple data rows using a single
-   * prepared statement within a write transaction.
-   *
-   * @param data - Array of objects containing the parameters for each execution.
-   * @param fn - Callback to build the query. Use `ph("key")` to bind to properties in your data.
-   *             Must return a prepared query via `.prepare()`.
-   *
-   * @example
-   * await dbManager.batch(
-   *   [{ id: 1, val: 'a' }, { id: 2, val: 'b' }],
-   *   (tx, ph) => tx.insert(table).values({ id: ph('id'), val: ph('val') }).prepare()
-   * );
-   */
   public async batch<T extends Record<string, unknown>>(
     data: T[],
     fn: (
@@ -101,12 +96,27 @@ class DbManager implements IDbManager {
       ph: (arg: Extract<keyof T, string>) => Placeholder,
     ) => SQLitePreparedQuery<any>,
   ) {
+    if (!data.length) {
+      return;
+    }
+
     const ph = (arg: Extract<keyof T, string>) => sql.placeholder(arg);
-    await this.write(async tx => {
-      const prep = fn(tx, ph);
-      for (let index = 0; index < data.length; index++) {
-        prep.run(data[index]);
-      }
+    const prepared = fn(this.db as unknown as TransactionParameter, ph);
+    const query = prepared.getQuery();
+    const params = data.map(item => {
+      const values = fillPlaceholders(query.params, item);
+      return values.map(value =>
+        value === undefined ? null : (value as Scalar),
+      ) as Scalar[];
+    });
+    const commands: SQLBatchTuple[] = [[query.sql, params]];
+
+    await this.queue.enqueue({
+      id: 'write',
+      run: async () => {
+        await this.db.$client.executeBatch(commands);
+        this.db.$client?.flushPendingReactiveQueries();
+      },
     });
   }
 
@@ -118,7 +128,7 @@ class DbManager implements IDbManager {
       run: async () =>
         await this.db.transaction(async tx => {
           const result = await fn(tx);
-          db?.flushPendingReactiveQueries();
+          this.db.$client?.flushPendingReactiveQueries();
           return result;
         }),
     });
@@ -135,16 +145,20 @@ type FireOn = Array<{ table: TableNames; ids?: number[] }>;
 export function useLiveQuery<T extends ExecutableSelect>(
   query: T,
   fireOn: FireOn,
+  callback?: (data: Awaited<ReturnType<T['all']>>) => void,
 ) {
   type ReturnValue = Awaited<ReturnType<T['all']>>;
 
   const { sql: sqlString, params } = query.toSQL();
   const paramsKey = JSON.stringify(params);
   const fireOnKey = JSON.stringify(fireOn);
+  const cb = useRef(callback ?? (() => {}));
 
-  const [data, setData] = useState<ReturnValue>(
-    () => db.executeSync(sqlString, params as any[]).rows as ReturnValue,
-  );
+  const [data, setData] = useState<ReturnValue>(() => {
+    const r = db.executeSync(sqlString, params as any[]).rows as ReturnValue;
+    cb.current(r);
+    return r;
+  });
 
   useEffect(() => {
     const unsub = db.reactiveExecute({
@@ -153,6 +167,7 @@ export function useLiveQuery<T extends ExecutableSelect>(
       fireOn,
       callback: (result: { rows: ReturnValue }) => {
         setData(result.rows);
+        cb.current(result.rows);
       },
     });
     return unsub;

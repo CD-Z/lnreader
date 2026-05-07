@@ -4,7 +4,6 @@ import NovelInfoHeader from './Info/NovelInfoHeader';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { pickCustomNovelCover } from '@database/queries/NovelQueries';
 import { ChapterInfo, NovelInfo } from '@database/types';
-import { useBoolean } from '@hooks/index';
 import { useAppSettings, useDownload, useTheme } from '@hooks/persisted';
 import {
   updateNovel,
@@ -29,12 +28,13 @@ import * as Haptics from 'expo-haptics';
 import { AnimatedFAB } from 'react-native-paper';
 import { ChapterListSkeleton } from '@components/Skeleton/Skeleton';
 import { BottomSheetModalMethods } from '@gorhom/bottom-sheet/lib/typescript/types';
-import { useNovelContext } from '../NovelContext';
 import { LegendList, LegendListRef } from '@legendapp/list';
 import FileManager from '@specs/NativeFile';
 import { downloadFile } from '@plugins/helpers/fetch';
 import { StorageAccessFramework } from 'expo-file-system/legacy';
 import PagePaginationControl from './PagePaginationControl';
+import { useNovelActions, useNovelValue } from '../NovelContext';
+import { UseBooleanReturnType } from '@hooks/index';
 
 type NovelScreenListProps = {
   headerOpacity: SharedValue<number>;
@@ -42,13 +42,13 @@ type NovelScreenListProps = {
   navigation: any;
   selected: ChapterInfo[];
   setSelected: React.Dispatch<React.SetStateAction<ChapterInfo[]>>;
-  getNextChapterBatch: () => void;
   routeBaseNovel: {
     name: string;
     path: string;
     pluginId: string;
     cover?: string | null;
   };
+  deleteDownloadSnackbar?: UseBooleanReturnType;
 };
 
 const chapterKeyExtractor = (item: ChapterInfo) => 'c' + item.id;
@@ -60,25 +60,26 @@ const NovelScreenList = ({
   routeBaseNovel,
   selected,
   setSelected,
-  getNextChapterBatch,
+  deleteDownloadSnackbar,
 }: NovelScreenListProps) => {
+  const chapters = useNovelValue('chapters');
+  const fetching = useNovelValue('fetching');
+  const firstUnreadChapter = useNovelValue('firstUnreadChapter');
+  const loading = useNovelValue('loading');
+  const pages = useNovelValue('pages');
+  const fetchedNovel = useNovelValue('novel');
+  const batchInformation = useNovelValue('batchInformation');
+  const novelSettings = useNovelValue('novelSettings');
+  const pageIndex = useNovelValue('pageIndex');
+  const lastRead = useNovelValue('lastRead');
   const {
-    chapters,
     deleteChapter,
-    fetching,
-    firstUnreadChapter,
-    getNovel,
-    lastRead,
-    loading,
-    novelSettings,
-    pages,
     setNovel,
-    novel: fetchedNovel,
-    batchInformation,
-    pageIndex,
+    getNextChapterBatch,
     openPage,
     updateChapter,
-  } = useNovelContext();
+    refreshNovel,
+  } = useNovelActions();
 
   const { pluginId } = routeBaseNovel;
   const routeNovel: Omit<NovelInfo, 'id'> & { id: 'NO_ID' } = {
@@ -128,8 +129,6 @@ const NovelScreenList = ({
   const novelBottomSheetRef = useRef<BottomSheetModalMethods>(null);
   const trackerSheetRef = useRef<BottomSheetModalMethods>(null);
   const pageNavigationSheetRef = useRef<BottomSheetModalMethods>(null);
-
-  const deleteDownloadsSnackbar = useBoolean();
 
   // Derive selectedIds Set for O(1) lookups
   const selectedIds = useMemo(
@@ -247,7 +246,7 @@ const NovelScreenList = ({
         downloadNewChapters,
         refreshNovelMetadata,
       })
-        .then(() => getNovel())
+        .then(() => refreshNovel())
         .then(() =>
           showToast(
             getString('novelScreen.updatedToast', { name: novel.name }),
@@ -256,7 +255,13 @@ const NovelScreenList = ({
         .catch(error => showToast('Failed updating: ' + error.message))
         .finally(() => setUpdating(false));
     }
-  }, [novel, pluginId, downloadNewChapters, refreshNovelMetadata, getNovel]);
+  }, [
+    novel,
+    pluginId,
+    downloadNewChapters,
+    refreshNovelMetadata,
+    refreshNovel,
+  ]);
 
   const onRefreshPage = useCallback(
     async (page: string) => {
@@ -265,13 +270,13 @@ const NovelScreenList = ({
         updateNovelPage(pluginId, novel.path, novel.path, novel.id, page, {
           downloadNewChapters,
         })
-          .then(() => getNovel())
+          .then(() => refreshNovel())
           .then(() => showToast(`Updated page: ${page}`))
           .catch(e => showToast('Failed updating: ' + e.message))
           .finally(() => setUpdating(false));
       }
     },
-    [novel, pluginId, downloadNewChapters, getNovel],
+    [novel, pluginId, downloadNewChapters, refreshNovel],
   );
 
   const refreshControlElement = useMemo(
@@ -403,7 +408,7 @@ const NovelScreenList = ({
       <>
         <NovelInfoHeader
           chapters={chapters}
-          deleteDownloadsSnackbar={deleteDownloadsSnackbar}
+          deleteDownloadSnackbar={deleteDownloadSnackbar}
           fetching={fetching}
           filter={filter}
           firstUnreadChapter={firstUnreadChapter}
@@ -429,7 +434,7 @@ const NovelScreenList = ({
     ),
     [
       chapters,
-      deleteDownloadsSnackbar,
+      deleteDownloadSnackbar,
       fetching,
       filter,
       firstUnreadChapter,
@@ -510,7 +515,7 @@ const NovelScreenList = ({
         onEndReachedThreshold={6}
         onScroll={onPageScroll}
         scrollEventThrottle={16}
-        drawDistance={1000}
+        //drawDistance={1000}
         ListHeaderComponent={listHeader}
       />
       {novel.id !== 'NO_ID' ? (

@@ -1,8 +1,9 @@
 export const NOVEL_PAGE_INDEX_PREFIX = 'NOVEL_PAGE_INDEX_PREFIX';
 export const NOVEL_SETTINGS_PREFIX = 'NOVEL_SETTINGS';
 export const LAST_READ_PREFIX = 'LAST_READ_PREFIX';
+export const defaultPageIndex = 0;
 
-const defaultNovelSettings = {
+export const defaultNovelSettings = {
   sort: undefined,
   filter: [],
   showChapterTitles: true,

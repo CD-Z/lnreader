@@ -9,7 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBackHandler } from '@hooks/index';
 import { BottomSheetModalMethods } from '@gorhom/bottom-sheet/lib/typescript/types';
 import BottomSheetBackdrop from './BottomSheetBackdrop';
-import { useWindowDimensions } from 'react-native';
+import { StyleSheet, useWindowDimensions } from 'react-native';
 import { useTheme } from '@hooks/persisted';
 
 interface BottomSheetProps
@@ -90,11 +90,12 @@ const BottomSheet: React.FC<BottomSheetProps> = ({
       ref={bottomSheetRef}
       backdropComponent={renderBackdrop}
       handleComponent={null}
-      backgroundStyle={{
-        borderTopLeftRadius: 28,
-        borderTopRightRadius: 28,
-        backgroundColor: theme.surface,
-      }}
+      backgroundStyle={[
+        styles.modal,
+        {
+          backgroundColor: theme.surface,
+        },
+      ]}
       containerStyle={[{ paddingBottom: bottom }, containerStyle]}
       onChange={index => {
         onChange?.(index);
@@ -111,3 +112,10 @@ const BottomSheet: React.FC<BottomSheetProps> = ({
 };
 
 export default React.memo(BottomSheet);
+
+const styles = StyleSheet.create({
+  modal: {
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+  },
+});

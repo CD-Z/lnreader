@@ -10,7 +10,6 @@ import LottieSplashScreen from 'react-native-lottie-splash-screen';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Provider as PaperProvider } from 'react-native-paper';
 import * as Notifications from 'expo-notifications';
-import { KeyboardProvider } from 'react-native-keyboard-controller';
 
 import AppErrorBoundary, {
   ErrorFallback,
@@ -19,6 +18,7 @@ import AppErrorBoundary, {
 import Main from './src/navigators/Main';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { useInitDatabase } from '@database/db';
+import { ThemeProvider } from '@hooks/persisted/useTheme';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => {
@@ -30,6 +30,7 @@ Notifications.setNotificationHandler({
     };
   },
 });
+
 
 const App = () => {
   const state = useInitDatabase();
@@ -48,16 +49,16 @@ const App = () => {
     <Suspense fallback={null}>
       <GestureHandlerRootView style={styles.flex}>
         <AppErrorBoundary>
-          <KeyboardProvider>
-            <SafeAreaProvider>
+          <SafeAreaProvider>
+            <ThemeProvider>
               <PaperProvider>
                 <BottomSheetModalProvider>
                   <StatusBar translucent={true} backgroundColor="transparent" />
                   <Main />
                 </BottomSheetModalProvider>
               </PaperProvider>
-            </SafeAreaProvider>
-          </KeyboardProvider>
+            </ThemeProvider>
+          </SafeAreaProvider>
         </AppErrorBoundary>
       </GestureHandlerRootView>
     </Suspense>

@@ -1,10 +1,10 @@
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
-import { ANILIST_CLIENT_ID } from '@env';
+import Config from '@env';
 import { AuthenticationResult, Tracker } from './index';
 
 const apiEndpoint = 'https://graphql.anilist.co';
-const clientId = ANILIST_CLIENT_ID;
+const clientId = Config.ANILIST_CLIENT_ID;
 
 const redirectUri = Linking.createURL('tracker/AL');
 

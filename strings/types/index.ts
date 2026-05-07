@@ -430,6 +430,7 @@ export interface StringMap {
   'readerSettings.textColorModal': 'string';
   'readerSettings.title': 'string';
   'readerSettings.verticalSeekbarDesc': 'string';
+  'readerSettings.volumeButtonOffset': 'string';
   'sourceScreen.noResultsFound': 'string';
   'statsScreen.downloadedChapters': 'string';
   'statsScreen.genreDistribution': 'string';

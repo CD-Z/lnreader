@@ -37,7 +37,6 @@ import {
   NovelMetaSkeleton,
   VerticalBarSkeleton,
 } from '@components/Skeleton/Skeleton';
-import { useNovelContext } from '@screens/novel/NovelContext';
 import Animated, {
   useAnimatedProps,
   useSharedValue,
@@ -50,10 +49,11 @@ import useLoadingColors from '@components/Skeleton/useLoadingColors';
 
 const AnimatedLinearGradient = Animated.createAnimatedComponent(LinearGradient);
 import { ChapterFilterKey } from '@database/constants';
+import { useNovelAction } from '@screens/novel/NovelContext';
 
 interface NovelInfoHeaderProps {
   chapters: ChapterInfo[];
-  deleteDownloadsSnackbar: UseBooleanReturnType;
+  deleteDownloadSnackbar?: UseBooleanReturnType;
   fetching: boolean;
   filter?: ChapterFilterKey[];
   firstUnreadChapter?: ChapterInfo;
@@ -181,12 +181,16 @@ const NovelDetailsSkeleton = ({ theme }: { theme: ThemeColors }) => {
   return (
     <>
       <Row style={styles.infoRow}>
-        <View style={[styles.infoSkeletonBar, { backgroundColor, width: 130 }]}>
+        <View
+          style={[styles.infoSkeletonBar, styles.w130, { backgroundColor }]}
+        >
           {shimmer}
         </View>
       </Row>
       <Row style={styles.infoRow}>
-        <View style={[styles.infoSkeletonBar, { backgroundColor, width: 180 }]}>
+        <View
+          style={[styles.infoSkeletonBar, styles.w180, { backgroundColor }]}
+        >
           {shimmer}
         </View>
       </Row>
@@ -230,9 +234,9 @@ const showNotAvailable = async () => {
 
 const NovelInfoHeader = ({
   chapters,
-  deleteDownloadsSnackbar,
+  deleteDownloadSnackbar,
   fetching,
-  filter,
+  filter = [],
   firstUnreadChapter,
   isLoading = false,
   lastRead,
@@ -247,7 +251,7 @@ const NovelInfoHeader = ({
   trackerSheetRef,
 }: NovelInfoHeaderProps) => {
   const { hideBackdrop = false } = useAppSettings();
-  const { followNovel } = useNovelContext();
+  const followNovel = useNovelAction('followNovel');
 
   const pluginName = useMemo(
     () =>
@@ -257,7 +261,15 @@ const NovelInfoHeader = ({
     [novel.pluginId],
   );
 
-  const coverSource = useMemo(() => ({ uri: novel.cover }), [novel.cover]);
+  const coverSource = useMemo(
+    () => ({ uri: novel.cover ?? undefined }),
+    [novel.cover],
+  );
+
+  const novelStatus = useMemo(
+    () => (novel.id !== 'NO_ID' ? novel.status ?? undefined : undefined),
+    [novel.id, novel.status],
+  );
 
   const handleTitlePress = useCallback(
     () =>
@@ -278,16 +290,20 @@ const NovelInfoHeader = ({
       showNotAvailable();
       return;
     }
-    followNovel();
+    followNovel().catch(error =>
+      showToast('Failed updating: ' + (error as Error).message),
+    );
     if (novel.inLibrary && chapters.some(chapter => chapter.isDownloaded)) {
-      deleteDownloadsSnackbar.setTrue();
+      deleteDownloadSnackbar?.setTrue();
+    } else {
+      deleteDownloadSnackbar?.setFalse();
     }
   }, [
     isLoading,
     followNovel,
     novel.inLibrary,
     chapters,
-    deleteDownloadsSnackbar,
+    deleteDownloadSnackbar,
   ]);
 
   const handleTrackerSheet = useCallback(
@@ -304,17 +320,16 @@ const NovelInfoHeader = ({
     () => ({ color: theme.rippleColor }),
     [theme.rippleColor],
   );
+
   return (
     <>
       <CoverImage
-        // @ts-expect-error coverSource.uri can be undefined or null but only undefined is allowed
         source={coverSource}
         theme={theme}
         hideBackdrop={hideBackdrop}
       >
         <NovelInfoContainer>
           <NovelThumbnail
-            // @ts-expect-error coverSource.uri can be undefined or null but only undefined is allowed
             source={coverSource}
             theme={theme}
             setCustomNovelCover={
@@ -360,18 +375,14 @@ const NovelInfoHeader = ({
                 ) : null}
                 <Row style={styles.infoRow}>
                   <MaterialCommunityIcons
-                    name={getStatusIcon(
-                      novel.id !== 'NO_ID'
-                        ? novel.status ?? undefined
-                        : undefined,
-                    )}
+                    name={getStatusIcon(novelStatus)}
                     size={14}
                     color={theme.onSurfaceVariant}
                     style={styles.marginRight}
                   />
                   <NovelInfo theme={theme}>
-                    {(novel.id !== 'NO_ID'
-                      ? translateNovelStatus(novel.status ?? undefined)
+                    {(novelStatus
+                      ? translateNovelStatus(novelStatus)
                       : getString('novelScreen.unknownStatus')) +
                       ' • ' +
                       pluginName}
@@ -426,14 +437,18 @@ const NovelInfoHeader = ({
                   <ChapterCountSkeleton theme={theme} />
                 ) : (
                   <Text style={[{ color: theme.onSurface }, styles.chapters]}>
-                    {`${totalChapters} ${getString('novelScreen.chapters')}`}
+                    {`${totalChapters ?? 0} ${getString(
+                      'novelScreen.chapters',
+                    )}`}
                   </Text>
                 )}
               </View>
               <IconButton
                 icon="filter-variant"
                 iconColor={
-                  filter?.length ? filterColor(theme.isDark) : theme.onSurface
+                  filter.length > 0
+                    ? filterColor(theme.isDark)
+                    : theme.onSurface
                 }
                 size={24}
                 onPress={handleOpenBottomSheet}
@@ -516,5 +531,11 @@ const styles = StyleSheet.create({
     position: 'absolute',
     transform: [{ translateX: '-100%' }],
     width: '60%',
+  },
+  w130: {
+    width: 130,
+  },
+  w180: {
+    width: 180,
   },
 });

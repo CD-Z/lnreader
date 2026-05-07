@@ -1,5 +1,11 @@
 import React from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Pressable,
+  GestureResponderEvent,
+} from 'react-native';
 import { overlay } from 'react-native-paper';
 import color from 'color';
 import MaterialCommunityIcons from '@react-native-vector-icons/material-design-icons';
@@ -8,8 +14,9 @@ import { ThemeColors } from '@theme/types';
 interface ThemePickerProps {
   theme: ThemeColors;
   currentTheme: ThemeColors;
-  onPress: () => void;
+  onPress: (event: GestureResponderEvent) => void;
   horizontal?: boolean;
+  isDark?: boolean;
 }
 
 export const ThemePicker = ({
@@ -17,119 +24,124 @@ export const ThemePicker = ({
   currentTheme,
   onPress,
   horizontal = false,
-}: ThemePickerProps) => (
-  <View style={[styles.container, horizontal && styles.horizontalContainer]}>
-    <View
-      style={[
-        styles.card,
-        {
-          backgroundColor: theme.background,
-          borderColor:
-            currentTheme.id === theme.id
-              ? theme.primary
-              : currentTheme.background,
-        },
-      ]}
-    >
-      <Pressable style={styles.flex1} onPress={onPress}>
-        {currentTheme.id === theme.id ? (
-          <MaterialCommunityIcons
-            name="check"
-            color={theme.onPrimary}
-            size={15}
-            style={[styles.checkIcon, { backgroundColor: theme.primary }]}
-          />
-        ) : null}
-        <View
-          style={[
-            styles.topBar,
-            {
-              backgroundColor: overlay(2, theme.surface),
-            },
-          ]}
-        >
-          <View
-            style={[styles.topBarAccent, { backgroundColor: theme.onSurface }]}
-          />
-        </View>
-        <View style={styles.content}>
+}: ThemePickerProps) => {
+  return (
+    <View style={[styles.container, horizontal && styles.horizontalContainer]}>
+      <View
+        style={[
+          styles.card,
+          {
+            borderColor:
+              currentTheme.id === theme.id
+                ? theme.primary
+                : currentTheme.background,
+            backgroundColor: theme.background,
+          },
+        ]}
+      >
+        <Pressable style={styles.flex1} onPress={onPress}>
+          {currentTheme.id !== theme.id ? null : (
+            <MaterialCommunityIcons
+              name="check"
+              color={theme.onPrimary}
+              size={15}
+              style={[styles.checkIcon, { backgroundColor: theme.primary }]}
+            />
+          )}
           <View
             style={[
-              styles.titleBar,
-              { backgroundColor: theme.onSurfaceVariant },
+              styles.topBar,
+              {
+                backgroundColor: overlay(2, theme.surface),
+              },
             ]}
-          />
-          <View style={styles.row}>
-            <View
-              style={[styles.rowAccent, { backgroundColor: theme.onSurface }]}
-            />
+          >
             <View
               style={[
-                styles.rowAccentSmall,
-                { backgroundColor: theme.primary },
-              ]}
-            />
-          </View>
-          <View style={styles.row}>
-            <View
-              style={[
-                styles.rowAccentShort,
-                { backgroundColor: theme.onSurfaceVariant },
-              ]}
-            />
-            <View
-              style={[
-                styles.rowAccentShort,
-                styles.marginLeft,
-                { backgroundColor: theme.onSurfaceVariant },
-              ]}
-            />
-          </View>
-        </View>
-        <View
-          style={[
-            styles.bottomBar,
-            {
-              backgroundColor: color(theme.primary).alpha(0.08).string(),
-            },
-          ]}
-        >
-          <View style={styles.bottomBarContent}>
-            <View
-              style={[
-                styles.dot,
-                styles.opacityDot,
-                { backgroundColor: theme.onSurface },
-              ]}
-            />
-            <View style={[styles.dot, { backgroundColor: theme.primary }]} />
-            <View
-              style={[
-                styles.dot,
-                styles.opacityDot,
+                styles.topBarAccent,
                 { backgroundColor: theme.onSurface },
               ]}
             />
           </View>
-        </View>
-      </Pressable>
+          <View style={styles.content}>
+            <View
+              style={[
+                styles.titleBar,
+                { backgroundColor: theme.onSurfaceVariant },
+              ]}
+            />
+            <View style={styles.row}>
+              <View
+                style={[styles.rowAccent, { backgroundColor: theme.onSurface }]}
+              />
+              <View
+                style={[
+                  styles.rowAccentSmall,
+                  { backgroundColor: theme.primary },
+                ]}
+              />
+            </View>
+            <View style={styles.row}>
+              <View
+                style={[
+                  styles.rowAccentShort,
+                  { backgroundColor: theme.onSurfaceVariant },
+                ]}
+              />
+              <View
+                style={[
+                  styles.rowAccentShort,
+                  styles.marginLeft,
+                  { backgroundColor: theme.onSurfaceVariant },
+                ]}
+              />
+            </View>
+          </View>
+          <View
+            style={[
+              styles.bottomBar,
+              {
+                backgroundColor: color(theme.primary).alpha(0.08).string(),
+              },
+            ]}
+          >
+            <View style={styles.bottomBarContent}>
+              <View
+                style={[
+                  styles.dot,
+                  styles.opacityDot,
+                  { backgroundColor: theme.onSurface },
+                ]}
+              />
+              <View style={[styles.dot, { backgroundColor: theme.primary }]} />
+              <View
+                style={[
+                  styles.dot,
+                  styles.opacityDot,
+                  { backgroundColor: theme.onSurface },
+                ]}
+              />
+            </View>
+          </View>
+        </Pressable>
+      </View>
+      <Text style={[styles.themeName, { color: currentTheme.onSurface }]}>
+        {theme.name}
+      </Text>
     </View>
-    <Text style={[styles.themeName, { color: currentTheme.onSurface }]}>
-      {theme.name}
-    </Text>
-  </View>
-);
+  );
+};
 
 const styles = StyleSheet.create({
   container: {
     justifyContent: 'center',
     alignItems: 'center',
     paddingBottom: 8,
-    width: '33%',
   },
   horizontalContainer: {
     width: undefined,
     marginHorizontal: 4,
+    paddingBottom: 0,
   },
   card: {
     borderWidth: 3.6,
@@ -143,7 +155,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 4,
     // Elevation for Android
-    elevation: 2,
+    //elevation: 2,
   },
   flex1: {
     flex: 1,

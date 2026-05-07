@@ -1,6 +1,6 @@
-import { MMKV } from 'react-native-mmkv';
+import { createMMKV } from 'react-native-mmkv';
 
-const store = new MMKV({ id: 'plugin_db' });
+const store = createMMKV({ id: 'plugin_db' });
 
 const PLUGIN_STORAGE = '_DB_';
 const WEBVIEW_LOCAL_STORAGE = '_LocalStorage';
@@ -66,7 +66,7 @@ class Storage {
    * @param {string} key - The key to delete.
    */
   delete(key: string): void {
-    store.delete(this.#pluginID + PLUGIN_STORAGE + key);
+    store.remove(this.#pluginID + PLUGIN_STORAGE + key);
   }
 
   /**

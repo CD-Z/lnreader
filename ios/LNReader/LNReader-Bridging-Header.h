@@ -9,6 +9,7 @@
 #define LNReader_Bridging_Header_h
 
 #import "RNSplashScreen.h"
+#import <Expo/Expo.h>
 #import <React/RCTLinkingManager.h>
 
 #endif /* LNReader_Bridging_Header_h */

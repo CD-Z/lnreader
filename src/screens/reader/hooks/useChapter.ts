@@ -34,7 +34,7 @@ import { showToast } from '@utils/showToast';
 import { getString } from '@strings/translations';
 import NativeVolumeButtonListener from '@specs/NativeVolumeButtonListener';
 import NativeFile from '@specs/NativeFile';
-import { useNovelContext } from '@screens/novel/NovelContext';
+import { useNovelActions } from '@screens/novel/NovelContext';
 
 const emmiter = new NativeEventEmitter(NativeVolumeButtonListener);
 
@@ -48,7 +48,8 @@ export default function useChapter(
     markChapterRead,
     updateChapterProgress,
     chapterTextCache,
-  } = useNovelContext();
+  } = useNovelActions();
+
   const [hidden, setHidden] = useState(true);
   const [chapter, setChapter] = useState(initialChapter);
   const [loading, setLoading] = useState(true);
@@ -125,7 +126,7 @@ export default function useChapter(
     async (navChapter?: ChapterInfo) => {
       try {
         const chap = navChapter ?? chapter;
-        const cachedText = chapterTextCache.get(chap.id);
+        const cachedText = chapterTextCache.read(chap.id);
         const text = cachedText ?? loadChapterText(chap.id, chap.path);
         const [nextChapResult, prevChapResult, awaitedText] = await Promise.all(
           [
@@ -137,14 +138,11 @@ export default function useChapter(
 
         let nextChap = nextChapResult;
         let prevChap = prevChapResult;
+        const totalPages = novel.totalPages ?? 0;
 
         // Pre-fetch adjacent page chapters if at a page boundary
         const currentPage = Number(chap.page);
-        if (
-          !nextChap &&
-          novel.totalPages > 0 &&
-          currentPage < novel.totalPages
-        ) {
+        if (!nextChap && totalPages > 0 && currentPage < totalPages) {
           const nextPage = String(currentPage + 1);
           try {
             const count = await getChapterCount(chap.novelId, nextPage);
@@ -189,14 +187,14 @@ export default function useChapter(
           } catch {}
         }
 
-        if (nextChap && !chapterTextCache.get(nextChap.id)) {
-          chapterTextCache.set(
+        if (nextChap && !chapterTextCache.read(nextChap.id)) {
+          chapterTextCache.write(
             nextChap.id,
             loadChapterText(nextChap.id, nextChap.path),
           );
         }
         if (!cachedText) {
-          chapterTextCache.set(chap.id, text);
+          chapterTextCache.write(chap.id, text);
         }
         setChapter(chap);
         setChapterText(

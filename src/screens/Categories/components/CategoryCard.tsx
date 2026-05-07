@@ -37,6 +37,8 @@ const CategoryCard: React.FC<CategoryCardProps> = ({
     setFalse: closeDeleteCategoryModal,
   } = useBoolean();
 
+  const opacity = category.id <= 2 ? 0.4 : 1;
+
   return (
     <>
       <View
@@ -89,7 +91,7 @@ const CategoryCard: React.FC<CategoryCardProps> = ({
           </View>
           <View style={styles.flex} />
 
-          <View style={{ opacity: category.id <= 2 ? 0.4 : 1 }}>
+          <View style={{ opacity }}>
             <IconButton
               name="pencil-outline"
               color={category.id <= 2 ? theme.outline : theme.onSurface}
@@ -100,7 +102,7 @@ const CategoryCard: React.FC<CategoryCardProps> = ({
             />
           </View>
 
-          <View style={{ opacity: category.id <= 2 ? 0.4 : 1 }}>
+          <View style={{ opacity }}>
             <IconButton
               name="delete-outline"
               color={category.id <= 2 ? theme.outline : theme.onSurface}

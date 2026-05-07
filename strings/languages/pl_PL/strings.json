@@ -1,14 +1,14 @@
 {
   "aboutScreen": {
-    "website": "Website",
+    "website": "Strona",
     "discord": "Discord",
     "github": "Github",
-    "helpTranslate": "Help translate",
-    "sources": "Sources",
-    "version": "Version",
-    "whatsNew": "What's new"
+    "helpTranslate": "Pomóż przetłumaczyć",
+    "plugins": "Plugins",
+    "version": "Wersja",
+    "whatsNew": "Nowości"
   },
-  "advancedSettings": "Advanced",
+  "advancedSettings": "Zaawansowane",
   "advancedSettingsScreen": {
     "cachedNovelsDeletedToast": "Cached novels deleted",
     "chapterInsertFailed": "chapter insert failed",
@@ -487,7 +487,7 @@
       "scrollToCurrentChapter": "Scroll to current chapter",
       "scrollToTop": "Scroll to top"
     },
-    "emptyChapterMessage": "<p>Chapter is empty.</p><p>Report on <a href='https://github.com/lnreader/lnreader-sources/issues/new/choose'>GitHub</a> if it's available in WebView.</p><p>Plugin: %{pluginId}</p><p>Novel: %{novelName}</p><p>Chapter: %{chapterName}</p>",
+    "emptyChapterMessage": "<p>Chapter is empty.</p><p>Report on <a href='https://github.com/lnreader/lnreader-plugins/issues/new/choose'>GitHub</a> if it's available in WebView.</p><p>Plugin: %{pluginId}</p><p>Novel: %{novelName}</p><p>Chapter: %{chapterName}</p>",
     "finished": "Finished",
     "nextChapter": "Next: %{name}",
     "noNextChapter": "There's no next chapter",

@@ -1,4 +1,5 @@
-// Learn more https://docs.expo.io/guides/customizing-metro
+const { getDefaultConfig } = require('expo/metro-config');
+const { mergeConfig } = require('@react-native/metro-config');
 
 /**
  * Metro configuration
@@ -9,7 +10,6 @@
 
 const path = require('path');
 const fs = require('fs');
-const { getDefaultConfig, mergeConfig } = require('@react-native/metro-config');
 const defaultConfig = getDefaultConfig(__dirname);
 
 const map = {

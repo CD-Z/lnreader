@@ -1,6 +1,9 @@
 import React from 'react';
 import { StyleSheet, View, Pressable, Text } from 'react-native';
-import { BottomSheetScrollView, BottomSheetView } from '@gorhom/bottom-sheet';
+import {
+  BottomSheetView,
+  useBottomSheetScrollableCreator,
+} from '@gorhom/bottom-sheet';
 import { LegendList, LegendListRenderItemProps } from '@legendapp/list';
 import color from 'color';
 
@@ -25,6 +28,7 @@ export default function PageNavigationBottomSheet({
   pageIndex,
   openPage,
 }: PageNavigationBottomSheetProps) {
+  const BottomSheetLegendListScrollable = useBottomSheetScrollableCreator();
   const insets = useSafeAreaInsets();
   const { left, right } = insets;
 
@@ -87,17 +91,16 @@ export default function PageNavigationBottomSheet({
           },
         ]}
       >
-        <BottomSheetScrollView>
-          <LegendList
-            data={pages}
-            recycleItems
-            extraData={pageIndex}
-            renderItem={renderItem}
-            keyExtractor={(item, index) => `page_${index}_${item}`}
-            estimatedItemSize={56}
-            contentContainerStyle={styles.listContent}
-          />
-        </BottomSheetScrollView>
+        <LegendList
+          data={pages}
+          recycleItems
+          extraData={pageIndex}
+          renderItem={renderItem}
+          keyExtractor={(item, index) => `page_${index}_${item}`}
+          estimatedItemSize={56}
+          contentContainerStyle={styles.listContent}
+          renderScrollComponent={BottomSheetLegendListScrollable}
+        />
       </BottomSheetView>
     </BottomSheet>
   );

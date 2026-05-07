@@ -1,7 +1,6 @@
-import { MMKV } from 'react-native-mmkv';
+import { createMMKV } from 'react-native-mmkv';
 
-export const MMKVStorage = new MMKV();
-
+export const MMKVStorage = createMMKV();
 export function getMMKVObject<T>(key: string) {
   const data = MMKVStorage.getString(key);
   if (data) {

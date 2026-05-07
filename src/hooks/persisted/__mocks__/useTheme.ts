@@ -1,3 +1,5 @@
+import type { PropsWithChildren } from 'react';
+
 const mockTheme = {
   primary: '#6200ee',
   onPrimary: '#ffffff',
@@ -26,5 +28,7 @@ const mockTheme = {
 
 const useTheme = jest.fn(() => mockTheme);
 
+const ThemeProvider = ({ children }: PropsWithChildren) => children as any;
+
 export default useTheme;
-export { mockTheme };
+export { mockTheme, ThemeProvider, useTheme };

@@ -1,12 +1,13 @@
 import React from 'react';
 
 import { Dialog, Portal } from 'react-native-paper';
-import { ScrollView, StyleSheet, Text } from 'react-native';
+import { StyleSheet, Text } from 'react-native';
 
 import { useTheme } from '@hooks/persisted';
 import { Modal, RadioButton } from '@components';
 import { getString, setLocale } from '@strings/translations';
 import { useMMKVString } from 'react-native-mmkv';
+import { FlatList } from 'react-native-gesture-handler';
 
 interface LanguagePickerModalProps {
   visible: boolean;
@@ -84,22 +85,31 @@ const LanguagePickerModal: React.FC<LanguagePickerModalProps> = ({
 
   return (
     <Portal>
-      <Modal visible={visible} onDismiss={onDismiss}>
-        <Dialog.Title>{getString('appearanceScreen.appLanguage')}</Dialog.Title>
+      <Modal
+        visible={visible}
+        onDismiss={onDismiss}
+        contentContainerStyle={styles.maxHeight}
+      >
+        <Dialog.Title theme={{ colors: theme }} style={styles.zeroPadding}>
+          {getString('appearanceScreen.appLanguage')}
+        </Dialog.Title>
         <Text style={[styles.noteText, { color: theme.onSurfaceVariant }]}>
           {getString('appearanceScreen.languagePickerModal.restartNote')}
         </Text>
-        <ScrollView>
-          {languages.map(item => (
+        <FlatList
+          data={languages}
+          keyExtractor={item => item.locale}
+          renderItem={({ item }) => (
             <RadioButton
               key={item.locale}
               status={currentLocale === item.locale}
               onPress={() => handleLanguageSelect(item.locale)}
               label={item.nativeName}
               theme={theme}
+              style={styles.zeroPadding}
             />
-          ))}
-        </ScrollView>
+          )}
+        />
       </Modal>
     </Portal>
   );
@@ -111,6 +121,7 @@ const styles = StyleSheet.create({
   noteText: {
     lineHeight: 20,
     marginBottom: 8,
-    paddingHorizontal: 24,
   },
+  zeroPadding: { paddingHorizontal: 0, marginHorizontal: 0, marginTop: 0 },
+  maxHeight: { maxHeight: '60%' },
 });

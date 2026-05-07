@@ -4,14 +4,14 @@
     "discord": "Discord",
     "github": "Github",
     "helpTranslate": "Hilf beim Übersetzen",
-    "sources": "Quellen",
+    "plugins": "German",
     "version": "Version",
     "whatsNew": "Was neu ist"
   },
   "advancedSettings": "Erweitert",
   "advancedSettingsScreen": {
-    "cachedNovelsDeletedToast": "Cached novels deleted",
-    "chapterInsertFailed": "chapter insert failed",
+    "cachedNovelsDeletedToast": "German",
+    "chapterInsertFailed": "German",
     "clearCachedNovels": "Clear cached novels",
     "clearCachedNovelsDesc": "Delete cached novels which not in your library",
     "clearDatabaseWarning": "Read and Downloaded chapters and progress of non-library novels will be lost.",
@@ -35,14 +35,14 @@
   },
   "appearance": "Appearance",
   "appearanceScreen": {
-    "accentColor": "Accent Color",
+    "accentColor": "Akzentfarbe",
     "alwaysShowNavLabels": "Always show nav labels",
-    "appLanguage": "App language",
+    "appLanguage": "App Sprache",
     "languagePickerModal": {
-      "title": "Select Language",
-      "restartNote": "You will need to restart the app for the language change to take full effect."
+      "title": "Sprache auswählen",
+      "restartNote": "Um die Sprachänderung vollständig wirksam werden zu lassen, müssen Sie die App neu starten."
     },
-    "appLanguageDefault": "Default",
+    "appLanguageDefault": "Standard",
     "appTheme": "App theme",
     "darkTheme": "Dark Theme",
     "hideBackdrop": "Hide backdrop",
@@ -57,7 +57,7 @@
     "themeModeDark": "Dark",
     "themeModeSystem": "System",
     "theme": {
-      "default": "Default",
+      "default": "Standard",
       "lavender": "Lavender",
       "midnightDusk": "Midnight Dusk",
       "daybreakBloom": "Daybreak Bloom",
@@ -487,7 +487,7 @@
       "scrollToCurrentChapter": "Zum aktuellen Kapitel springen",
       "scrollToTop": "Zum Anfang springen"
     },
-    "emptyChapterMessage": "<p>Chapter is empty.</p><p>Report on <a href='https://github.com/lnreader/lnreader-sources/issues/new/choose'>GitHub</a> if it's available in WebView.</p><p>Plugin: %{pluginId}</p><p>Novel: %{novelName}</p><p>Chapter: %{chapterName}</p>",
+    "emptyChapterMessage": "<p>Chapter is empty.</p><p>Report on <a href='https://github.com/lnreader/lnreader-plugins/issues/new/choose'>GitHub</a> if it's available in WebView.</p><p>Plugin: %{pluginId}</p><p>Novel: %{novelName}</p><p>Chapter: %{chapterName}</p>",
     "finished": "Beendet",
     "nextChapter": "Next: %{name}",
     "noNextChapter": "Es gibt kein weiteres Kapitel",
