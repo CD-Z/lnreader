@@ -25,6 +25,7 @@ import { getString } from '@strings/translations';
 import { darkThemes, lightThemes } from '@theme/md3';
 import { ThemeColors } from '@theme/types';
 import switchTheme from 'react-native-theme-switch-animation';
+import Color from 'color';
 
 type ThemeMode = 'light' | 'dark' | 'system';
 
@@ -254,7 +255,7 @@ const AppearanceSettings = ({ navigation }: AppearanceSettingsScreenProps) => {
           ) : null}
           <List.ColorItem
             title={getString('appearanceScreen.accentColor')}
-            description={theme.primary.toUpperCase()}
+            color={Color(theme.primary)}
             onPress={showAccentColorModal}
             theme={theme}
           />

@@ -1,15 +1,13 @@
 import React from 'react';
 
 import { Dialog, Portal } from 'react-native-paper';
-import { ScrollView, StyleSheet, Text } from 'react-native';
+import { StyleSheet, Text } from 'react-native';
 
 import { useTheme } from '@hooks/persisted';
 import { Modal, RadioButton } from '@components';
 import { getString, setLocale } from '@strings/translations';
 import { useMMKVString } from 'react-native-mmkv';
-import { LegendList } from '@legendapp/list';
 import { FlatList } from 'react-native-gesture-handler';
-import { max } from 'lodash-es';
 
 interface LanguagePickerModalProps {
   visible: boolean;
@@ -123,7 +121,6 @@ const styles = StyleSheet.create({
   noteText: {
     lineHeight: 20,
     marginBottom: 8,
-    //paddingHorizontal: 24,
   },
   zeroPadding: { paddingHorizontal: 0, marginHorizontal: 0, marginTop: 0 },
   maxHeight: { maxHeight: '60%' },

@@ -11,6 +11,7 @@ import MaterialIcon from '@react-native-vector-icons/material-design-icons';
 
 import { List as PaperList, Divider as PaperDivider } from 'react-native-paper';
 import { ThemeColors } from '../../theme/types';
+import { ColorInstance } from 'color';
 
 interface ListItemProps {
   title: string;
@@ -126,12 +127,12 @@ const Icon = ({ icon, theme }: { icon: string; theme: ThemeColors }) => (
 
 interface ColorItemProps {
   title: string;
-  description: string;
+  color: ColorInstance;
   theme: ThemeColors;
   onPress: () => void;
 }
 
-const ColorItem = ({ title, description, theme, onPress }: ColorItemProps) => (
+const ColorItem = ({ title, color, theme, onPress }: ColorItemProps) => (
   <Pressable
     style={styles.pressable}
     android_ripple={{ color: theme.rippleColor }}
@@ -141,12 +142,14 @@ const ColorItem = ({ title, description, theme, onPress }: ColorItemProps) => (
       <Text style={[{ color: theme.onSurface }, styles.fontSize16]}>
         {title}
       </Text>
-      <Text style={{ color: theme.onSurfaceVariant }}>{description}</Text>
+      <Text style={{ color: theme.onSurfaceVariant }}>
+        {color.rgb().toString().toUpperCase()}
+      </Text>
     </View>
     <View
       style={[
         {
-          backgroundColor: description,
+          backgroundColor: color.hex(),
         },
         styles.descriptionView,
       ]}
