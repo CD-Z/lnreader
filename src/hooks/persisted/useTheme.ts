@@ -159,7 +159,9 @@ export const ThemeProvider = ({ children }: PropsWithChildren) => {
 export const useTheme = (): ThemeColors => {
   const theme = useContext(ThemeContext);
   if (!theme) {
-    throw new Error('useTheme must be used within a <ThemeProvider />');
+    // eslint-disable-next-line no-console
+    console.error('useTheme must be used within a <ThemeProvider />');
+    return {} as ThemeColors;
   }
 
   return theme;
