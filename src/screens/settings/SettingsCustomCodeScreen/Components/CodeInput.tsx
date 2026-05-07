@@ -9,9 +9,9 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
-import { useAnimatedKeyboard } from 'react-native-keyboard-controller';
 import { getRuntimeKind } from 'react-native-worklets';
 import { useTheme } from '@hooks/persisted';
+import { useKeyboardHeight } from '@hooks/common/useKeyboardHeight';
 
 const FONT_SIZE = 14;
 const LINE_HEIGHT = FONT_SIZE * PixelRatio.getFontScale() * 1.2;
@@ -54,15 +54,22 @@ const AnimatedTextInput = Animated.createAnimatedComponent(TextInput);
 
 const CodeInput = ({ language, code, setCode, error }: CodeInputProps) => {
   const theme = useTheme();
-  const TextInputRef = useAnimatedRef();
-  const { height: keyboardHeight } = useAnimatedKeyboard();
+  const textInputRef = useAnimatedRef();
+
+  const kH = useKeyboardHeight();
+  const keyboardHeight = useSharedValue(0);
+
+  React.useEffect(() => {
+    keyboardHeight.value = withTiming(kH ?? 0, { duration: 150 });
+  }, [kH, keyboardHeight]);
+
   const expanded = useSharedValue(0);
 
   const maxHeight = useAnimatedStyle(() => {
     let m: { height: number; pageY: number } | null = null;
     if (getRuntimeKind() !== 1) {
       try {
-        m = measure(TextInputRef);
+        m = measure(textInputRef);
       } catch {}
     }
 
@@ -76,12 +83,14 @@ const CodeInput = ({ language, code, setCode, error }: CodeInputProps) => {
       ),
     };
   });
+
   const maxHeightTop = useAnimatedStyle(() => {
     if (expanded.value !== 1) {
       return { maxHeight: withTiming(2 * LINE_HEIGHT + 18, { duration: 250 }) };
     }
     return { maxHeight: withTiming(WINDOW_HEIGHT / 2, { duration: 250 }) };
   }, [expanded]);
+
   const maxHeightBottom = useAnimatedStyle(() => {
     if (expanded.value !== 2) {
       return { maxHeight: withTiming(2 * LINE_HEIGHT + 18, { duration: 250 }) };
@@ -99,17 +108,14 @@ const CodeInput = ({ language, code, setCode, error }: CodeInputProps) => {
       <Animated.Text
         style={[styles.fakeTextInput, styles.topField, codeColor, maxHeightTop]}
         onPress={() => {
-          if (expanded.value === 1) {
-            expanded.value = 0;
-          } else {
-            expanded.value = 1;
-          }
+          expanded.value = expanded.value === 1 ? 0 : 1;
         }}
       >
         {language === 'js' ? START_JS_CODE : START_CSS_CODE}
       </Animated.Text>
+
       <AnimatedTextInput
-        ref={TextInputRef}
+        ref={textInputRef}
         placeholder={'Your code here'}
         defaultValue={code}
         onChangeText={setCode}
@@ -122,6 +128,7 @@ const CodeInput = ({ language, code, setCode, error }: CodeInputProps) => {
         }}
         error={error}
       />
+
       <Animated.Text
         style={[
           styles.fakeTextInput,
@@ -130,11 +137,7 @@ const CodeInput = ({ language, code, setCode, error }: CodeInputProps) => {
           maxHeightBottom,
         ]}
         onPress={() => {
-          if (expanded.value === 2) {
-            expanded.value = 0;
-          } else {
-            expanded.value = 2;
-          }
+          expanded.value = expanded.value === 2 ? 0 : 2;
         }}
       >
         {language === 'js' ? END_JS_CODE : ''}

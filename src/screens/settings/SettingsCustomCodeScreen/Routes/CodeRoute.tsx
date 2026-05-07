@@ -11,7 +11,7 @@ import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 import CodeInput from '../Components/CodeInput';
 import { showToast } from '@utils/showToast';
 import { useChapterReaderSettings, useTheme } from '@hooks/persisted';
-import { useAnimatedKeyboard } from 'react-native-keyboard-controller';
+import { useKeyboardHeight } from '@hooks/common/useKeyboardHeight';
 
 type CodeRouteProps = {
   language?: 'css' | 'js';
@@ -71,13 +71,13 @@ const CodeRoute = ({
     setError({ title: false, code: false });
   }, [snippet]);
 
-  const { height: keyboardHeight } = useAnimatedKeyboard();
+  const keyboardHeight = useKeyboardHeight();
 
-  const ScrollViewRef = React.useRef<ScrollView>(null);
+  const scrollViewRef = React.useRef<ScrollView>(null);
 
   const maxHeightScrollView = useAnimatedStyle(() => {
     return {
-      maxHeight: WINDOW_HEIGHT - keyboardHeight.value - 26,
+      maxHeight: WINDOW_HEIGHT - keyboardHeight - 26,
     };
   });
 
@@ -132,10 +132,7 @@ const CodeRoute = ({
   ]);
 
   return (
-    <AnimatedScrollView
-      ref={ScrollViewRef}
-      style={[styles.container, maxHeightScrollView]}
-    >
+    <AnimatedScrollView ref={scrollViewRef} style={[styles.container, maxHeightScrollView]}>
       <Row verticalSpacing={8}>
         <Text theme={colors} style={styles.text}>
           {'Select CSS or JS'}
@@ -155,6 +152,7 @@ const CodeRoute = ({
           disabled={isEditing}
         />
       </Row>
+
       <TextInput
         placeholder={'Snippet name'}
         defaultValue={title}
@@ -162,12 +160,9 @@ const CodeRoute = ({
         style={styles.snippetName}
         error={error.title}
       />
-      <CodeInput
-        language={language}
-        code={code}
-        setCode={setCode}
-        error={error.code}
-      />
+
+      <CodeInput language={language} code={code} setCode={setCode} error={error.code} />
+
       <Row verticalSpacing={8}>
         <Button
           style={styles.button}
@@ -203,33 +198,5 @@ const styles = StyleSheet.create({
   snippetName: {
     marginTop: 8,
     marginBottom: 16,
-  },
-  fakeTextInput: {
-    borderRadius: 4,
-    borderWidth: 1,
-    borderStyle: 'solid',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    marginHorizontal: 1,
-    marginVertical: 2,
-  },
-  topField: {
-    borderBottomLeftRadius: 0,
-    borderBottomRightRadius: 0,
-    borderBottomWidth: 0,
-    flexGrow: 1,
-  },
-  codeField: {
-    verticalAlign: 'top',
-    flexGrow: 1,
-    borderRadius: 0,
-    borderTopWidth: 0,
-    borderBottomWidth: 0,
-  },
-  bottomField: {
-    flexGrow: 1,
-    borderTopLeftRadius: 0,
-    borderTopRightRadius: 0,
-    borderTopWidth: 0,
   },
 });
