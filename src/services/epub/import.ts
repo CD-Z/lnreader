@@ -8,10 +8,15 @@ import { getString } from '@strings/translations';
 import { NOVEL_STORAGE } from '@utils/Storages';
 import { dbManager } from '@database/db';
 import { novelSchema, chapterSchema } from '@database/schema';
+import {
+  getNovelChapters,
+  insertChapters,
+} from '@database/queries/ChapterQueries';
 import { BackgroundTaskMetadata } from '@services/ServiceManager';
 import NativeFile from '@specs/NativeFile';
 import NativeZipArchive from '@specs/NativeZipArchive';
 import NativeEpub from '@specs/NativeEpub';
+import { eq } from 'drizzle-orm';
 
 const decodePath = (path: string) => {
   try {
@@ -267,51 +272,14 @@ const insertLocalNovel = async (
   throw new Error(getString('advancedSettingsScreen.novelInsertFailed'));
 };
 
-const insertLocalChapter = async (
-  novelId: number,
-  fakeId: number,
-  name: string,
-  path: string,
-  releaseTime: string,
-  epubRootPath: string,
-  assetRelativePaths: Set<string>,
-  chapterTextOverride?: string,
+const writeChapterContent = (
+  novelDir: string,
+  chapterId: number,
+  chapterText: string,
 ) => {
-  const { insertId } = await dbManager.write(async tx => {
-    return tx
-      .insert(chapterSchema)
-      .values({
-        novelId,
-        name,
-        path: NOVEL_STORAGE + '/local/' + novelId + '/' + fakeId,
-        releaseTime,
-        position: fakeId,
-        isDownloaded: true,
-      })
-      .run();
-  });
-
-  if (insertId !== undefined && insertId >= 0) {
-    let chapterText: string = chapterTextOverride ?? '';
-    if (!chapterText) {
-      chapterText = NativeFile.readFile(decodePath(path));
-    }
-    if (!chapterText) {
-      return [];
-    }
-    const novelDir = `${NOVEL_STORAGE}/local/${novelId}`;
-    chapterText = rewriteChapterContent(
-      chapterText,
-      path,
-      epubRootPath,
-      novelDir,
-      assetRelativePaths,
-    );
-    NativeFile.mkdir(novelDir + '/' + insertId);
-    NativeFile.writeFile(`${novelDir}/${insertId}/index.html`, chapterText);
-    return;
-  }
-  throw new Error(getString('advancedSettingsScreen.chapterInsertFailed'));
+  const chapterDir = `${novelDir}/${chapterId}`;
+  NativeFile.mkdir(chapterDir);
+  NativeFile.writeFile(`${chapterDir}/index.html`, chapterText);
 };
 
 export const importEpub = async (
@@ -389,6 +357,15 @@ export const importEpub = async (
   novel.cssPaths?.forEach(path => addAssetPath(path));
   addAssetPath(novel.cover, true);
   const assetRelativePaths = new Set(assetPathByRelative.keys());
+  const novelDir = NOVEL_STORAGE + '/local/' + novelId;
+  const chaptersToInsert: {
+    name: string;
+    path: string;
+    releaseTime: string;
+    chapterNumber: number;
+    page: string;
+  }[] = [];
+  const chapterContents: string[] = [];
   let pendingTitleName: string | null = null;
   let insertIndex = 0;
   if (novel.chapters) {
@@ -415,22 +392,30 @@ export const importEpub = async (
           continue;
         }
       }
+      if (!chapterText) {
+        continue;
+      }
 
       setMeta(meta => ({
         ...meta,
         progressText: chapterName,
       }));
 
-      await insertLocalChapter(
-        novelId,
-        insertIndex,
-        chapterName,
-        chapter.path,
-        now,
-        epubDirPath,
-        assetRelativePaths,
+      const rewrittenChapterText = rewriteChapterContent(
         chapterText,
+        chapter.path,
+        epubDirPath,
+        novelDir,
+        assetRelativePaths,
       );
+      chaptersToInsert.push({
+        name: chapterName,
+        path: `${novelDir}/${insertIndex}`,
+        releaseTime: now,
+        chapterNumber: insertIndex + 1,
+        page: '1',
+      });
+      chapterContents.push(rewrittenChapterText);
       insertIndex += 1;
 
       setMeta(meta => ({
@@ -439,7 +424,30 @@ export const importEpub = async (
       }));
     }
   }
-  const novelDir = NOVEL_STORAGE + '/local/' + novelId;
+  if (chaptersToInsert.length) {
+    await insertChapters(novelId, chaptersToInsert);
+    await dbManager.write(async tx => {
+      tx.update(chapterSchema)
+        .set({ isDownloaded: true })
+        .where(eq(chapterSchema.novelId, novelId))
+        .run();
+    });
+    const insertedChapters = await getNovelChapters(
+      novelId,
+      'positionAsc',
+      undefined,
+      undefined,
+      chaptersToInsert.length,
+    );
+    for (let i = 0; i < insertedChapters.length; i++) {
+      const chapterRow = insertedChapters[i];
+      const chapterText = chapterContents[i];
+      if (!chapterText) {
+        continue;
+      }
+      writeChapterContent(novelDir, chapterRow.id, chapterText);
+    }
+  }
 
   setMeta(meta => ({
     ...meta,
