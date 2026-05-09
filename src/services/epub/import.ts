@@ -21,9 +21,155 @@ const decodePath = (path: string) => {
   }
 };
 
+const normalizePath = (path: string) => path.replace(/\\/g, '/');
+
+const stripFileScheme = (path: string) =>
+  path.startsWith('file://') ? path.slice('file://'.length) : path;
+
+const getParentDir = (path: string) => {
+  const normalized = normalizePath(stripFileScheme(path)).replace(/\/+$/, '');
+  const index = normalized.lastIndexOf('/');
+  return index >= 0 ? normalized.slice(0, index) : '';
+};
+
+const resolvePath = (baseDir: string, relativePath: string) => {
+  const normalizedBase = normalizePath(stripFileScheme(baseDir)).replace(
+    /\/+$/,
+    '',
+  );
+  const baseSegments = normalizedBase ? normalizedBase.split('/') : [];
+  const normalizedRelative = normalizePath(stripFileScheme(relativePath));
+
+  for (const segment of normalizedRelative.split('/')) {
+    if (!segment || segment === '.') {
+      continue;
+    }
+    if (segment === '..') {
+      baseSegments.pop();
+      continue;
+    }
+    baseSegments.push(segment);
+  }
+
+  return baseSegments.join('/');
+};
+
+const getRelativePath = (rootPath: string, fullPath: string) => {
+  const normalizedRoot = normalizePath(stripFileScheme(rootPath)).replace(
+    /\/+$/,
+    '',
+  );
+  const normalizedFull = normalizePath(stripFileScheme(fullPath));
+
+  if (!normalizedRoot) {
+    return '';
+  }
+
+  if (normalizedFull === normalizedRoot) {
+    return '';
+  }
+
+  if (normalizedFull.startsWith(`${normalizedRoot}/`)) {
+    return normalizedFull.slice(normalizedRoot.length + 1);
+  }
+
+  return '';
+};
+
+const ASSET_EXTENSIONS = new Set([
+  'css',
+  'jpg',
+  'jpeg',
+  'png',
+  'gif',
+  'svg',
+  'webp',
+  'woff',
+  'woff2',
+  'ttf',
+  'otf',
+]);
+
+const HTML_EXTENSIONS = new Set(['xhtml', 'html', 'htm']);
+
+const getExtension = (path: string) => {
+  const match = path.match(/\.([^.\/?#]+)$/);
+  return match ? match[1].toLowerCase() : '';
+};
+
+const shouldSkipUrlRewrite = (url: string) => {
+  const trimmed = url.trim();
+  if (!trimmed || trimmed.startsWith('#')) {
+    return true;
+  }
+  return /^[a-z][a-z0-9+.-]*:/i.test(trimmed);
+};
+
+const resolveAssetPath = (
+  epubRootPath: string,
+  chapterPath: string,
+  assetPath: string,
+) => {
+  const normalizedAssetPath = normalizePath(stripFileScheme(assetPath));
+  if (!normalizedAssetPath) {
+    return '';
+  }
+  if (normalizedAssetPath.startsWith('/')) {
+    return resolvePath(epubRootPath, normalizedAssetPath.slice(1));
+  }
+  const chapterDir = getParentDir(chapterPath);
+  return resolvePath(chapterDir, normalizedAssetPath);
+};
+
+const rewriteChapterContent = (
+  chapterText: string,
+  chapterPath: string,
+  epubRootPath: string,
+  novelDir: string,
+  assetRelativePaths: Set<string>,
+) => {
+  return chapterText.replace(
+    /(\b(?:href|src))\s*=\s*(["'])([^"']+)\2/gi,
+    (match, attr: string, quote: string, rawUrl: string) => {
+      if (shouldSkipUrlRewrite(rawUrl)) {
+        return match;
+      }
+
+      const urlMatch = rawUrl.match(/^([^?#]*)(.*)$/);
+      const pathPart = urlMatch ? urlMatch[1] : rawUrl;
+      const suffix = urlMatch ? urlMatch[2] : '';
+
+      const extension = getExtension(pathPart);
+      if (attr.toLowerCase() === 'href') {
+        if (!extension || HTML_EXTENSIONS.has(extension)) {
+          return match;
+        }
+        if (!ASSET_EXTENSIONS.has(extension)) {
+          return match;
+        }
+      }
+
+      const absolutePath = resolveAssetPath(epubRootPath, chapterPath, pathPart);
+      if (!absolutePath) {
+        return match;
+      }
+
+      const relativePath = getRelativePath(epubRootPath, absolutePath);
+      if (!relativePath || !assetRelativePaths.has(relativePath)) {
+        return match;
+      }
+
+      const targetPath = `${normalizePath(novelDir)}/${relativePath}`;
+      const newUrl = `file://${targetPath}${suffix}`;
+      return `${attr}=${quote}${newUrl}${quote}`;
+    },
+  );
+};
+
 const insertLocalNovel = async (
   name: string,
   path: string,
+  epubRootPath: string,
   cover?: string,
   author?: string,
   artist?: string,
@@ -40,14 +186,15 @@ const insertLocalNovel = async (
     await updateNovelCategoryById(insertId, [2]);
     const novelDir = NOVEL_STORAGE + '/local/' + insertId;
     NativeFile.mkdir(novelDir);
-    const newCoverPath = `file://${novelDir}/${cover?.split(/[/\\]/).pop()}`;
-
-    if (cover) {
-      const decodedPath = decodePath(cover);
-      if (NativeFile.exists(decodedPath)) {
-        NativeFile.moveFile(decodedPath, newCoverPath);
-      }
-    }
+    const decodedCoverPath = cover ? decodePath(cover) : '';
+    const coverRelativePath = decodedCoverPath
+      ? getRelativePath(epubRootPath, decodedCoverPath) ||
+        decodedCoverPath.split(/[/\\]/).pop() ||
+        ''
+      : '';
+    const newCoverPath = coverRelativePath
+      ? `file://${novelDir}/${coverRelativePath}`
+      : '';
     await updateNovelInfo({
       id: insertId,
       pluginId: LOCAL_PLUGIN_ID,
@@ -72,6 +219,8 @@ const insertLocalChapter = async (
   name: string,
   path: string,
   releaseTime: string,
+  epubRootPath: string,
+  assetRelativePaths: Set<string>,
 ) => {
   const { insertId } = await dbManager.write(async tx => {
     return tx
@@ -94,11 +243,12 @@ const insertLocalChapter = async (
       return [];
     }
     const novelDir = `${NOVEL_STORAGE}/local/${novelId}`;
-    chapterText = chapterText.replace(
-      /[=](?<= href=| src=)(["'])([^]*?)\1/g,
-      (_, __, $2: string) => {
-        return `="file://${novelDir}/${$2.split(/[/\\]/).pop()}"`;
-      },
+    chapterText = rewriteChapterContent(
+      chapterText,
+      path,
+      epubRootPath,
+      novelDir,
+      assetRelativePaths,
     );
     NativeFile.mkdir(novelDir + '/' + insertId);
     NativeFile.writeFile(`${novelDir}/${insertId}/index.html`, chapterText);
@@ -126,7 +276,8 @@ export const importEpub = async (
   }));
 
   const epubFilePath =
-    NativeFile.getConstants().ExternalCachesDirectoryPath + '/novel.epub';
+    NativeFile.getConstants().ExternalCachesDirectoryPath +
+    `/novel_${Date.now()}_${Math.random().toString(16).slice(2)}.epub`;
   try {
     NativeFile.copyFile(uri, epubFilePath);
   } catch {
@@ -135,7 +286,8 @@ export const importEpub = async (
     );
   }
   const epubDirPath =
-    NativeFile.getConstants().ExternalCachesDirectoryPath + '/epub';
+    NativeFile.getConstants().ExternalCachesDirectoryPath +
+    `/epub_${Date.now()}_${Math.random().toString(16).slice(2)}`;
   if (NativeFile.exists(epubDirPath)) {
     NativeFile.unlink(epubDirPath);
   }
@@ -148,12 +300,35 @@ export const importEpub = async (
   const novelId = await insertLocalNovel(
     novel.name,
     epubDirPath + novel.name, // temporary
+    epubDirPath,
     novel.cover || '',
     novel.author || '',
     novel.artist || '',
     novel.summary || '',
   );
   const now = dayjs().toISOString();
+  const assetPathByRelative = new Map<string, string>();
+  const addAssetPath = (assetPath?: string, allowBasenameFallback = false) => {
+    if (!assetPath) {
+      return;
+    }
+    const decodedPath = decodePath(assetPath);
+    const relativePath = getRelativePath(epubDirPath, decodedPath);
+    const fallbackName = decodedPath.split(/[/\\]/).pop() || '';
+    const finalRelativePath =
+      relativePath || (allowBasenameFallback ? fallbackName : '');
+    if (!finalRelativePath) {
+      return;
+    }
+    if (!assetPathByRelative.has(finalRelativePath)) {
+      assetPathByRelative.set(finalRelativePath, decodedPath);
+    }
+  };
+
+  novel.imagePaths?.forEach(path => addAssetPath(path));
+  novel.cssPaths?.forEach(path => addAssetPath(path));
+  addAssetPath(novel.cover, true);
+  const assetRelativePaths = new Set(assetPathByRelative.keys());
   if (novel.chapters) {
     for (let i = 0; i < novel.chapters?.length; i++) {
       const chapter = novel.chapters[i];
@@ -166,11 +341,19 @@ export const importEpub = async (
         progressText: chapter.name,
       }));
 
-      await insertLocalChapter(novelId, i, chapter.name, chapter.path, now);
+      await insertLocalChapter(
+        novelId,
+        i,
+        chapter.name,
+        chapter.path,
+        now,
+        epubDirPath,
+        assetRelativePaths,
+      );
 
       setMeta(meta => ({
         ...meta,
-        progress: i / novel.chapters.length,
+        progress: (i + 1) / novel.chapters.length,
       }));
     }
   }
@@ -181,24 +364,15 @@ export const importEpub = async (
     progressText: getString('advancedSettingsScreen.importStaticFiles'),
   }));
 
-  for (const filePath of novel.imagePaths) {
-    const decodedPath = decodePath(filePath);
-
+  for (const [relativePath, absolutePath] of assetPathByRelative.entries()) {
+    const decodedPath = decodePath(absolutePath);
     if (NativeFile.exists(decodedPath)) {
-      NativeFile.moveFile(
-        decodedPath,
-        novelDir + '/' + filePath.split(/[/\\]/).pop(),
-      );
-    }
-  }
-
-  for (const filePath of novel.cssPaths) {
-    const decodedPath = decodePath(filePath);
-    if (NativeFile.exists(decodedPath)) {
-      NativeFile.moveFile(
-        decodedPath,
-        novelDir + '/' + filePath.split(/[/\\]/).pop(),
-      );
+      const targetPath = `${novelDir}/${relativePath}`;
+      const parentDir = getParentDir(targetPath);
+      if (parentDir) {
+        NativeFile.mkdir(parentDir);
+      }
+      NativeFile.moveFile(decodedPath, targetPath);
     }
   }
 
