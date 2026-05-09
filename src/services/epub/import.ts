@@ -17,70 +17,19 @@ import NativeFile from '@specs/NativeFile';
 import NativeZipArchive from '@specs/NativeZipArchive';
 import NativeEpub from '@specs/NativeEpub';
 import { eq } from 'drizzle-orm';
+import {
+  decodePath,
+  getExtension,
+  getParentDir,
+  getRelativePath,
+  isDerivedName,
+  isTitleOnlyChapter,
+  normalizePath,
+  resolveAssetPath,
+  shouldSkipUrlRewrite,
+} from './utils';
 
-const decodePath = (path: string) => {
-  try {
-    return decodeURI(path);
-  } catch {
-    return path;
-  }
-};
-
-const normalizePath = (path: string) => path.replace(/\\/g, '/');
-
-const stripFileScheme = (path: string) =>
-  path.startsWith('file://') ? path.slice('file://'.length) : path;
-
-const getParentDir = (path: string) => {
-  const normalized = normalizePath(stripFileScheme(path)).replace(/\/+$/, '');
-  const index = normalized.lastIndexOf('/');
-  return index >= 0 ? normalized.slice(0, index) : '';
-};
-
-const resolvePath = (baseDir: string, relativePath: string) => {
-  const normalizedBase = normalizePath(stripFileScheme(baseDir)).replace(
-    /\/+$/,
-    '',
-  );
-  const baseSegments = normalizedBase ? normalizedBase.split('/') : [];
-  const normalizedRelative = normalizePath(stripFileScheme(relativePath));
-
-  for (const segment of normalizedRelative.split('/')) {
-    if (!segment || segment === '.') {
-      continue;
-    }
-    if (segment === '..') {
-      baseSegments.pop();
-      continue;
-    }
-    baseSegments.push(segment);
-  }
-
-  return baseSegments.join('/');
-};
-
-const getRelativePath = (rootPath: string, fullPath: string) => {
-  const normalizedRoot = normalizePath(stripFileScheme(rootPath)).replace(
-    /\/+$/,
-    '',
-  );
-  const normalizedFull = normalizePath(stripFileScheme(fullPath));
-
-  if (!normalizedRoot) {
-    return '';
-  }
-
-  if (normalizedFull === normalizedRoot) {
-    return '';
-  }
-
-  if (normalizedFull.startsWith(`${normalizedRoot}/`)) {
-    return normalizedFull.slice(normalizedRoot.length + 1);
-  }
-
-  return '';
-};
-
+/** File extensions that should be copied as assets */
 const ASSET_EXTENSIONS = new Set([
   'css',
   'jpg',
@@ -95,87 +44,20 @@ const ASSET_EXTENSIONS = new Set([
   'otf',
 ]);
 
+/** HTML file extensions */
 const HTML_EXTENSIONS = new Set(['xhtml', 'html', 'htm']);
 
-const getExtension = (path: string) => {
-  const match = path.match(/\.([^.\/?#]+)$/);
-  return match ? match[1].toLowerCase() : '';
+type DefaultChapter = {
+  name: string;
+  path: string;
+  releaseTime: string;
+  chapterNumber: number;
+  page: string;
 };
 
-const shouldSkipUrlRewrite = (url: string) => {
-  const trimmed = url.trim();
-  if (!trimmed || trimmed.startsWith('#')) {
-    return true;
-  }
-  return /^[a-z][a-z0-9+.-]*:/i.test(trimmed);
-};
-
-const stripHtml = (value: string) => {
-  const bodyMatch = value.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
-  const bodyContent = bodyMatch ? bodyMatch[1] : value;
-  return bodyContent
-    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, ' ')
-    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, ' ')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/&nbsp;|&#160;/gi, ' ')
-    .replace(/&[a-z0-9#]+;/gi, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-};
-
-const normalizeText = (value: string) => stripHtml(value).toLowerCase();
-
-const escapeRegExp = (value: string) =>
-  value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
-const isDerivedName = (name: string, base: string) => {
-  const normalizedName = name.trim().toLowerCase();
-  const normalizedBase = base.trim().toLowerCase();
-  if (!normalizedName || !normalizedBase) {
-    return false;
-  }
-  if (normalizedName === normalizedBase) {
-    return true;
-  }
-  const pattern = new RegExp(`^${escapeRegExp(normalizedBase)}\\s*\\(\\d+\\)$`);
-  return pattern.test(normalizedName);
-};
-
-const isTitleOnlyChapter = (chapterName: string, chapterText: string) => {
-  if (!chapterName) {
-    return false;
-  }
-  const normalizedName = normalizeText(chapterName);
-  if (!normalizedName) {
-    return false;
-  }
-  const normalizedText = normalizeText(chapterText);
-  if (!normalizedText) {
-    return false;
-  }
-
-  return (
-    (normalizedText === normalizedName && normalizedText.length <= 80) ||
-    normalizedText.length <= normalizedName.length
-  );
-};
-
-const resolveAssetPath = (
-  epubRootPath: string,
-  chapterPath: string,
-  assetPath: string,
-) => {
-  const normalizedAssetPath = normalizePath(stripFileScheme(assetPath));
-  if (!normalizedAssetPath) {
-    return '';
-  }
-  if (normalizedAssetPath.startsWith('/')) {
-    return resolvePath(epubRootPath, normalizedAssetPath.slice(1));
-  }
-  const chapterDir = getParentDir(chapterPath);
-  return resolvePath(chapterDir, normalizedAssetPath);
-};
-
+/**
+ * Rewrites asset URLs in chapter HTML to point to local copies.
+ */
 const rewriteChapterContent = (
   chapterText: string,
   chapterPath: string,
@@ -186,6 +68,7 @@ const rewriteChapterContent = (
   return chapterText.replace(
     /(\b(?:href|src))\s*=\s*(["'])([^"']+)\2/gi,
     (match, attr: string, quote: string, rawUrl: string) => {
+      // Skip anchors, external URLs, etc.
       if (shouldSkipUrlRewrite(rawUrl)) {
         return match;
       }
@@ -195,6 +78,7 @@ const rewriteChapterContent = (
       const suffix = urlMatch ? urlMatch[2] : '';
 
       const extension = getExtension(pathPart);
+      // For href, only rewrite asset links (not HTML pages)
       if (attr.toLowerCase() === 'href') {
         if (!extension || HTML_EXTENSIONS.has(extension)) {
           return match;
@@ -204,6 +88,7 @@ const rewriteChapterContent = (
         }
       }
 
+      // Resolve to absolute path and check if it's a tracked asset
       const absolutePath = resolveAssetPath(
         epubRootPath,
         chapterPath,
@@ -218,6 +103,7 @@ const rewriteChapterContent = (
         return match;
       }
 
+      // Rewrite to local file:// URL
       const targetPath = `${normalizePath(novelDir)}/${relativePath}`;
       const newUrl = `file://${targetPath}${suffix}`;
       return `${attr}=${quote}${newUrl}${quote}`;
@@ -225,6 +111,9 @@ const rewriteChapterContent = (
   );
 };
 
+/**
+ * Inserts a new local novel into the database.
+ */
 const insertLocalNovel = async (
   name: string,
   path: string,
@@ -242,9 +131,12 @@ const insertLocalNovel = async (
   });
 
   if (insertId !== undefined && insertId >= 0) {
+    // Add to "Local" category (id: 2)
     await updateNovelCategoryById(insertId, [2]);
     const novelDir = NOVEL_STORAGE + '/local/' + insertId;
     NativeFile.mkdir(novelDir);
+
+    // Resolve cover path relative to epub root
     const decodedCoverPath = cover ? decodePath(cover) : '';
     const coverRelativePath = decodedCoverPath
       ? getRelativePath(epubRootPath, decodedCoverPath) ||
@@ -254,6 +146,8 @@ const insertLocalNovel = async (
     const newCoverPath = coverRelativePath
       ? `file://${novelDir}/${coverRelativePath}`
       : '';
+
+    // Update novel with metadata
     await updateNovelInfo({
       id: insertId,
       pluginId: LOCAL_PLUGIN_ID,
@@ -272,6 +166,9 @@ const insertLocalNovel = async (
   throw new Error(getString('advancedSettingsScreen.novelInsertFailed'));
 };
 
+/**
+ * Writes chapter HTML content to disk.
+ */
 const writeChapterContent = (
   novelDir: string,
   chapterId: number,
@@ -282,6 +179,9 @@ const writeChapterContent = (
   NativeFile.writeFile(`${chapterDir}/index.html`, chapterText);
 };
 
+/**
+ * Imports an EPUB file as a local novel.
+ */
 export const importEpub = async (
   {
     uri,
@@ -294,12 +194,14 @@ export const importEpub = async (
     transformer: (meta: BackgroundTaskMetadata) => BackgroundTaskMetadata,
   ) => void,
 ) => {
+  // Start import
   setMeta(meta => ({
     ...meta,
     isRunning: true,
     progress: 0,
   }));
 
+  // Copy EPUB to cache directory
   const epubFilePath =
     NativeFile.getConstants().ExternalCachesDirectoryPath +
     `/novel_${Date.now()}_${Math.random().toString(16).slice(2)}.epub`;
@@ -310,6 +212,8 @@ export const importEpub = async (
       `Failed to read EPUB file "${filename}". The file may have been moved or deleted. Please try importing again.`,
     );
   }
+
+  // Extract EPUB to temp directory
   const epubDirPath =
     NativeFile.getConstants().ExternalCachesDirectoryPath +
     `/epub_${Date.now()}_${Math.random().toString(16).slice(2)}`;
@@ -318,20 +222,28 @@ export const importEpub = async (
   }
   NativeFile.mkdir(epubDirPath);
   await NativeZipArchive.unzip(epubFilePath, epubDirPath);
+
+  // Parse novel metadata and chapters
   const novel = NativeEpub.parseNovelAndChapters(epubDirPath);
+  // Fallback to filename if no title in epub
   if (!novel.name) {
     novel.name = filename.replace('.epub', '') || 'Untitled';
   }
+
+  // Insert novel into database
   const novelId = await insertLocalNovel(
     novel.name,
-    epubDirPath + novel.name, // temporary
+    epubDirPath + novel.name, // temporary path
     epubDirPath,
     novel.cover || '',
     novel.author || '',
     novel.artist || '',
     novel.summary || '',
   );
+
   const now = dayjs().toISOString();
+
+  // Collect all asset paths (images, css, cover)
   const assetPathByRelative = new Map<string, string>();
   const addAssetPath = (
     assetPath?: string | null,
@@ -357,23 +269,21 @@ export const importEpub = async (
   novel.cssPaths?.forEach(path => addAssetPath(path));
   addAssetPath(novel.cover, true);
   const assetRelativePaths = new Set(assetPathByRelative.keys());
+
   const novelDir = NOVEL_STORAGE + '/local/' + novelId;
-  const chaptersToInsert: {
-    name: string;
-    path: string;
-    releaseTime: string;
-    chapterNumber: number;
-    page: string;
-  }[] = [];
+  const chaptersToInsert: DefaultChapter[] = [];
   const chapterContents: string[] = [];
   let pendingTitleName: string | null = null;
   let insertIndex = 0;
+
+  // Process each chapter
   if (novel.chapters) {
     for (let i = 0; i < novel.chapters?.length; i++) {
       const chapter = novel.chapters[i];
       const fallbackName = chapter.path.split(/[/\\]/).pop() || 'unknown';
       let chapterName = chapter.name || fallbackName;
 
+      // Apply pending title from title-only chapter
       if (pendingTitleName) {
         if (
           isDerivedName(chapterName, pendingTitleName) ||
@@ -385,6 +295,8 @@ export const importEpub = async (
       }
 
       const chapterText = NativeFile.readFile(decodePath(chapter.path));
+
+      // Skip title-only chapters (if there's a next chapter)
       if (chapterText && isTitleOnlyChapter(chapterName, chapterText)) {
         const hasNext = i + 1 < novel.chapters.length;
         if (hasNext) {
@@ -392,15 +304,18 @@ export const importEpub = async (
           continue;
         }
       }
+      // Skip empty chapters
       if (!chapterText) {
         continue;
       }
 
+      // Update progress text
       setMeta(meta => ({
         ...meta,
         progressText: chapterName,
       }));
 
+      // Rewrite asset URLs in chapter content
       const rewrittenChapterText = rewriteChapterContent(
         chapterText,
         chapter.path,
@@ -408,6 +323,7 @@ export const importEpub = async (
         novelDir,
         assetRelativePaths,
       );
+
       chaptersToInsert.push({
         name: chapterName,
         path: `${novelDir}/${insertIndex}`,
@@ -418,20 +334,27 @@ export const importEpub = async (
       chapterContents.push(rewrittenChapterText);
       insertIndex += 1;
 
+      // Update progress
       setMeta(meta => ({
         ...meta,
         progress: (i + 1) / novel.chapters.length,
       }));
     }
   }
+
+  // Insert chapters into database and write content files
   if (chaptersToInsert.length) {
     await insertChapters(novelId, chaptersToInsert);
+
+    // Mark all as downloaded
     await dbManager.write(async tx => {
       tx.update(chapterSchema)
         .set({ isDownloaded: true })
         .where(eq(chapterSchema.novelId, novelId))
         .run();
     });
+
+    // Get inserted chapters to get their database IDs
     const insertedChapters = await getNovelChapters(
       novelId,
       'positionAsc',
@@ -439,6 +362,8 @@ export const importEpub = async (
       undefined,
       chaptersToInsert.length,
     );
+
+    // Write each chapter's HTML to disk
     for (let i = 0; i < insertedChapters.length; i++) {
       const chapterRow = insertedChapters[i];
       const chapterText = chapterContents[i];
@@ -449,6 +374,7 @@ export const importEpub = async (
     }
   }
 
+  // Copy assets (images, css) to novel directory
   setMeta(meta => ({
     ...meta,
     progressText: getString('advancedSettingsScreen.importStaticFiles'),
@@ -466,6 +392,7 @@ export const importEpub = async (
     }
   }
 
+  // Complete
   setMeta(meta => ({
     ...meta,
     progress: 1,
