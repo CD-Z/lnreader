@@ -105,6 +105,56 @@ const shouldSkipUrlRewrite = (url: string) => {
   return /^[a-z][a-z0-9+.-]*:/i.test(trimmed);
 };
 
+const stripHtml = (value: string) => {
+  const bodyMatch = value.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+  const bodyContent = bodyMatch ? bodyMatch[1] : value;
+  return bodyContent
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;|&#160;/gi, ' ')
+    .replace(/&[a-z0-9#]+;/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+};
+
+const normalizeText = (value: string) => stripHtml(value).toLowerCase();
+
+const escapeRegExp = (value: string) =>
+  value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const isDerivedName = (name: string, base: string) => {
+  const normalizedName = name.trim().toLowerCase();
+  const normalizedBase = base.trim().toLowerCase();
+  if (!normalizedName || !normalizedBase) {
+    return false;
+  }
+  if (normalizedName === normalizedBase) {
+    return true;
+  }
+  const pattern = new RegExp(`^${escapeRegExp(normalizedBase)}\\s*\\(\\d+\\)$`);
+  return pattern.test(normalizedName);
+};
+
+const isTitleOnlyChapter = (chapterName: string, chapterText: string) => {
+  if (!chapterName) {
+    return false;
+  }
+  const normalizedName = normalizeText(chapterName);
+  if (!normalizedName) {
+    return false;
+  }
+  const normalizedText = normalizeText(chapterText);
+  if (!normalizedText) {
+    return false;
+  }
+
+  return (
+    (normalizedText === normalizedName && normalizedText.length <= 80) ||
+    normalizedText.length <= normalizedName.length
+  );
+};
+
 const resolveAssetPath = (
   epubRootPath: string,
   chapterPath: string,
@@ -149,7 +199,11 @@ const rewriteChapterContent = (
         }
       }
 
-      const absolutePath = resolveAssetPath(epubRootPath, chapterPath, pathPart);
+      const absolutePath = resolveAssetPath(
+        epubRootPath,
+        chapterPath,
+        pathPart,
+      );
       if (!absolutePath) {
         return match;
       }
@@ -221,6 +275,7 @@ const insertLocalChapter = async (
   releaseTime: string,
   epubRootPath: string,
   assetRelativePaths: Set<string>,
+  chapterTextOverride?: string,
 ) => {
   const { insertId } = await dbManager.write(async tx => {
     return tx
@@ -237,8 +292,10 @@ const insertLocalChapter = async (
   });
 
   if (insertId !== undefined && insertId >= 0) {
-    let chapterText: string = '';
-    chapterText = NativeFile.readFile(decodePath(path));
+    let chapterText: string = chapterTextOverride ?? '';
+    if (!chapterText) {
+      chapterText = NativeFile.readFile(decodePath(path));
+    }
     if (!chapterText) {
       return [];
     }
@@ -308,7 +365,10 @@ export const importEpub = async (
   );
   const now = dayjs().toISOString();
   const assetPathByRelative = new Map<string, string>();
-  const addAssetPath = (assetPath?: string, allowBasenameFallback = false) => {
+  const addAssetPath = (
+    assetPath?: string | null,
+    allowBasenameFallback = false,
+  ) => {
     if (!assetPath) {
       return;
     }
@@ -329,27 +389,49 @@ export const importEpub = async (
   novel.cssPaths?.forEach(path => addAssetPath(path));
   addAssetPath(novel.cover, true);
   const assetRelativePaths = new Set(assetPathByRelative.keys());
+  let pendingTitleName: string | null = null;
+  let insertIndex = 0;
   if (novel.chapters) {
     for (let i = 0; i < novel.chapters?.length; i++) {
       const chapter = novel.chapters[i];
-      if (!chapter.name) {
-        chapter.name = chapter.path.split(/[/\\]/).pop() || 'unknown';
+      const fallbackName = chapter.path.split(/[/\\]/).pop() || 'unknown';
+      let chapterName = chapter.name || fallbackName;
+
+      if (pendingTitleName) {
+        if (
+          isDerivedName(chapterName, pendingTitleName) ||
+          chapterName === fallbackName
+        ) {
+          chapterName = pendingTitleName;
+        }
+        pendingTitleName = null;
+      }
+
+      const chapterText = NativeFile.readFile(decodePath(chapter.path));
+      if (chapterText && isTitleOnlyChapter(chapterName, chapterText)) {
+        const hasNext = i + 1 < novel.chapters.length;
+        if (hasNext) {
+          pendingTitleName = chapterName;
+          continue;
+        }
       }
 
       setMeta(meta => ({
         ...meta,
-        progressText: chapter.name,
+        progressText: chapterName,
       }));
 
       await insertLocalChapter(
         novelId,
-        i,
-        chapter.name,
+        insertIndex,
+        chapterName,
         chapter.path,
         now,
         epubDirPath,
         assetRelativePaths,
+        chapterText,
       );
+      insertIndex += 1;
 
       setMeta(meta => ({
         ...meta,
