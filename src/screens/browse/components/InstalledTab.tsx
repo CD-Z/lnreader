@@ -54,7 +54,6 @@ export const InstalledTab = memo(
       const sortedInstalledPlugins = filteredInstalledPlugins.sort(
         (plgFirst, plgSecond) => plgFirst.name.localeCompare(plgSecond.name),
       );
-
       const pinned: PluginItem[] = [];
       const unpinned: PluginItem[] = [];
 

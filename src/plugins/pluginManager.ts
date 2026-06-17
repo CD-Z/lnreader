@@ -24,6 +24,7 @@ import { defaultCover } from './helpers/constants';
 import { downloadFile, fetchApi, fetchProto, fetchText } from './helpers/fetch';
 import { FilterTypes } from './types/filterTypes';
 import { isUrlAbsolute } from './helpers/isAbsoluteUrl';
+import { devNovelPlugin, devPagedNovelPlugin } from './dev';
 
 const packages: Record<string, any> = {
   'htmlparser2': { Parser },
@@ -84,7 +85,12 @@ const initPlugin = (pluginId: string, rawCode: string) => {
   }
 };
 
-const plugins: Record<string, Plugin | undefined> = {};
+const plugins: Record<string, Plugin | undefined> = __DEV__
+  ? {
+      'dev-novel': devNovelPlugin,
+      'dev-paged-novel': devPagedNovelPlugin,
+    }
+  : {};
 
 const installPlugin = async (
   _plugin: PluginItem,
@@ -163,6 +169,10 @@ const getPlugin = (pluginId: string) => {
     return undefined;
   }
 
+  if (__DEV__ && (pluginId === 'dev-novel' || pluginId === 'dev-paged-novel')) {
+    return plugins[pluginId];
+  }
+
   if (!plugins[pluginId]) {
     const filePath = `${PLUGIN_STORAGE}/${pluginId}/index.js`;
     try {
@@ -186,4 +196,6 @@ export {
   updatePlugin,
   fetchPlugins,
   LOCAL_PLUGIN_ID,
+  devNovelPlugin,
+  devPagedNovelPlugin,
 };
