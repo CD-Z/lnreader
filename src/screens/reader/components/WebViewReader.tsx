@@ -9,11 +9,11 @@ import { getString } from '@i18n/translations';
 import { getPlugin } from '@plugins/pluginManager';
 import { getMMKVObject } from '@utils/mmkv/mmkv';
 import {
- CHAPTER_GENERAL_SETTINGS,
- ChapterGeneralSettings,
- ChapterReaderSettings,
- initialChapterGeneralSettings,
- useChapterReaderSettings,
+  CHAPTER_GENERAL_SETTINGS,
+  ChapterGeneralSettings,
+  ChapterReaderSettings,
+  initialChapterGeneralSettings,
+  useChapterReaderSettings,
 } from '@hooks/persisted/useSettings';
 import { getBatteryLevelSync } from 'react-native-device-info';
 import { PLUGIN_STORAGE } from '@utils/Storages';
@@ -23,28 +23,26 @@ import { useUpdateWebview } from './hooks/useUpdateWebview';
 import { ReaderSearchResult } from '../types';
 import { useBoolean } from '@hooks/index';
 
-
 type WebViewReaderProps = {
- onPress(): void;
- onTouchStart?(): void;
- onSearchResult(result: ReaderSearchResult): void;
- searchTextRef: React.MutableRefObject<string>;
+  onPress(): void;
+  onTouchStart?(): void;
+  onSearchResult(result: ReaderSearchResult): void;
+  searchTextRef: React.MutableRefObject<string>;
 };
 
 const onLogMessage = (payload: { nativeEvent: { data: string } }) => {
- const dataPayload = JSON.parse(payload.nativeEvent.data);
- if (dataPayload) {
-  if (dataPayload.type === 'console') {
-   /* eslint-disable no-console */
-   console.info(`[Console] ${JSON.stringify(dataPayload.msg, null, 2)}`);
+  const dataPayload = JSON.parse(payload.nativeEvent.data);
+  if (dataPayload) {
+    if (dataPayload.type === 'console') {
+      /* eslint-disable no-console */
+      console.info(`[Console] ${JSON.stringify(dataPayload.msg, null, 2)}`);
+    }
   }
- }
 };
 
-
 const assetsUriPrefix = __DEV__
- ? 'http://localhost:8081/assets'
- : 'file:///android_asset';
+  ? 'http://localhost:8081/assets'
+  : 'file:///android_asset';
 
 const handleSaveMessage = (
   event: WebViewPostEvent,
@@ -85,39 +83,39 @@ const handleSearchResultMessage = (
 };
 
 const WebViewReader: React.FC<WebViewReaderProps> = ({
- onPress,
- onTouchStart,
- onSearchResult,
- searchTextRef,
+  onPress,
+  onTouchStart,
+  onSearchResult,
+  searchTextRef,
 }) => {
- const {
-  novel,
-  chapter,
-  chapterText: html,
-  navigateChapter,
-  saveProgress,
-  nextChapter,
-  prevChapter,
-  webViewRef,
-  onUserInteraction,
-  isTTSReadingRef,
- } = useChapterContext();
- const theme = useTheme();
- const readerSettings = useChapterReaderSettings();
- const initialReaderSettings = useMemo(
-  () => readerSettings,
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  [chapter.id],
- );
+  const {
+    novel,
+    chapter,
+    chapterText: html,
+    navigateChapter,
+    saveProgress,
+    nextChapter,
+    prevChapter,
+    webViewRef,
+    onUserInteraction,
+    isTTSReadingRef,
+  } = useChapterContext();
+  const theme = useTheme();
+  const readerSettings = useChapterReaderSettings();
+  const initialReaderSettings = useMemo(
+    () => readerSettings,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [chapter.id],
+  );
 
- const chapterGeneralSettings = useMemo(
-  () =>
-   getMMKVObject<ChapterGeneralSettings>(CHAPTER_GENERAL_SETTINGS) ||
-   initialChapterGeneralSettings,
-  // needed to preserve settings during chapter change
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  [chapter.id],
- );
+  const chapterGeneralSettings = useMemo(
+    () =>
+      getMMKVObject<ChapterGeneralSettings>(CHAPTER_GENERAL_SETTINGS) ||
+      initialChapterGeneralSettings,
+    // needed to preserve settings during chapter change
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [chapter.id],
+  );
 
   // Update battery level when chapter changes to ensure fresh value on navigation
   const batteryLevel = useMemo(() => getBatteryLevelSync(), []);
@@ -126,29 +124,28 @@ const WebViewReader: React.FC<WebViewReaderProps> = ({
   const pluginCustomCSS = `file://${PLUGIN_STORAGE}/${plugin?.id}/custom.css`;
   const nextChapterScreenVisible = useBoolean(false);
 
- const readerSettingsRef = useRef<ChapterReaderSettings>(
-  initialReaderSettings,
- );
+  const readerSettingsRef = useRef<ChapterReaderSettings>(
+    initialReaderSettings,
+  );
 
- const { handleTTSEvent, onTTSSettingsChanged, autoStartTTSRef } = useTTS({
-  webViewRef,
-  isTTSReadingRef,
-  novel,
-  chapter,
-  readerSettingsRef,
-  onUserInteraction,
- });
+  const { handleTTSEvent, onTTSSettingsChanged, autoStartTTSRef } = useTTS({
+    webViewRef,
+    isTTSReadingRef,
+    novel,
+    chapter,
+    readerSettingsRef,
+    onUserInteraction,
+  });
 
- const { handleLoadEnd } = useUpdateWebview({
-  webViewRef,
-  readerSettingsRef,
-  searchTextRef,
-  autoStartTTSRef,
-  onTTSSettingsChanged,
- });
- const isRTL = plugin?.lang === 'Arabic' || plugin?.lang === 'Hebrew';
- const readerDir = isRTL ? 'rtl' : 'ltr';
-
+  const { handleLoadEnd } = useUpdateWebview({
+    webViewRef,
+    readerSettingsRef,
+    searchTextRef,
+    autoStartTTSRef,
+    onTTSSettingsChanged,
+  });
+  const isRTL = plugin?.lang === 'Arabic' || plugin?.lang === 'Hebrew';
+  const readerDir = isRTL ? 'rtl' : 'ltr';
 
   return (
     <WebView
@@ -210,10 +207,12 @@ const WebViewReader: React.FC<WebViewReaderProps> = ({
                 --readerSettings-textSize: ${initialReaderSettings.textSize}px;
                 --readerSettings-textColor: ${initialReaderSettings.textColor};
                 --readerSettings-textAlign: ${initialReaderSettings.textAlign};
-                --readerSettings-lineHeight: ${initialReaderSettings.lineHeight
-     };
-                --readerSettings-fontFamily: ${initialReaderSettings.fontFamily
-     };
+                --readerSettings-lineHeight: ${
+                  initialReaderSettings.lineHeight
+                };
+                --readerSettings-fontFamily: ${
+                  initialReaderSettings.fontFamily
+                };
                 --theme-primary: ${theme.primary};
                 --theme-onPrimary: ${theme.onPrimary};
                 --theme-secondary: ${theme.secondary};
@@ -222,8 +221,8 @@ const WebViewReader: React.FC<WebViewReaderProps> = ({
                 --theme-onSecondary: ${theme.onSecondary};
                 --theme-surface: ${theme.surface};
                 --theme-surface-0-9: ${color(theme.surface)
-      .alpha(0.9)
-      .toString()};
+                  .alpha(0.9)
+                  .toString()};
                 --theme-onSurface: ${theme.onSurface};
                 --theme-surfaceVariant: ${theme.surfaceVariant};
                 --theme-onSurfaceVariant: ${theme.onSurfaceVariant};
@@ -234,13 +233,15 @@ const WebViewReader: React.FC<WebViewReaderProps> = ({
                 <style id="ln-font">
                 @font-face {
                   font-family: ${initialReaderSettings.fontFamily};
-                  src: url("file:///android_asset/fonts/${initialReaderSettings.fontFamily
-     }.ttf");
+                  src: url("file:///android_asset/fonts/${
+                    initialReaderSettings.fontFamily
+                  }.ttf");
                 }
 				</style>
               <link rel="stylesheet" href="${pluginCustomCSS}">
-              <style id="ln-custom-css">${initialReaderSettings.customCSS
-     }</style>
+              <style id="ln-custom-css">${
+                initialReaderSettings.customCSS
+              }</style>
             </head>
             <body class="${
               chapterGeneralSettings.pageReader ? 'page-reader' : ''
@@ -264,26 +265,26 @@ const WebViewReader: React.FC<WebViewReaderProps> = ({
 
 
                 var initialReaderConfig = ${JSON.stringify({
-      readerSettings: initialReaderSettings,
-      chapterGeneralSettings,
-      novel,
-      chapter,
-      nextChapter,
-      prevChapter,
-      batteryLevel,
-      autoSaveInterval: 2222,
-      DEBUG: __DEV__,
-      strings: {
-       finished:
-        getString('readerScreen.finished') +
-        ': ' +
-        chapter.name.trim(),
-       nextChapter: getString('readerScreen.nextChapter', {
-        name: nextChapter?.name,
-       }),
-       noNextChapter: getString('readerScreen.noNextChapter'),
-      },
-     })}
+                  readerSettings: initialReaderSettings,
+                  chapterGeneralSettings,
+                  novel,
+                  chapter,
+                  nextChapter,
+                  prevChapter,
+                  batteryLevel,
+                  autoSaveInterval: 2222,
+                  DEBUG: __DEV__,
+                  strings: {
+                    finished:
+                      getString('readerScreen.finished') +
+                      ': ' +
+                      chapter.name.trim(),
+                    nextChapter: getString('readerScreen.nextChapter', {
+                      name: nextChapter?.name,
+                    }),
+                    noNextChapter: getString('readerScreen.noNextChapter'),
+                  },
+                })}
               </script>
               <script src="${assetsUriPrefix}/js/polyfill-onscrollend.js"></script>
               <script src="${assetsUriPrefix}/js/icons.js"></script>
@@ -298,9 +299,9 @@ const WebViewReader: React.FC<WebViewReaderProps> = ({
               </script>
           </html>
           `,
-   }}
-  />
- );
+      }}
+    />
+  );
 };
 
 export default memo(WebViewReader);
