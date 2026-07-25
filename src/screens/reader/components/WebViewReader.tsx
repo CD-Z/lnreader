@@ -1,4 +1,4 @@
-import React, { memo, useMemo, useRef } from 'react';
+import React, { memo, useMemo, useRef, useState } from 'react';
 import { StatusBar } from 'react-native';
 import WebView from 'react-native-webview';
 import color from 'color';
@@ -15,13 +15,12 @@ import {
  initialChapterGeneralSettings,
  useChapterReaderSettings,
 } from '@hooks/persisted/useSettings';
-import { getBatteryLevelSync } from 'react-native-device-info';
 import { PLUGIN_STORAGE } from '@utils/Storages';
 import { useChapterContext } from '../ChapterContext';
-import { useTTS, WebViewPostEvent } from './hooks/useTTS';
-import { useUpdateWebview } from './hooks/useUpdateWebview';
 import { ReaderSearchResult } from '../types';
-import { useBoolean } from '@hooks/index';
+import { useTTS, WebViewPostEvent } from './hooks/useTTS';
+import { useUpdateWebview, lastKnownBatteryLevel } from './hooks/useUpdateWebview';
+
 
 type WebViewReaderProps = {
  onPress(): void;
@@ -39,48 +38,9 @@ const onLogMessage = (payload: { nativeEvent: { data: string } }) => {
   }
  }
 };
-
 const assetsUriPrefix = __DEV__
  ? 'http://localhost:8081/assets'
  : 'file:///android_asset';
-
-const handleSaveMessage = (
- event: WebViewPostEvent,
- saveProgress: (percentage: number) => void,
-) => {
- if (event.data && typeof event.data === 'number') {
-  saveProgress(event.data);
- }
-};
-
-const handleSearchResultMessage = (
- event: WebViewPostEvent,
- searchTextRef: React.MutableRefObject<string>,
- onSearchResult: (result: ReaderSearchResult) => void,
-) => {
- if (event.data && typeof event.data === 'object') {
-  const data = event.data as {
-   query?: unknown;
-   current?: unknown;
-   total?: unknown;
-   renderedTotal?: unknown;
-   isTruncated?: unknown;
-  };
-  const query = typeof data.query === 'string' ? data.query : '';
-  if (query !== searchTextRef.current.trim()) {
-   return;
-  }
-  const total = typeof data.total === 'number' ? data.total : 0;
-  onSearchResult({
-   query,
-   current: typeof data.current === 'number' ? data.current : 0,
-   total,
-   renderedTotal:
-    typeof data.renderedTotal === 'number' ? data.renderedTotal : total,
-   isTruncated: data.isTruncated === true,
-  });
- }
-};
 
 const WebViewReader: React.FC<WebViewReaderProps> = ({
  onPress,
@@ -101,12 +61,11 @@ const WebViewReader: React.FC<WebViewReaderProps> = ({
   isTTSReadingRef,
  } = useChapterContext();
  const theme = useTheme();
- const readerSettings = useChapterReaderSettings();
- const initialReaderSettings = useMemo(
-  () => readerSettings,
+ const { setChapterReaderSettings, ...readerSettings } = useChapterReaderSettings();
+ const initialReaderSettings = useMemo(() => readerSettings, [
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  [chapter.id],
- );
+  chapter.id,
+ ]);
 
  const chapterGeneralSettings = useMemo(
   () =>
@@ -117,36 +76,31 @@ const WebViewReader: React.FC<WebViewReaderProps> = ({
   [chapter.id],
  );
 
- // Update battery level when chapter changes to ensure fresh value on navigation
- const batteryLevel = useMemo(() => getBatteryLevelSync(), []);
+ const [batteryLevel] = useState(lastKnownBatteryLevel);
  const plugin = getPlugin(novel?.pluginId);
  const pluginCustomJS = `file://${PLUGIN_STORAGE}/${plugin?.id}/custom.js`;
  const pluginCustomCSS = `file://${PLUGIN_STORAGE}/${plugin?.id}/custom.css`;
- const nextChapterScreenVisible = useBoolean(false);
+ const nextChapterScreenVisible = useRef<boolean>(false);
 
- const readerSettingsRef = useRef<ChapterReaderSettings>(
-  initialReaderSettings,
- );
+ const readerSettingsRef = useRef<ChapterReaderSettings>(initialReaderSettings);
 
  const { handleTTSEvent, onTTSSettingsChanged, autoStartTTSRef } = useTTS({
-  webViewRef,
-  isTTSReadingRef,
-  novel,
-  chapter,
-  readerSettingsRef,
-  onUserInteraction,
+  webViewRef, isTTSReadingRef, novel, chapter, readerSettingsRef,
  });
 
  const { handleLoadEnd } = useUpdateWebview({
-  webViewRef,
-  readerSettingsRef,
-  searchTextRef,
-  autoStartTTSRef,
-  onTTSSettingsChanged,
+  webViewRef, searchTextRef, autoStartTTSRef,
+  readerSettingsRef, setChapterReaderSettings, onTTSSettingsChanged,
  });
  const isRTL = plugin?.lang === 'Arabic' || plugin?.lang === 'Hebrew';
  const readerDir = isRTL ? 'rtl' : 'ltr';
 
+ /**
+  * Serialising the whole chapter is expensive, so the document is built once
+  * per chapter. Handing the WebView a different `source` also reloads the
+  * page, so nothing that changes while a chapter is on screen may be part of
+  * it – those updates go through `injectJavaScript` instead.
+  */
  const source = useMemo(
   () => ({
    baseUrl: !chapter.isDownloaded ? plugin?.site : undefined,
@@ -204,7 +158,7 @@ const WebViewReader: React.FC<WebViewReaderProps> = ({
             </head>
             <body class="${chapterGeneralSettings.pageReader ? 'page-reader' : ''
     }">
-              <div class="transition-chapter" style="transform: ${nextChapterScreenVisible.value
+              <div class="transition-chapter" style="transform: ${nextChapterScreenVisible.current
      ? 'translateX(-100%)'
      : 'translateX(0%)'
     };
@@ -217,7 +171,7 @@ const WebViewReader: React.FC<WebViewReaderProps> = ({
               </body>
               <script>
                 var initialPageReaderConfig = ${JSON.stringify({
-     nextChapterScreenVisible: nextChapterScreenVisible.value,
+     nextChapterScreenVisible: nextChapterScreenVisible.current,
     })};
 
 
@@ -226,8 +180,6 @@ const WebViewReader: React.FC<WebViewReaderProps> = ({
      chapterGeneralSettings,
      novel,
      chapter,
-     nextChapter,
-     prevChapter,
      batteryLevel,
      autoSaveInterval: 2222,
      DEBUG: __DEV__,
@@ -236,9 +188,6 @@ const WebViewReader: React.FC<WebViewReaderProps> = ({
        getString('readerScreen.finished') +
        ': ' +
        chapter.name.trim(),
-      nextChapter: getString('readerScreen.nextChapter', {
-       name: nextChapter?.name,
-      }),
       noNextChapter: getString('readerScreen.noNextChapter'),
      },
     })}
@@ -263,13 +212,10 @@ const WebViewReader: React.FC<WebViewReaderProps> = ({
    chapterGeneralSettings,
    html,
    initialReaderSettings,
-   nextChapter,
-   nextChapterScreenVisible,
    novel,
    plugin,
    pluginCustomCSS,
    pluginCustomJS,
-   prevChapter,
    readerDir,
    theme,
   ],
@@ -296,17 +242,48 @@ const WebViewReader: React.FC<WebViewReaderProps> = ({
       onPress();
       break;
      case 'next':
-      nextChapterScreenVisible.setTrue();
+      nextChapterScreenVisible.current = true;
+      if (event.autoStartTTS) {
+       autoStartTTSRef.current = true;
+      }
       navigateChapter('NEXT');
       break;
      case 'prev':
+      if (event.autoStartTTS) {
+       autoStartTTSRef.current = true;
+      }
       navigateChapter('PREV');
       break;
      case 'save':
-      handleSaveMessage(event, saveProgress);
+      if (event.data && typeof event.data === 'number') {
+       saveProgress(event.data);
+      }
       break;
      case 'search-result':
-      handleSearchResultMessage(event, searchTextRef, onSearchResult);
+      if (event.data && typeof event.data === 'object') {
+       const data = event.data as {
+        query?: unknown;
+        current?: unknown;
+        total?: unknown;
+        renderedTotal?: unknown;
+        isTruncated?: unknown;
+       };
+       const query = typeof data.query === 'string' ? data.query : '';
+       if (query !== searchTextRef.current.trim()) {
+        break;
+       }
+       const total = typeof data.total === 'number' ? data.total : 0;
+       onSearchResult({
+        query,
+        current: typeof data.current === 'number' ? data.current : 0,
+        total,
+        renderedTotal:
+         typeof data.renderedTotal === 'number'
+          ? data.renderedTotal
+          : total,
+        isTruncated: data.isTruncated === true,
+       });
+      }
       break;
      case 'interaction':
       onUserInteraction();
