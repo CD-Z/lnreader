@@ -1,24 +1,46 @@
 import { View, StyleSheet, useWindowDimensions } from 'react-native';
-import { useEffect, useRef, useState } from 'react';
-import type { BottomSheetModalMethods } from '@gorhom/bottom-sheet/lib/typescript/types';
+import { useCallback, useRef, useState } from 'react';
+import { BottomSheetModalMethods } from '@gorhom/bottom-sheet/lib/typescript/types';
 import { useNavigation } from '@react-navigation/native';
 import { FAB } from 'react-native-paper';
+import MaterialCommunityIcons from '@react-native-vector-icons/material-design-icons';
+import {
+  TabView,
+  type TabBarProps,
+  type TabDescriptor,
+} from 'react-native-tab-view';
 
-import { Appbar, SafeAreaView } from '@components/index';
+import { Appbar, SafeAreaView, TopTabBar } from '@components/index';
 import BottomSheet from '@components/BottomSheet/BottomSheet';
-
 import { useChapterReaderSettings, useTheme } from '@hooks/persisted';
 import { getString } from '@i18n/translations';
-
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import * as Speech from 'expo-speech';
 
-import TabBar, { Tab } from './components/TabBar';
+import SettingsReaderWebView from './components/SettingsReaderWebView';
 import DisplayTab from './tabs/DisplayTab';
 import ThemeTab from './tabs/ThemeTab';
 import NavigationTab from './tabs/NavigationTab';
 import AccessibilityTab from './tabs/AccessibilityTab';
-import SettingsReaderWebView from './components/SettingsReaderWebView';
+
+type ReaderSettingsRoute = {
+  key: 'display' | 'theme' | 'navigation' | 'accessibility';
+  title: string;
+  icon: React.ComponentProps<typeof MaterialCommunityIcons>['name'];
+};
+
+const routes: ReaderSettingsRoute[] = [
+  { key: 'display', title: 'Display', icon: 'format-size' },
+  { key: 'theme', title: 'Theme', icon: 'palette-outline' },
+  { key: 'navigation', title: 'Navigation', icon: 'gesture-swipe-horizontal' },
+  { key: 'accessibility', title: 'Accessibility', icon: 'account-voice' },
+];
+
+const tabOptions: TabDescriptor<ReaderSettingsRoute> = {
+  icon: ({ route, color: iconColor }) => (
+    <MaterialCommunityIcons name={route.icon} size={20} color={iconColor} />
+  ),
+  label: () => null,
+};
 
 export type TextAlignments =
   | 'left'
@@ -33,26 +55,12 @@ const SettingsReaderScreen = () => {
   const navigation = useNavigation();
   const bottomSheetRef = useRef<BottomSheetModalMethods>(null);
   const { bottom, right } = useSafeAreaInsets();
-  const { height: screenHeight } = useWindowDimensions();
-  const [activeTab, setActiveTab] = useState<string>('display');
-
-  const tabs: Tab[] = [
-    { id: 'display', label: 'Display', icon: 'format-size' },
-    { id: 'theme', label: 'Theme', icon: 'palette-outline' },
-    { id: 'navigation', label: 'Navigation', icon: 'gesture-swipe-horizontal' },
-    { id: 'accessibility', label: 'Accessibility', icon: 'account-voice' },
-  ];
+  const { height: screenHeight, width: screenWidth } = useWindowDimensions();
+  const [tabIndex, setTabIndex] = useState(0);
 
   const readerSettings = useChapterReaderSettings();
   const BOTTOM_SHEET_HEIGHT = screenHeight * 0.7;
-
   const readerBackgroundColor = readerSettings.theme;
-
-  useEffect(() => {
-    return () => {
-      Speech.stop();
-    };
-  }, []);
 
   const openBottomSheet = () => {
     bottomSheetRef.current?.present();
@@ -140,32 +148,18 @@ const SettingsReaderScreen = () => {
         bottomSheetRef={bottomSheetRef}
         snapPoints={[BOTTOM_SHEET_HEIGHT]}
       >
-        <View
-          style={[
-            styles.bottomSheetContent,
-            { backgroundColor: theme.surface },
-          ]}
-        >
-          {/* Drag Handle */}
-          <View style={styles.dragHandleContainer}>
-            <View
-              style={[
-                styles.dragHandle,
-                { backgroundColor: theme.onSurfaceVariant },
-              ]}
-            />
-          </View>
-
-          {/* Tab Bar */}
-          <TabBar
-            tabs={tabs}
-            activeTab={activeTab}
-            onTabChange={setActiveTab}
-            theme={theme}
+        <View style={styles.bottomSheetContent}>
+          <TabView
+            commonOptions={tabOptions}
+            navigationState={{ index: tabIndex, routes }}
+            renderTabBar={renderTabBar}
+            renderScene={renderTabContent}
+            onIndexChange={setTabIndex}
+            initialLayout={{ width: screenWidth }}
+            lazy
+            lazyPreloadDistance={0}
+            swipeEnabled={false}
           />
-
-          {/* Tab Content */}
-          <View style={styles.tabContent}>{renderTabContent()}</View>
         </View>
       </BottomSheet>
     </SafeAreaView>
@@ -182,23 +176,14 @@ const styles = StyleSheet.create({
   bottomSheetContent: {
     flex: 1,
   },
-  dragHandleContainer: {
-    alignItems: 'center',
-    paddingVertical: 12,
-  },
-  dragHandle: {
-    width: 32,
-    height: 4,
-    borderRadius: 2,
-    opacity: 0.4,
-  },
-  tabContent: {
-    flex: 1,
-  },
   container: {
     flex: 1,
   },
   previewContainer: {
     flex: 1,
+  },
+  tabBar: {
+    borderBottomWidth: 1,
+    elevation: 0,
   },
 });

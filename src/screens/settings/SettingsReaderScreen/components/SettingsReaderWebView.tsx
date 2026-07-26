@@ -9,23 +9,29 @@ import {
   useTheme,
 } from '@hooks/persisted';
 import { getString } from '@i18n/translations';
+import type { ChapterReaderSettings } from '@hooks/persisted/useSettings';
 
 import color from 'color';
 import { useBatteryLevel } from 'react-native-device-info';
-import * as Speech from 'expo-speech';
-import {
-  composeCSS,
-  composeJS,
-  applyTextModifications,
-} from '@utils/customCode';
+import { useTtsSession } from '@screens/reader/hooks/useTtsSession';
+import type { TtsSettings } from '@modules/nitro-tts';
 
 type WebViewPostEvent = {
   type: string;
-  data?: { [key: string]: string | number };
+  data?: unknown;
   msg?: string;
 };
 
-const SettingsReaderWebView = ({ onPress }: { onPress?: () => void } = {}) => {
+const toNativeTtsSettings = (
+  settings: ChapterReaderSettings['tts'],
+): TtsSettings => ({
+  engineName: settings?.engine?.name,
+  voiceIdentifier: settings?.voice?.identifier,
+  rate: settings?.rate ?? 1,
+  pitch: settings?.pitch ?? 1,
+});
+
+const SettingsReaderWebView = () => {
   const theme = useTheme();
   const webViewRef = useRef<WebView<object>>(null);
 
@@ -66,16 +72,14 @@ const SettingsReaderWebView = ({ onPress }: { onPress?: () => void } = {}) => {
   const batteryLevel = useBatteryLevel();
   const readerSettings = useChapterReaderSettings();
   const chapterGeneralSettings = useChapterGeneralSettings();
-
-  const customJS = useMemo(
-    () => composeJS(readerSettings.codeSnippetsJS),
-    [readerSettings.codeSnippetsJS],
-  );
-
-  const customCSS = useMemo(
-    () => composeCSS(readerSettings.codeSnippetsCSS),
-    [readerSettings.codeSnippetsCSS],
-  );
+  const {
+    command: runTtsCommand,
+    loadAndPlay,
+    progress: ttsProgress,
+    seekTo: seekTts,
+    state: ttsState,
+    updateSettings: updateTtsSettings,
+  } = useTtsSession();
 
   const assetsUriPrefix = useMemo(
     () => (__DEV__ ? 'http://localhost:8081/assets' : 'file:///android_asset'),
@@ -83,13 +87,9 @@ const SettingsReaderWebView = ({ onPress }: { onPress?: () => void } = {}) => {
   );
   const webViewCSS = `
   <link rel="stylesheet" href="${assetsUriPrefix}/css/index.css">
-  <link rel="stylesheet" href="${assetsUriPrefix}/css/pageReader.css">
-  <link rel="stylesheet" href="${assetsUriPrefix}/css/toolWrapper.css">
-  <link rel="stylesheet" href="${assetsUriPrefix}/css/tts.css">
     <style>
     :root {
-      --StatusBar-currentHeight: ${StatusBar.currentHeight}px;
-      --bottom-inset: 0px;
+      --StatusBar-currentHeight: ${StatusBar.currentHeight};
       --readerSettings-theme: ${readerSettings.theme};
       --readerSettings-padding: ${readerSettings.padding}px;
       --readerSettings-textSize: ${readerSettings.textSize}px;
@@ -120,26 +120,33 @@ const SettingsReaderWebView = ({ onPress }: { onPress?: () => void } = {}) => {
       }
     </style>
 
-    <style>${customCSS}</style>
+    <style>${readerSettings.customCSS}</style>
   `;
 
   const readerBackgroundColor = readerSettings.theme;
 
   useEffect(() => {
-    return () => {
-      Speech.stop();
-    };
-  }, []);
+    updateTtsSettings(toNativeTtsSettings(readerSettings.tts));
+  }, [readerSettings.tts, updateTtsSettings]);
 
-  const preparedDummyHTML = useMemo(
-    () =>
-      applyTextModifications(
-        dummyHTML,
-        readerSettings.removeText,
-        readerSettings.replaceText,
-      ),
-    [readerSettings.removeText, readerSettings.replaceText],
-  );
+  useEffect(() => {
+    webViewRef.current?.injectJavaScript(`
+      window.tts?.setPlaybackState?.(${JSON.stringify(ttsState)});
+      true;
+    `);
+    if (ttsState === 'completed') {
+      webViewRef.current?.injectJavaScript('window.tts?.complete?.(); true;');
+    }
+  }, [ttsState]);
+
+  useEffect(() => {
+    if (ttsProgress.total > 0) {
+      webViewRef.current?.injectJavaScript(`
+        window.tts?.setActiveIndex?.(${ttsProgress.index});
+        true;
+      `);
+    }
+  }, [ttsProgress]);
 
   return (
     <WebView
@@ -155,7 +162,6 @@ const SettingsReaderWebView = ({ onPress }: { onPress?: () => void } = {}) => {
         const event: WebViewPostEvent = JSON.parse(ev.nativeEvent.data);
         switch (event.type) {
           case 'hide':
-            onPress?.();
             if (hidden) {
               webViewRef.current?.injectJavaScript('reader.hidden.val = true');
             } else {
@@ -163,23 +169,55 @@ const SettingsReaderWebView = ({ onPress }: { onPress?: () => void } = {}) => {
             }
             setHidden(!hidden);
             break;
-          case 'speak':
-            if (event.data && typeof event.data === 'string') {
-              Speech.speak(event.data, {
-                onDone() {
-                  webViewRef.current?.injectJavaScript('tts.next?.()');
-                },
-                voice: readerSettings.tts?.voice?.identifier,
-                pitch: readerSettings.tts?.pitch || 1,
-                rate: readerSettings.tts?.rate || 1,
-              });
-            } else {
-              webViewRef.current?.injectJavaScript('tts.next?.()');
+          case 'tts-queue': {
+            const payload = event.data as
+              | { queue?: unknown; startIndex?: unknown }
+              | undefined;
+            const queue = Array.isArray(payload?.queue)
+              ? payload.queue.filter(
+                  (item): item is string =>
+                    typeof item === 'string' && item.trim().length > 0,
+                )
+              : [];
+            const startIndex =
+              typeof payload?.startIndex === 'number' ? payload.startIndex : 0;
+            void loadAndPlay(
+              queue,
+              startIndex,
+              {
+                novelName: novel.name,
+                chapterName: chapter.name,
+                coverUri: novel.cover,
+              },
+              toNativeTtsSettings(readerSettings.tts),
+            );
+            break;
+          }
+          case 'tts-command': {
+            if (!event.data || typeof event.data !== 'object') {
+              break;
+            }
+            const data = event.data as {
+              command?: unknown;
+              index?: unknown;
+            };
+            switch (data.command) {
+              case 'next':
+              case 'pause':
+              case 'play':
+              case 'previous':
+              case 'replay':
+              case 'stop':
+                runTtsCommand(data.command);
+                break;
+              case 'seekTo':
+                if (typeof data.index === 'number') {
+                  seekTts(data.index);
+                }
+                break;
             }
             break;
-          case 'stop-speak':
-            Speech.stop();
-            break;
+          }
           case 'console':
             /* eslint-disable no-console */
             console.info(`[Console] ${JSON.stringify(event.msg, null, 2)}`);
@@ -196,14 +234,11 @@ const SettingsReaderWebView = ({ onPress }: { onPress?: () => void } = {}) => {
                 chapterGeneralSettings.pageReader ? 'page-reader' : ''
               }">
                 <div id="LNReader-chapter">
-                ${preparedDummyHTML}
+                ${dummyHTML}
                 </div>
                 <div id="reader-ui"></div>
               </body>
               <script>
-              var initialPageReaderConfig = ${JSON.stringify({
-                nextChapterScreenVisible: false,
-              })};
                 var initialReaderConfig = ${JSON.stringify({
                   readerSettings,
                   chapterGeneralSettings,
@@ -224,27 +259,14 @@ const SettingsReaderWebView = ({ onPress }: { onPress?: () => void } = {}) => {
                   },
                 })}
               </script>
-              <script src="${assetsUriPrefix}/js/polyfill-onscrollend.js"></script>
               <script src="${assetsUriPrefix}/js/icons.js"></script>
               <script src="${assetsUriPrefix}/js/van.js"></script>
               <script src="${assetsUriPrefix}/js/text-vibe.js"></script>
               <script src="${assetsUriPrefix}/js/core.js"></script>
               <script src="${assetsUriPrefix}/js/index.js"></script>
-              <script src="${assetsUriPrefix}/js/textRemover.js"></script>
               <script>
-                 function fn(){
-                     let novelName = "${novel.name}";
-                     let chapterName = "${chapter.name}";
-                     let sourceId = "${novel.pluginId}";
-                     let chapterId =${chapter.id};
-                     let novelId =${chapter.novelId};
-                     const qs = (s) => document.querySelector(s);
-                     let html = qs("#LNReader-chapter").innerHTML;
-                     ${customJS}
-                     qs("#LNReader-chapter").innerHTML = html;
-                   }
-                   document.addEventListener("DOMContentLoaded", fn);
-               </script>
+                ${readerSettings.customJS}
+              </script>
             </html>
             `,
       }}
