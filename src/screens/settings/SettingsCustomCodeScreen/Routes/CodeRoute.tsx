@@ -1,10 +1,9 @@
 import { Button, TextInput } from '@components';
 import { Row } from '@components/Common';
 import { ToggleButton } from '@components/Common/ToggleButton';
-import { Dimensions } from 'react-native';
+import { Dimensions, StyleSheet } from 'react-native';
 import { getString } from '@i18n/translations';
 import React from 'react';
-import { StyleSheet } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
 import { Text } from 'react-native-paper';
 import Animated, { useAnimatedStyle } from 'react-native-reanimated';

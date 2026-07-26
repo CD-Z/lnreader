@@ -1,7 +1,6 @@
 import { StatusBar, StyleSheet } from 'react-native';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import WebView from 'react-native-webview';
-import { dummyHTML } from './dummy';
 
 import {
   useChapterGeneralSettings,
@@ -15,6 +14,7 @@ import color from 'color';
 import { useBatteryLevel } from 'react-native-device-info';
 import { useTtsSession } from '@screens/reader/hooks/useTtsSession';
 import type { TtsSettings } from '@modules/nitro-tts';
+import { dummyHTML } from '@screens/settings/SettingsCustomCodeScreen/Components/dummies';
 
 type WebViewPostEvent = {
   type: string;
