@@ -15,8 +15,8 @@ jest.mock('react-native-gesture-handler', () => {
     RotationGestureHandler: View,
     FlingGestureHandler: View,
     Directions: { UP: 1, DOWN: 2, LEFT: 4, RIGHT: 8 },
-    gestureHandlerRootHOC: (c) => c,
-    createNativeWrapper: (c) => c,
+    gestureHandlerRootHOC: (c: unknown) => c,
+    createNativeWrapper: (c: unknown) => c,
     // Default export used by some imports
     default: {
       TextInput: RN.TextInput,
