@@ -1,5 +1,5 @@
 import { useTheme } from '@hooks/persisted';
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { StyleSheet, TextInputProps as RNTextInputProps } from 'react-native';
 import { TextInput as RNTextInput } from 'react-native-gesture-handler';
 
