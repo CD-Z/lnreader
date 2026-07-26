@@ -173,6 +173,7 @@ function renderInlineNodes(
           key={key}
           style={{
             color: defaultColor,
+            includeFontPadding: false,
             ...getStylesForNode(node, rnStylesheet),
           }}
         >
@@ -219,8 +220,8 @@ function lineHighlightRenderer(raw: rendererProps): React.ReactNode {
 }
 
 function shallowEqualTextStyle(a: TextStyle, b: TextStyle): boolean {
-  const aKeys = Object.keys(a) as Array<keyof TextStyle>;
-  const bKeys = Object.keys(b) as Array<keyof TextStyle>;
+  const aKeys = Object.keys(a) as (keyof TextStyle)[];
+  const bKeys = Object.keys(b) as (keyof TextStyle)[];
 
   if (aKeys.length !== bKeys.length) {
     return false;
@@ -245,7 +246,7 @@ const HighlightedLine = memo(
       lineHeight,
     };
     return (
-      <Text style={[textStyle, style]}>
+      <Text style={[textStyle, style, { includeFontPadding: false }]}>
         {code.length === 0 ? (
           '\u200B'
         ) : (
@@ -448,7 +449,10 @@ export function MemoizedHighlightedCode({
     <View style={[contentPadding, opacityStyle, styles.lineContainer]}>
       {lines.map((line, i) => (
         <Row key={'row' + i + 1 + startLine}>
-          <Text key={'l' + i + 1 + startLine} style={[textStyle, styles.lines]}>
+          <Text
+            key={'l' + i + 1 + startLine}
+            style={[textStyle, styles.lines, { includeFontPadding: false }]}
+          >
             {i + 1 + startLine}
           </Text>
 
