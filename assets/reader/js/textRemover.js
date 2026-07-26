@@ -10,13 +10,28 @@ window.textRemover = new (function () {
     selectionUI = div(
       {
         id: 'text-selection-ui',
-        style:
-          'position: fixed; background: color-mix(in srgb, var(--theme-surface), transparent 10%); border-radius: 8px; padding: 8px; z-index: 100000; opacity: 0; box-shadow: 0 4px 12px rgba(0,0,0,0.25); transition: opacity 150ms',
+        style: `
+          position: fixed;
+          background: color-mix(in srgb, var(--theme-surface), transparent 10%);
+          border-radius: 8px;
+          padding: 8px;
+          z-index: 100000;
+          opacity: 0;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+          transition: opacity 150ms
+          `,
       },
       button(
         {
-          style:
-            'background: var(--theme-secondary); color: var(--theme-onSecondary); padding: 6px 12px; margin: 2px; border-radius: 4px; font-size: 12px;',
+          style: `
+            background: var(--theme-secondary);
+            color: var(--theme-onSecondary);
+            padding: 6px 12px;
+            margin: 2px;
+            border: 0;
+            border-radius: 4px;
+            font-size: 12px;
+            `,
           onclick: e => {
             if (reader.hidden.val) {
               e.stopPropagation();
@@ -28,8 +43,15 @@ window.textRemover = new (function () {
       ),
       button(
         {
-          style:
-            'background: var(--theme-primary); color: var(--theme-onPrimary); padding: 6px 12px; margin: 2px; border-radius: 4px; font-size: 12px;',
+          style: `
+            background: var(--theme-secondary);
+            color: var(--theme-onSecondary);
+            padding: 6px 12px;
+            margin: 2px;
+            border: 0;
+            border-radius: 4px;
+            font-size: 12px;
+          `,
           onclick: e => {
             if (reader.hidden.val) {
               e.stopPropagation();
@@ -86,8 +108,8 @@ window.textRemover = new (function () {
 
       // Position UI based on selection location
       let topPosition;
-      if (selectionCenterY < viewportHeight / 2) {
-        // Selection is in top half, position UI at bottom
+      if (selectionCenterY < (viewportHeight / 5) * 4) {
+        // Selection is in top 4/5, position UI at bottom
         //TODO: make this dynamic
         const avoidScrollbar = reader.generalSettings.val.verticalSeekbar
           ? 0
@@ -97,7 +119,7 @@ window.textRemover = new (function () {
         ui.style.top = topPosition + 'px';
         ui.style.bottom = 'auto';
       } else {
-        // Selection is in bottom half, position UI at top (accounting for status bar)
+        // Selection is in bottom 1/5, position UI at top (accounting for status bar)
         topPosition = Math.max(topSafeArea, statusBarHeight + 20);
         const avoidUI = !reader.hidden.val ? 34 : 0;
         ui.style.top = topPosition + avoidUI + 'px';
@@ -193,3 +215,48 @@ window.textRemover = new (function () {
     hideSelectionUI();
   });
 })();
+
+/**
+ * Directly remove text from the chapter DOM without reloading the WebView.
+ * Also updates reader.rawHTML so the text-options deriver (bionic reading,
+ * paragraph spacing) doesn't re-introduce removed text on its next run.
+ */
+window.textRemover.performRemove = function (text) {
+  const el = document.querySelector('#LNReader-chapter');
+  if (!el) return;
+  const m = text.match(/^\/(.*)\/([gmiyuvsd]*)$/);
+  let result;
+  if (m) {
+    try {
+      result = el.innerHTML.replace(new RegExp(m[1], m[2]), '');
+    } catch (_e) {
+      return;
+    }
+  } else {
+    result = el.innerHTML.split(text).join('');
+  }
+  el.innerHTML = result;
+  reader.rawHTML = result;
+};
+
+/**
+ * Directly replace text in the chapter DOM without reloading the WebView.
+ * Also updates reader.rawHTML so the text-options deriver stays in sync.
+ */
+window.textRemover.performReplace = function (from, to) {
+  const el = document.querySelector('#LNReader-chapter');
+  if (!el) return;
+  const m = from.match(/^\/(.*)\/([gmiyuvsd]*)$/);
+  let result;
+  if (m) {
+    try {
+      result = el.innerHTML.replace(new RegExp(m[1], m[2]), to);
+    } catch (_e) {
+      return;
+    }
+  } else {
+    result = el.innerHTML.split(from).join(to);
+  }
+  el.innerHTML = result;
+  reader.rawHTML = result;
+};

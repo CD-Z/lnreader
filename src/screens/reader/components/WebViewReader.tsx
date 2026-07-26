@@ -187,7 +187,7 @@ const WebViewReader: React.FC<WebViewReaderProps> = ({
     handleReplaceSave,
     handleReplaceCancel,
     eventTextAction,
-  } = useTextModifications(html);
+  } = useTextModifications(html, webViewRef);
 
   const [readerSettings, setReaderSettings] = useState(
     () =>
@@ -412,6 +412,7 @@ const WebViewReader: React.FC<WebViewReaderProps> = ({
               <script src="${assetsUriPrefix}/js/core.js"></script>
               <script src="${assetsUriPrefix}/js/search.js"></script>
               <script src="${assetsUriPrefix}/js/index.js"></script>
+              <script src="${assetsUriPrefix}/js/textRemover.js"></script>
               <script src="${pluginCustomJS}"></script>
               <script id="ln-custom-js">
               function fn(){
