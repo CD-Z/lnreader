@@ -147,6 +147,7 @@ const BrowseALScreen = ({ navigation }: BrowseALScreenProps) => {
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     searchAniList(true);
   }, [searchAniList]);
 

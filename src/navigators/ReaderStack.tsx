@@ -20,13 +20,13 @@ const Stack = createNativeStackNavigator<ReaderStackParamList>();
 const ReaderStack = ({ route }) => {
   const params = useRef(route?.params);
   const theme = useTheme();
+  // eslint-disable-next-line react-hooks/refs
+  const routeParams = route?.params ?? params.current;
 
   return (
     <NovelContextProvider
       route={
-        (route?.params ?? params.current) as
-          | NovelScreenProps['route']
-          | ChapterScreenProps['route']
+        routeParams as NovelScreenProps['route'] | ChapterScreenProps['route']
       }
     >
       <Stack.Navigator

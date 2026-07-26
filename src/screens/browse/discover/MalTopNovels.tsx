@@ -70,6 +70,7 @@ const BrowseMalScreen = ({ navigation }: BrowseMalScreenProps) => {
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     getNovels();
   }, [getNovels]);
 

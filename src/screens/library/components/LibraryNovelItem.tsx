@@ -14,7 +14,7 @@ interface LibraryNovelItemProps {
   imageRequestInit: ImageRequestInit | undefined;
 }
 
-const LibraryNovelItem = memo(function LibraryNovelItem({
+const LibraryNovelItem = memo(function LibraryNovelItem_({
   item,
   theme,
   isSelected,
