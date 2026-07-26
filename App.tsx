@@ -20,6 +20,7 @@ import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { useInitDatabase } from '@database/db';
 import { useInitializeAppServices } from '@hooks/common/useInitializeAppServices';
 import { ThemeProvider, useTheme } from '@hooks/persisted/useTheme';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 
 enableFreeze(true);
 
@@ -68,18 +69,23 @@ const App = () => {
   return (
     <Suspense fallback={null}>
       <GestureHandlerRootView style={styles.flex}>
-        <ThemeProvider>
-          <AppErrorBoundary>
-            <SafeAreaProvider>
-              <ThemedPaperProvider>
-                <BottomSheetModalProvider>
-                  <StatusBar translucent={true} backgroundColor="transparent" />
-                  <Main />
-                </BottomSheetModalProvider>
-              </ThemedPaperProvider>
-            </SafeAreaProvider>
-          </AppErrorBoundary>
-        </ThemeProvider>
+        <KeyboardProvider>
+          <ThemeProvider>
+            <AppErrorBoundary>
+              <SafeAreaProvider>
+                <ThemedPaperProvider>
+                  <BottomSheetModalProvider>
+                    <StatusBar
+                      translucent={true}
+                      backgroundColor="transparent"
+                    />
+                    <Main />
+                  </BottomSheetModalProvider>
+                </ThemedPaperProvider>
+              </SafeAreaProvider>
+            </AppErrorBoundary>
+          </ThemeProvider>
+        </KeyboardProvider>
       </GestureHandlerRootView>
     </Suspense>
   );
