@@ -27,42 +27,12 @@ import {
   getTotalTimeSpentFromDb,
 } from '@database/queries/StatsQueries';
 import { Row } from '@components/Common';
-import { IconButton, overlay } from 'react-native-paper';
+import { IconButton } from 'react-native-paper';
 import { translateNovelStatus } from '@utils/translateEnum';
-import dayjs from 'dayjs';
 import { getUserAgent } from '@hooks/persisted/useUserAgent';
 import { getPlugin } from '@plugins/pluginManager';
-
-function formatTimeSpent(totalMs: number | undefined) {
-  if (totalMs === undefined || totalMs <= 0) {
-    return getString('time.seconds', { count: 0 });
-  }
-  const d = dayjs.duration(totalMs, 'milliseconds');
-  const asDays = Math.floor(d.asDays());
-  const asHours = Math.floor(d.asHours());
-  const asMinutes = Math.floor(d.asMinutes());
-  const asSeconds = Math.floor(d.asSeconds());
-  const hours = Math.floor(d.hours());
-  const minutes = Math.floor(d.minutes());
-  const seconds = Math.floor(d.seconds());
-
-  if (asDays >= 1) {
-    return hours > 0
-        ? `${getString('time.days', { count: asDays })} ${getString('time.hours', { count: hours })}`
-        : getString('time.days', { count: asDays });
-  }
-  if (asHours >= 1) {
-      return minutes > 0
-          ? `${getString('time.hours', { count: asHours })} ${getString('time.minutes', { count: minutes })}`
-          : getString('time.hours', { count: asHours });
-  }
-  if (asMinutes >= 1) {
-    return seconds > 0
-      ? `${getString('time.minutes', { count: asMinutes })} ${getString('time.seconds', { count: seconds })}`
-      : getString('time.minutes', { count: asMinutes });
-  }
-  return getString('time.seconds', { count: asSeconds });
-}
+import { formatTimeSpent, normalizeGenreDistribution } from './utils';
+import { StatsCard, DonutChart, DONUT_COLORS } from './components';
 
 const StatsScreen = () => {
   const theme = useTheme();
@@ -91,7 +61,7 @@ const StatsScreen = () => {
           getTopCategoriesByTimeSpentFromDb(),
           getTotalTimeSpentFromDb(),
         ]);
-
+        console.log(await getNovelStatusFromDb());
         if (!cancelled) {
           setStats(
             res.reduce<LibraryStats>(
@@ -195,70 +165,123 @@ const StatsScreen = () => {
         <Text style={[styles.header, { color: theme.onSurfaceVariant }]}>
           {getString('statsScreen.genreDistribution')}
         </Text>
-        <Row style={[styles.statsRow, styles.genreRow]}>
-          {Object.entries(stats.genres || {}).map(item => (
-            <StatsCard key={item[0]} label={item[0]} value={item[1]} />
-          ))}
-        </Row>
+        <View>
+          {(() => {
+            const entries = normalizeGenreDistribution(stats.genres || {});
+            const maxCount = Math.max(...entries.map(e => e.count));
+            return entries.map(entry => (
+              <DistributionBar
+                key={entry.name}
+                label={entry.name}
+                count={entry.count}
+                max={maxCount}
+              />
+            ));
+          })()}
+        </View>
         <Text style={[styles.header, { color: theme.onSurfaceVariant }]}>
           {getString('statsScreen.statusDistribution')}
         </Text>
-        <Row style={[styles.statsRow, styles.genreRow]}>
-          {Object.entries(stats.status || {}).map(item => (
-            <StatsCard
-              key={item[0]}
-              label={translateNovelStatus(item[0])}
-              value={item[1]}
-            />
-          ))}
-        </Row>
-      <View style={styles.timeSpentHeader}>
-        <Text style={[styles.header, { color: theme.onSurfaceVariant }]}>
-          {showingNovels ? getString('statsScreen.topNovelsByTimeSpent') : getString('statsScreen.topCategoriesByTimeSpent')}
-        </Text>
-        <IconButton
-          icon={showingNovels ? 'label-outline' : 'book'}
-          iconColor={theme.onSurfaceVariant}
-          onPress={() => setShowingNovels(!showingNovels)}
-          accessibilityRole="button"
-          accessibilityLabel={showingNovels ? getString('statsScreen.showCategories') : getString('statsScreen.showNovels')}
+        <View style={styles.donutContainer}>
+          <DonutChart
+            entries={Object.entries(stats.status || {})
+              .filter(([_, v]) => v > 0)
+              .map(([k, v]) => ({ key: k, value: v }))}
+            size={160}
+            thickness={28}
           />
-      </View>
-        {showingNovels && stats.topNovelsByTimeSpent?.map((novel, _) => {
-          const plugin = getPlugin(novel.pluginId);
-          const headers = plugin?.imageRequestInit?.headers || { 'User-Agent': getUserAgent() };
-          const requestInit = {...plugin?.imageRequestInit, headers };
-          return <View key={novel.id} style={styles.timeSpentRow}>
-            <NovelCoverImage
-              uri={novel.cover}
-              requestInit={requestInit}
-              theme={theme}
-              iconSize={22}
-              style={styles.timeSpentNovelCover}
-              contentFit='cover'
-            />
-            <View>
-              <Text style={[styles.timeSpentLabel, { color: theme.onSurface }]}>
-                {novel.name}
-              </Text>
-              <Text style={{ color: theme.onSurfaceVariant }}>
-                {formatTimeSpent(novel.timeSpent)}
-              </Text>
-            </View>
-          </View>
-        })}
-        {!showingNovels && stats.topCategoriesByTimeSpent?.map((category, _) => {
-          return <View key={category.id} style={styles.timeSpentRow}>
-            <View>
-              <Text style={[styles.timeSpentLabel, { color: theme.onSurface }]}>
-                {category.name}
-              </Text>
-              <Text style={{ color: theme.onSurfaceVariant }}>
-                {formatTimeSpent(category.timeSpent)}
-              </Text>
-            </View>
-          </View>
-        })}
+        </View>
+        <View style={styles.legendContainer}>
+          {Object.entries(stats.status || {})
+            .filter(([_, v]) => v > 0)
+            .sort((a, b) => b[1] - a[1])
+            .map(([key, count]) => (
+              <View key={key} style={styles.legendRow}>
+                <View
+                  style={[
+                    styles.legendDot,
+                    { backgroundColor: DONUT_COLORS[key] || '#9E9E9E' },
+                  ]}
+                />
+                <Text
+                  style={[styles.legendLabel, { color: theme.onSurface }]}
+                  numberOfLines={1}
+                >
+                  {translateNovelStatus(key)}
+                </Text>
+                <Text
+                  style={[styles.legendValue, { color: theme.onSurfaceVariant }]}
+                >
+                  {count}
+                </Text>
+              </View>
+            ))}
+        </View>
+        <View style={styles.timeSpentHeader}>
+          <Text style={[styles.header, { color: theme.onSurfaceVariant }]}>
+            {showingNovels
+              ? getString('statsScreen.topNovelsByTimeSpent')
+              : getString('statsScreen.topCategoriesByTimeSpent')}
+          </Text>
+          <IconButton
+            icon={showingNovels ? 'label-outline' : 'book'}
+            iconColor={theme.onSurfaceVariant}
+            onPress={() => setShowingNovels(!showingNovels)}
+            accessibilityRole="button"
+            accessibilityLabel={
+              showingNovels
+                ? getString('statsScreen.showCategories')
+                : getString('statsScreen.showNovels')
+            }
+          />
+        </View>
+        {showingNovels &&
+          stats.topNovelsByTimeSpent?.map((novel, _) => {
+            const plugin = getPlugin(novel.pluginId);
+            const headers = plugin?.imageRequestInit?.headers || {
+              'User-Agent': getUserAgent(),
+            };
+            const requestInit = { ...plugin?.imageRequestInit, headers };
+            return (
+              <View key={novel.id} style={styles.timeSpentRow}>
+                <NovelCoverImage
+                  uri={novel.cover}
+                  requestInit={requestInit}
+                  theme={theme}
+                  iconSize={22}
+                  style={styles.timeSpentNovelCover}
+                  contentFit="cover"
+                />
+                <View>
+                  <Text
+                    style={[styles.timeSpentLabel, { color: theme.onSurface }]}
+                  >
+                    {novel.name}
+                  </Text>
+                  <Text style={{ color: theme.onSurfaceVariant }}>
+                    {formatTimeSpent(novel.timeSpent)}
+                  </Text>
+                </View>
+              </View>
+            );
+          })}
+        {!showingNovels &&
+          stats.topCategoriesByTimeSpent?.map((category, _) => {
+            return (
+              <View key={category.id} style={styles.timeSpentRow}>
+                <View>
+                  <Text
+                    style={[styles.timeSpentLabel, { color: theme.onSurface }]}
+                  >
+                    {category.name}
+                  </Text>
+                  <Text style={{ color: theme.onSurfaceVariant }}>
+                    {formatTimeSpent(category.timeSpent)}
+                  </Text>
+                </View>
+              </View>
+            );
+          })}
       </ScrollView>
     </SafeAreaView>
   );
@@ -266,39 +289,46 @@ const StatsScreen = () => {
 
 export default StatsScreen;
 
-export const StatsCard: React.FC<{ label: string; value?: string | number }> = ({
-  label,
-  value = 0,
-}) => {
+const DistributionBar: React.FC<{
+  label: string;
+  count: number;
+  max: number;
+}> = ({ label, count, max }) => {
   const theme = useTheme();
-
-  if (!label) {
-    return null;
+  const barWidth = max > 0 ? `${(count / max) * 100}%` : '0%';
+  label = label.trim();
+  if (label.length === 0) {
+    return null; // Skip rendering if label is empty
   }
-
   return (
-    <View
-      style={[
-        styles.statsCardCtn,
-        {
-          backgroundColor: theme.isDark
-            ? overlay(2, theme.surface)
-            : theme.secondaryContainer,
-        },
-      ]}
-    >
-      <Text style={[styles.statsVal, { color: theme.primary }]}>{value}</Text>
-      <Text style={{ color: theme.onSurface }}> {label}</Text>
+    <View style={styles.distRow}>
+      <Text
+        style={[styles.distLabel, { color: theme.onSurface }]}
+        numberOfLines={1}
+      >
+        {label}
+      </Text>
+      <View
+        style={[styles.distBarCtn, { backgroundColor: theme.surfaceVariant }]}
+      >
+        <View
+          style={[
+            styles.distBar,
+            { width: barWidth as any, backgroundColor: theme.primary },
+          ]}
+        />
+      </View>
+      <Text style={[styles.distCount, { color: theme.onSurfaceVariant }]}>
+        {count}
+      </Text>
     </View>
   );
 };
 
+
 const styles = StyleSheet.create({
   contentCtn: {
     paddingBottom: 40,
-  },
-  genreRow: {
-    flexWrap: 'wrap',
   },
   header: {
     fontWeight: 'bold',
@@ -307,22 +337,32 @@ const styles = StyleSheet.create({
   screenCtn: {
     paddingHorizontal: 16,
   },
-  statsCardCtn: {
-    alignItems: 'center',
-    borderRadius: 12,
-    boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.25)',
-    justifyContent: 'center',
-    margin: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 12,
-  },
   statsRow: {
     justifyContent: 'center',
     marginBottom: 8,
   },
-  statsVal: {
-    fontSize: 16,
-    fontWeight: 'bold',
+  distRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  distLabel: {
+    flex: 1,
+    fontSize: 14,
+  },
+  distBarCtn: {
+    flex: 2,
+    height: 12,
+    borderRadius: 6,
+  },
+  distBar: {
+    height: '100%',
+    borderRadius: 6,
+  },
+  distCount: {
+    width: 40,
+    textAlign: 'right',
+    fontSize: 14,
   },
   timeSpentHeader: {
     flexDirection: 'row',
@@ -342,5 +382,32 @@ const styles = StyleSheet.create({
   },
   timeSpentLabel: {
     fontWeight: 'bold',
+  },
+  donutContainer: {
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  legendContainer: {
+    marginBottom: 8,
+  },
+  legendRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  legendDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginRight: 8,
+  },
+  legendLabel: {
+    flex: 1,
+    fontSize: 14,
+  },
+  legendValue: {
+    fontSize: 14,
+    textAlign: 'right',
+    width: 40,
   },
 });

@@ -94,6 +94,7 @@
     "react-native-safe-area-context": "^5.7.0",
     "react-native-screens": "^4.25.2",
     "react-native-shimmer-placeholder": "^2.0.9",
+    "react-native-svg": "15.15.4",
     "react-native-tab-view": "^4.3.2",
     "react-native-url-polyfill": "^3.0.0",
     "react-native-webview": "^13.16.1",
