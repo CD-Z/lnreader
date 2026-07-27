@@ -19,9 +19,12 @@ import Main from './src/navigators/Main';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { useInitDatabase } from '@database/db';
 import { useInitializeAppServices } from '@hooks/common/useInitializeAppServices';
+import { opSqliteAdapter } from './src/rozenite/opSqliteAdapter';
+import { useRozeniteSqlitePlugin } from '@rozenite/sqlite-plugin';
 import { ThemeProvider, useTheme } from '@hooks/persisted/useTheme';
 
 enableFreeze(true);
+const sqliteAdapters = __DEV__ && opSqliteAdapter ? [opSqliteAdapter] : [];
 
 const ThemedPaperProvider = ({ children }: PropsWithChildren) => {
   const theme = useTheme();
@@ -41,6 +44,7 @@ const ThemedPaperProvider = ({ children }: PropsWithChildren) => {
 };
 
 const App = () => {
+  useRozeniteSqlitePlugin({ adapters: sqliteAdapters });
   const { success: databaseReady, error: databaseError } = useInitDatabase();
   const { ready: servicesReady, error: servicesError } =
     useInitializeAppServices(Boolean(databaseReady));
