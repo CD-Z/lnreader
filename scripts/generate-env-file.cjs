@@ -169,7 +169,7 @@ const releaseDate = args['release-date'] || formatUtcDate(new Date());
 const nodeEnv =
   args['node-env'] ||
   (buildType.toLowerCase().includes('release') ? 'production' : 'development');
-const rozeniteEnabled = !buildType.toLowerCase().includes('release');
+const rozeniteEnabled = nodeEnv !== 'production';
 
 const generatedEnvContent = [
   formatEnvEntry('BUILD_TYPE', buildType),
