@@ -11,8 +11,8 @@ import {
 import { Portal } from 'react-native-paper';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 
-const FONT_SIZE = 14;
-const LINE_HEIGHT = Math.ceil(FONT_SIZE * PixelRatio.getFontScale() * 1.2);
+export const FONT_SIZE = 14;
+export const LINE_HEIGHT = Math.ceil(FONT_SIZE * 1.2);
 const MIN_LINES = 16;
 
 const MD3_DEFAULT_APPBAR_HEIGHT = 64;

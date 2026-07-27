@@ -1,11 +1,8 @@
-import { Row } from '@components/Common';
-import React, { memo, useCallback, useMemo, useRef } from 'react';
+import React, { memo, useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   AnimatableNumericValue,
   Animated,
   ColorValue,
-  PixelRatio,
-  Platform,
   StyleProp,
   StyleSheet,
   Text,
@@ -20,6 +17,7 @@ import css from 'react-syntax-highlighter/dist/esm/languages/prism/css';
 import js from 'react-syntax-highlighter/dist/esm/languages/prism/javascript';
 import materialDark from 'react-syntax-highlighter/dist/esm/styles/prism/material-dark';
 import materialLight from 'react-syntax-highlighter/dist/esm/styles/prism/material-light';
+import { FONT_SIZE, LINE_HEIGHT } from './CodeInput';
 
 Light.registerLanguage('javascript', js);
 Light.registerLanguage('css', css);
@@ -65,12 +63,17 @@ interface HighlightedLineProps {
   isDark?: boolean;
   mode: SupportedMode;
   textStyle: TextStyle;
-  lineHeight: number;
   hide: boolean;
 }
 
-const stylesheetCache = new WeakMap<StyleSheet, RNStylesheet>();
+type PrismStylesheet = Record<string, React.CSSProperties>;
 
+interface RendererProps {
+  rows: RendererNode[];
+  stylesheet: PrismStylesheet;
+}
+
+const stylesheetCache = new WeakMap<PrismStylesheet, RNStylesheet>();
 function Passthrough({
   children,
 }: {
@@ -94,14 +97,6 @@ function cssToTextStyle(cssStyle: HLStyle): TextStyle {
         rn.color = String(value);
         break;
 
-      case 'fontStyle':
-        //rn.fontStyle = value as TextStyle['fontStyle'];
-        break;
-
-      case 'fontWeight':
-        rn.fontWeight = String(value) as TextStyle['fontWeight'];
-        break;
-
       case 'textDecoration':
       case 'textDecorationLine':
         rn.textDecorationLine = value as TextStyle['textDecorationLine'];
@@ -114,10 +109,8 @@ function cssToTextStyle(cssStyle: HLStyle): TextStyle {
 
   return rn;
 }
-type StyleSheet = {
-  [key: string]: React.CSSProperties;
-};
-function getRNStylesheet(stylesheet: StyleSheet): RNStylesheet {
+
+function getRNStylesheet(stylesheet: PrismStylesheet): RNStylesheet {
   const cached = stylesheetCache.get(stylesheet);
 
   if (cached) {
@@ -171,11 +164,14 @@ function renderInlineNodes(
       result.push(
         <Text
           key={key}
-          style={{
-            color: defaultColor,
-            includeFontPadding: false,
-            ...getStylesForNode(node, rnStylesheet),
-          }}
+          allowFontScaling={false}
+          style={[
+            {
+              color: defaultColor,
+              includeFontPadding: false,
+              ...getStylesForNode(node, rnStylesheet),
+            },
+          ]}
         >
           {renderInlineNodes(
             node.children,
@@ -195,10 +191,13 @@ function renderInlineNodes(
   return result;
 }
 
-function lineHighlightRenderer(raw: rendererProps): React.ReactNode {
+function lineHighlightRenderer(raw: RendererProps): React.ReactNode {
   const { rows, stylesheet } = raw;
   const rnStylesheet = getRNStylesheet(stylesheet);
-  const defaultColor = rnStylesheet.hljs?.color ?? '#abb2bf';
+  const defaultColor =
+    rnStylesheet['code[class*="language-"]']?.color ??
+    rnStylesheet['pre[class*="language-"]']?.color ??
+    '#abb2bf';
   const result: React.ReactNode[] = [];
 
   rows.forEach((row, rowIndex) => {
@@ -231,22 +230,23 @@ function shallowEqualTextStyle(a: TextStyle, b: TextStyle): boolean {
 }
 
 const HighlightedLine = memo(
-  function HighlightedLine({
+  function _HighlightedLine({
     code,
     mode,
     isDark = true,
     textStyle,
-    lineHeight,
     hide,
   }: HighlightedLineProps) {
-    const style = {
-      minHeight: lineHeight,
-      flex: 1,
-      opacity: hide ? 0 : 1,
-      lineHeight,
-    };
     return (
-      <Text style={[textStyle, style, { includeFontPadding: false }]}>
+      <Text
+        allowFontScaling={false}
+        style={[
+          textStyle,
+          styles.codeLine,
+          hide && styles.hidden,
+          styles.withoutFontPadding,
+        ]}
+      >
         {code.length === 0 ? (
           '\u200B'
         ) : (
@@ -263,14 +263,12 @@ const HighlightedLine = memo(
       </Text>
     );
   },
-  (prev, next) => {
-    return (
-      prev.code === next.code &&
-      prev.mode === next.mode &&
-      prev.lineHeight === next.lineHeight &&
-      shallowEqualTextStyle(prev.textStyle, next.textStyle)
-    );
-  },
+  (prev, next) =>
+    prev.code === next.code &&
+    prev.mode === next.mode &&
+    prev.isDark === next.isDark &&
+    prev.hide === next.hide &&
+    shallowEqualTextStyle(prev.textStyle, next.textStyle),
 );
 
 function splitLines(value: string): string[] {
@@ -371,49 +369,20 @@ function extractTextStyle(style: StyleProp<TextStyle>): TextStyle {
   const flat = StyleSheet.flatten(style) ?? {};
 
   return {
-    color: '#abb2bf',
-    fontFamily: flat.fontFamily,
-    fontSize: flat.fontSize,
+    color: flat.color ?? '#abb2bf',
+    fontFamily: flat.fontFamily ?? 'monospace',
+    fontSize: typeof flat.fontSize === 'number' ? flat.fontSize : FONT_SIZE,
     fontStyle: flat.fontStyle,
     fontWeight: flat.fontWeight,
-    letterSpacing: flat.letterSpacing,
-    lineHeight: flat.lineHeight,
+    letterSpacing: flat.letterSpacing ?? 0,
+    lineHeight:
+      typeof flat.lineHeight === 'number' ? flat.lineHeight : LINE_HEIGHT,
   };
 }
 
-function extractContentPadding(style: StyleProp<TextStyle>): ViewStyle {
-  const flat = StyleSheet.flatten(style) ?? {};
-
-  return {
-    padding: flat.padding,
-    paddingBottom: flat.paddingBottom,
-    paddingEnd: flat.paddingEnd,
-    paddingHorizontal: flat.paddingHorizontal,
-    paddingLeft: flat.paddingLeft,
-    paddingRight: flat.paddingRight,
-    paddingStart: flat.paddingStart,
-    paddingTop: flat.paddingTop,
-    paddingVertical: flat.paddingVertical,
-  };
-}
-
-function getLineHeight(style: StyleProp<TextStyle>): number {
-  const flat = StyleSheet.flatten(style) ?? {};
-
-  if (typeof flat.lineHeight === 'number') {
-    return flat.lineHeight;
-  }
-
-  if (typeof flat.fontSize === 'number') {
-    return Math.ceil(flat.fontSize * 1.4);
-  }
-
-  return 20;
-}
-
-type _MemoizedHighlightedCode<Lines extends boolean> = (Lines extends false
-  ? { value: string; lines?: never }
-  : { lines: LineModel[]; value?: never }) & {
+export type MemoizedHighlightedCodeProps = {
+  lines?: LineModel[];
+  value?: string;
   mode: SupportedMode;
   style?: StyleProp<TextStyle>;
   hide?: boolean;
@@ -421,51 +390,48 @@ type _MemoizedHighlightedCode<Lines extends boolean> = (Lines extends false
   setLines?: (num: number) => void;
   startLine?: number;
 };
-export type MemoizedHighlightedCode =
-  | _MemoizedHighlightedCode<true>
-  | _MemoizedHighlightedCode<false>;
 
 export function MemoizedHighlightedCode({
   lines,
   value,
   mode,
   style,
-  hide,
+  hide = false,
   setLines,
   isDark = false,
   startLine = 0,
-}: MemoizedHighlightedCode) {
+}: MemoizedHighlightedCodeProps) {
+  // Never call a hook conditionally. Generating this for externally supplied
+  // lines is cheap and keeps the hook order valid.
+  const generatedLines = useStableLineModels(value ?? '');
+  const resolvedLines = lines ?? generatedLines;
+
   const opacityStyle = useMemo(() => extractOpacityStyle(style), [style]);
   const textStyle = useMemo(() => extractTextStyle(style), [style]);
-  const contentPadding = useMemo(() => extractContentPadding(style), [style]);
-  const lineHeight = useMemo(() => getLineHeight(style), [style]);
-  if (!lines) {
-    // Value and lines prop can't be switched
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    lines = useStableLineModels(value!);
-    setLines?.(lines.length);
-  }
+
+  useEffect(() => {
+    setLines?.(resolvedLines.length);
+  }, [resolvedLines.length, setLines]);
+
   return (
-    <View style={[contentPadding, opacityStyle, styles.lineContainer]}>
-      {lines.map((line, i) => (
-        <Row key={'row' + i + 1 + startLine}>
+    <View style={[styles.lineContainer, opacityStyle]}>
+      {resolvedLines.map((line, index) => (
+        <View key={line.id} style={styles.row}>
           <Text
-            key={'l' + i + 1 + startLine}
-            style={[textStyle, styles.lines, { includeFontPadding: false }]}
+            allowFontScaling={false}
+            style={[textStyle, styles.lineNumber, styles.withoutFontPadding]}
           >
-            {i + 1 + startLine}
+            {index + 1 + startLine}
           </Text>
 
           <HighlightedLine
-            key={line.id + hide}
             code={line.code}
             isDark={isDark}
             mode={mode}
-            hide={hide ?? false}
+            hide={hide}
             textStyle={textStyle}
-            lineHeight={lineHeight}
           />
-        </Row>
+        </View>
       ))}
     </View>
   );
@@ -474,6 +440,7 @@ export function MemoizedHighlightedCode({
 export function SimpleCodeEditor({
   highlightMode = 'combined',
   onChangeText,
+  onScroll,
   containerStyle,
   scrollEnabled = true,
   lines,
@@ -484,25 +451,16 @@ export function SimpleCodeEditor({
   setLines,
   startLine,
   ...props
-}: SimpleCodeEditorProps & Omit<MemoizedHighlightedCode, 'hide'>) {
+}: SimpleCodeEditorProps & Omit<MemoizedHighlightedCodeProps, 'hide'>) {
   const hideHighlight = highlightMode === 'off';
-  const showInput = highlightMode !== 'on';
   const scrollY = useRef(new Animated.Value(0)).current;
 
-  const highlightedCodeProps = {
-    lines,
-    value,
-    mode,
-    style,
-    hide: hideHighlight,
-    isDark,
-    setLines,
-    startLine,
-  };
+  const negativeScrollY = useMemo(
+    () => Animated.multiply(scrollY, -1),
+    [scrollY],
+  );
 
-  const negativeScrollY = useMemo(() => {
-    return Animated.multiply(scrollY, -1);
-  }, [scrollY]);
+  const textStyle = useMemo(() => extractTextStyle(style), [style]);
 
   const handleChangeText = useCallback(
     (text: string) => {
@@ -511,9 +469,27 @@ export function SimpleCodeEditor({
     [onChangeText],
   );
 
-  const color = {
-    color: showInput ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.01)',
-  };
+  const handleScroll = useMemo(
+    () =>
+      Animated.event(
+        [
+          {
+            nativeEvent: {
+              contentOffset: {
+                y: scrollY,
+              },
+            },
+          },
+        ],
+        {
+          useNativeDriver: true,
+          listener: onScroll,
+        },
+      ) as NonNullable<TextInputProps['onScroll']>,
+    [onScroll, scrollY],
+  );
+
+  const inputColor = hideHighlight ? textStyle.color : 'rgba(0, 0, 0, 0.1)';
 
   return (
     <View style={[styles.container, containerStyle]}>
@@ -527,34 +503,47 @@ export function SimpleCodeEditor({
           },
         ]}
       >
-        {/*@ts-expect-error*/}
-        <MemoizedHighlightedCode {...highlightedCodeProps} />
+        <MemoizedHighlightedCode
+          lines={lines}
+          value={value}
+          mode={mode}
+          style={style}
+          hide={hideHighlight}
+          isDark={isDark}
+          setLines={setLines}
+          startLine={startLine}
+        />
       </Animated.View>
+
       <TextInput
         {...props}
         multiline
+        allowFontScaling={false}
         autoCapitalize="none"
         autoCorrect={false}
         spellCheck={false}
         scrollEnabled={scrollEnabled}
+        underlineColorAndroid="transparent"
         value={value}
         onChangeText={handleChangeText}
+        //onScroll={handleScroll}
         cursorColor="#abb2bf"
         selectionColor="#abb2bf"
         style={[
           style,
           styles.input,
-          Platform.OS === 'android' && styles.androidInput,
-          color,
-          highlightMode === 'off' && styles.inputVisible,
+          textStyle,
+          {
+            color: inputColor,
+          },
         ]}
       />
     </View>
   );
 }
 
-const FONT_SIZE = 14;
-const LINE_HEIGHT = Math.ceil(FONT_SIZE * PixelRatio.getFontScale() * 1.2);
+const GUTTER_WIDTH = 32;
+
 const styles = StyleSheet.create({
   container: {
     position: 'relative',
@@ -563,33 +552,44 @@ const styles = StyleSheet.create({
   highlightLayer: {
     zIndex: 0,
   },
-  input: {
-    zIndex: 1,
-    backgroundColor: 'transparent',
-    width: 'auto',
-    textAlignVertical: 'top',
-    marginLeft: 32,
+  lineContainer: {
+    position: 'relative',
+    width: '100%',
   },
-  inputVisible: {
-    color: '#abb2bf',
+  row: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'flex-start',
   },
-  androidInput: {
-    includeFontPadding: false,
-  },
-  lines: {
-    textAlign: 'right',
-    width: 32,
-    fontSize: FONT_SIZE,
-    lineHeight: LINE_HEIGHT,
-    height: '100%',
-    fontFamily: 'monospace',
+  lineNumber: {
+    width: GUTTER_WIDTH,
+    flexShrink: 0,
     margin: 0,
-    marginBottom: 0,
-    marginTop: 0,
     padding: 0,
     paddingRight: 4,
-    paddingBottom: 0,
-    paddingTop: 0,
+    textAlign: 'right',
   },
-  lineContainer: { width: '100%', position: 'relative' },
+  codeLine: {
+    flex: 1,
+    minWidth: 0,
+    margin: 0,
+    padding: 0,
+  },
+  input: {
+    zIndex: 1,
+    width: '100%',
+    margin: 0,
+    borderWidth: 0,
+    padding: 0,
+    paddingLeft: GUTTER_WIDTH,
+    backgroundColor: 'transparent',
+    textAlignVertical: 'top',
+    includeFontPadding: false,
+  },
+  hidden: {
+    opacity: 0,
+  },
+  withoutFontPadding: {
+    includeFontPadding: false,
+  },
 });
