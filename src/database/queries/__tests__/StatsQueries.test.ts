@@ -6,7 +6,13 @@
 
 import './mockDb';
 import { setupTestDatabase, getTestDb, teardownTestDatabase } from './setup';
-import { insertTestNovel, insertTestChapter, clearAllTables, insertTestNovelCategory, insertTestCategory } from './testData';
+import {
+  insertTestNovel,
+  insertTestChapter,
+  clearAllTables,
+  insertTestNovelCategory,
+  insertTestCategory,
+} from './testData';
 
 import {
   getLibraryStatsFromDb,
@@ -323,7 +329,7 @@ describe('StatsQueries', () => {
 
       const result = await getNovelStatusFromDb();
 
-      expect(result.status).toEqual({ Ongoing: 1 });
+      expect(result.status).toEqual({ Ongoing: 1, Unknown: 1 });
     });
   });
   describe('getTopNovelsByTimeSpentFromDb', () => {
@@ -362,7 +368,9 @@ describe('StatsQueries', () => {
       const testDb = getTestDb();
 
       const libraryNovelId = await insertTestNovel(testDb, { inLibrary: true });
-      const nonLibraryNovelId = await insertTestNovel(testDb, { inLibrary: false });
+      const nonLibraryNovelId = await insertTestNovel(testDb, {
+        inLibrary: false,
+      });
 
       await insertTestChapter(testDb, libraryNovelId, { timeSpent: 150 });
       await insertTestChapter(testDb, nonLibraryNovelId, { timeSpent: 999 });
