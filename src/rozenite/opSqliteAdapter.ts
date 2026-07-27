@@ -1,8 +1,8 @@
 import {
- createSqliteAdapter,
- classifySqlStatement,
+  createSqliteAdapter,
+  classifySqlStatement,
+  SqliteQueryResult,
 } from '@rozenite/sqlite-plugin';
-import type { SqliteQueryResult } from '@rozenite/sqlite-plugin';
 import { db } from '@database/db';
 
 /**
@@ -11,16 +11,16 @@ import { db } from '@database/db';
  * back to the keys of the first row object.
  */
 const deriveColumns = (
- columnNames: string[] | undefined,
- firstRow: Record<string, unknown> | undefined,
+  columnNames: string[] | undefined,
+  firstRow: Record<string, unknown> | undefined,
 ): string[] => {
- if (columnNames && columnNames.length > 0) {
-  return columnNames;
- }
- if (firstRow) {
-  return Object.keys(firstRow);
- }
- return [];
+  if (columnNames && columnNames.length > 0) {
+    return columnNames;
+  }
+  if (firstRow) {
+    return Object.keys(firstRow);
+  }
+  return [];
 };
 
 /**
@@ -30,33 +30,33 @@ const deriveColumns = (
  * stay robust across all op-sqlite versions.
  */
 const reconstructRows = (
- rows: unknown,
- rawRows: unknown,
- columnNames: string[] | undefined,
+  rows: unknown,
+  rawRows: unknown,
+  columnNames: string[] | undefined,
 ): Record<string, unknown>[] => {
- if (Array.isArray(rows) && rows.length > 0) {
-  return rows as Record<string, unknown>[];
- }
-
- if (!Array.isArray(rawRows) || rawRows.length === 0) {
-  return [];
- }
-
- const cols = deriveColumns(columnNames, undefined);
-
- if (cols.length === 0) {
-  // No column info at all — return raw rows as value-only arrays
-  return rawRows as unknown as Record<string, unknown>[];
- }
-
- return rawRows.map((rawRow: unknown) => {
-  const row: Record<string, unknown> = {};
-  const values = rawRow as unknown[];
-  for (let j = 0; j < cols.length; j++) {
-   row[cols[j]!] = values[j];
+  if (Array.isArray(rows) && rows.length > 0) {
+    return rows as Record<string, unknown>[];
   }
-  return row;
- });
+
+  if (!Array.isArray(rawRows) || rawRows.length === 0) {
+    return [];
+  }
+
+  const cols = deriveColumns(columnNames, undefined);
+
+  if (cols.length === 0) {
+    // No column info at all — return raw rows as value-only arrays
+    return rawRows as unknown as Record<string, unknown>[];
+  }
+
+  return rawRows.map((rawRow: unknown) => {
+    const row: Record<string, unknown> = {};
+    const values = rawRow as unknown[];
+    for (let j = 0; j < cols.length; j++) {
+      row[cols[j]!] = values[j];
+    }
+    return row;
+  });
 };
 
 /**
@@ -66,46 +66,46 @@ const reconstructRows = (
  * during development builds.
  */
 export const opSqliteAdapter = __DEV__
- ? createSqliteAdapter({
-  adapterId: 'op-sqlite',
-  adapterName: 'OP SQLite',
-  databases: {
-   main: {
-    name: 'lnreader.db',
-    executeStatements: async statements => {
-     const results: SqliteQueryResult[] = [];
+  ? createSqliteAdapter({
+      adapterId: 'op-sqlite',
+      adapterName: 'OP SQLite',
+      databases: {
+        main: {
+          name: 'lnreader.db',
+          executeStatements: async statements => {
+            const results: SqliteQueryResult[] = [];
 
-     for (const stmt of statements) {
-      const start = performance.now();
-      const result = await db.execute(
-       stmt.sql,
-       stmt.params as any[] | undefined,
-      );
-      const duration = performance.now() - start;
+            for (const stmt of statements) {
+              const start = performance.now();
+              const result = await db.execute(
+                stmt.sql,
+                stmt.params as any[] | undefined,
+              );
+              const duration = performance.now() - start;
 
-      const rows = reconstructRows(
-       result.rows,
-       (result as any).rawRows,
-       result.columnNames,
-      );
-      const columns = deriveColumns(result.columnNames, rows[0]);
+              const rows = reconstructRows(
+                result.rows,
+                (result as any).rawRows,
+                result.columnNames,
+              );
+              const columns = deriveColumns(result.columnNames, rows[0]);
 
-      results.push({
-       rows,
-       columns,
-       metadata: {
-        statementType: classifySqlStatement(stmt.sql),
-        rowCount: rows.length,
-        changes: result.rowsAffected ?? null,
-        lastInsertRowId: result.insertId ?? null,
-        durationMs: duration,
-       },
-      });
-     }
+              results.push({
+                rows,
+                columns,
+                metadata: {
+                  statementType: classifySqlStatement(stmt.sql),
+                  rowCount: rows.length,
+                  changes: result.rowsAffected ?? null,
+                  lastInsertRowId: result.insertId ?? null,
+                  durationMs: duration,
+                },
+              });
+            }
 
-     return results;
-    },
-   },
-  },
- })
- : null;
+            return results;
+          },
+        },
+      },
+    })
+  : null;
