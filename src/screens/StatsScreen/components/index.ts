@@ -1,2 +1,3 @@
 export { StatsCard } from './StatsCard';
-export { DonutChart, DONUT_COLORS } from './DonutChart';
+export { DonutChart, getStatusColors } from './DonutChart';
+export { ChapterBar } from './ChapterBar';

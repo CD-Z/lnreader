@@ -3,27 +3,32 @@ import { View, Text, StyleSheet } from 'react-native';
 import Svg, { Path, Circle, G } from 'react-native-svg';
 
 import { useTheme } from '@hooks/persisted';
+import { ThemeColors } from '@theme/types';
 
-export const DONUT_COLORS: Record<string, string> = {
-  Ongoing: '#4CAF50',
-  Completed: '#2196F3',
-  'On Hiatus': '#FF9800',
-  Cancelled: '#F44336',
-  Unknown: '#9E9E9E',
-  Licensed: '#9C27B0',
-  'Publishing Finished': '#009688',
-};
+export function getStatusColors(theme: ThemeColors): Record<string, string> {
+  return {
+    Ongoing: theme.primary,
+    Completed: theme.tertiary,
+    'On Hiatus': theme.secondary,
+    Cancelled: theme.error,
+    Unknown: theme.outline,
+    Licensed: theme.primaryContainer,
+    'Publishing Finished': theme.secondaryContainer,
+  };
+}
 
 interface DonutChartProps {
   entries: { key: string; value: number }[];
   size: number;
   thickness: number;
+  colors: Record<string, string>;
 }
 
 export const DonutChart: React.FC<DonutChartProps> = ({
   entries,
   size,
   thickness,
+  colors,
 }) => {
   const theme = useTheme();
 
@@ -43,7 +48,7 @@ export const DonutChart: React.FC<DonutChartProps> = ({
   for (const entry of active) {
     const angle = (entry.value / total) * 360;
     segments.push({
-      color: DONUT_COLORS[entry.key] || '#9E9E9E',
+      color: colors[entry.key] || theme.outline,
       startAngle: cursor,
       endAngle: cursor + angle,
     });
