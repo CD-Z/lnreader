@@ -23,7 +23,6 @@ import {
 } from '@components';
 
 import { LibraryStats } from '@database/types';
-import { type NovelWithGenres } from '@database/queries/StatsQueries';
 import {
   getChaptersDownloadedCountFromDb,
   getChaptersReadCountFromDb,
@@ -36,6 +35,7 @@ import {
   getTopNovelsByTimeSpentFromDb,
   getTotalTimeSpentFromDb,
   getNovelsWithGenresFromDb,
+  type NovelWithGenres,
 } from '@database/queries/StatsQueries';
 import { Row } from '@components/Common';
 import { IconButton } from 'react-native-paper';
@@ -124,23 +124,26 @@ const StatsScreen = () => {
     1,
   );
 
-  const handleNovelPress = (novel: {
-    id: number;
-    name: string;
-    path: string;
-    cover: string | null;
-    pluginId: string;
-  }) => {
-    navigation.navigate('ReaderStack', {
-      screen: 'Novel',
-      params: {
-        name: novel.name,
-        path: novel.path,
-        pluginId: novel.pluginId,
-        cover: novel.cover,
-      },
-    });
-  };
+  const handleNovelPress = useCallback(
+    (novel: {
+      id: number;
+      name: string;
+      path: string;
+      cover: string | null;
+      pluginId: string;
+    }) => {
+      navigation.navigate('ReaderStack', {
+        screen: 'Novel',
+        params: {
+          name: novel.name,
+          path: novel.path,
+          pluginId: novel.pluginId,
+          cover: novel.cover,
+        },
+      });
+    },
+    [navigation],
+  );
 
   const statusColors = getStatusColors(theme);
   const layout = useWindowDimensions();
@@ -184,9 +187,6 @@ const StatsScreen = () => {
       />
     ),
     [
-      styles.tabBar,
-      styles.tabBarIndicator,
-      styles.tabStyle,
       theme.outlineVariant,
       theme.primary,
       theme.rippleColor,

@@ -58,9 +58,7 @@ const NovelCarousel: React.FC<NovelCarouselProps> = ({
           if (item.id === -1) {
             return (
               <Pressable
-                onPress={() => {
-                  console.log('See all novels for genre:', genreName);
-                }}
+                onPress={() => { }}
                 accessibilityRole="button"
                 accessibilityLabel={getString('genreStats.seeAllNovels')}
                 style={styles.seeAllCard}

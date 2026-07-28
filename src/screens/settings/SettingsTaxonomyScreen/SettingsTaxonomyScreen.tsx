@@ -13,11 +13,9 @@ const SettingsTaxonomyScreen = ({ navigation }: GenreTaxonomyScreenProps) => {
   const theme = useTheme();
   const { taxonomy, setTaxonomy } = useGenreTaxonomy();
 
-  // Dialog state
   const [dialog, setDialog] = useState<
     | { type: 'addParent' }
     | { type: 'editParent'; parentName: string }
-    | { type: 'addChild'; parentName: string }
     | { type: 'none' }
   >({ type: 'none' });
 
@@ -28,7 +26,6 @@ const SettingsTaxonomyScreen = ({ navigation }: GenreTaxonomyScreenProps) => {
   // Delete confirmation
   const [deleteTarget, setDeleteTarget] = useState<
     | { type: 'parent'; name: string }
-    | { type: 'child'; parentName: string; childName: string }
     | null
   >(null);
 
@@ -40,8 +37,7 @@ const SettingsTaxonomyScreen = ({ navigation }: GenreTaxonomyScreenProps) => {
   const openDialog = (
     d:
       | { type: 'addParent' }
-      | { type: 'editParent'; parentName: string }
-      | { type: 'addChild'; parentName: string },
+      | { type: 'editParent'; parentName: string },
   ) => {
     resetForm();
     if (d.type === 'editParent') setParentName(d.parentName);
@@ -68,14 +64,14 @@ const SettingsTaxonomyScreen = ({ navigation }: GenreTaxonomyScreenProps) => {
 
   const handleAddChild = () => {
     const name = childName.trim();
-    if (!name || dialog.type !== 'addChild') return;
+    if (!name || dialog.type !== 'editParent') return;
     const updated = taxonomy.map(t =>
       t.parent === dialog.parentName
         ? { ...t, children: [...t.children, name] }
         : t,
     );
     setTaxonomy(updated);
-    setDialog({ type: 'none' });
+    setChildName('');
   };
 
   const handleDeleteParent = (name: string) => {
@@ -83,10 +79,10 @@ const SettingsTaxonomyScreen = ({ navigation }: GenreTaxonomyScreenProps) => {
     setDeleteTarget(null);
   };
 
-  const handleDeleteChild = (parentName: string, childName: string) => {
+  const handleDeleteChild = (pName: string, cName: string) => {
     const updated = taxonomy.map(t =>
-      t.parent === parentName
-        ? { ...t, children: t.children.filter(c => c !== childName) }
+      t.parent === pName
+        ? { ...t, children: t.children.filter(c => c !== cName) }
         : t,
     );
     setTaxonomy(updated);
@@ -140,17 +136,6 @@ const SettingsTaxonomyScreen = ({ navigation }: GenreTaxonomyScreenProps) => {
                     </Text>
                   </View>
                   <View style={styles.rowActions}>
-                    <IconButton
-                      icon="plus"
-                      iconColor={theme.primary}
-                      size={20}
-                      onPress={() =>
-                        openDialog({
-                          type: 'addChild',
-                          parentName: node.parent,
-                        })
-                      }
-                    />
                     <IconButton
                       icon="close"
                       iconColor={theme.onSurfaceVariant}
@@ -227,11 +212,7 @@ const SettingsTaxonomyScreen = ({ navigation }: GenreTaxonomyScreenProps) => {
                             </Text>
                             <Pressable
                               onPress={() =>
-                                setDeleteTarget({
-                                  type: 'child',
-                                  parentName: dialog.parentName,
-                                  childName: item,
-                                })
+                                handleDeleteChild(dialog.parentName, item)
                               }
                               hitSlop={8}
                             >
@@ -246,16 +227,22 @@ const SettingsTaxonomyScreen = ({ navigation }: GenreTaxonomyScreenProps) => {
                         style={styles.childList}
                       />
                     )}
-                    <List.Item
-                      title={getString('genreStats.addChild')}
-                      icon="plus"
-                      onPress={() => {
-                        const name = dialog.parentName;
-                        setDialog({ type: 'none' });
-                        openDialog({ type: 'addChild', parentName: name });
-                      }}
-                      theme={theme}
-                    />
+                    <View style={styles.inlineAddChild}>
+                      <TextInput
+                        label={getString('genreStats.childNamePlaceholder')}
+                        value={childName}
+                        onChangeText={setChildName}
+                        mode="outlined"
+                        style={styles.inlineInput}
+                      />
+                      <IconButton
+                        icon="plus"
+                        iconColor={theme.primary}
+                        size={24}
+                        disabled={!childName.trim()}
+                        onPress={handleAddChild}
+                      />
+                    </View>
                   </>
                 );
               })()}
@@ -277,35 +264,6 @@ const SettingsTaxonomyScreen = ({ navigation }: GenreTaxonomyScreenProps) => {
         </Dialog.Root>
       )}
 
-      {/* Add Child Dialog */}
-      {dialog.type === 'addChild' && (
-        <Dialog.Root
-          visible
-          onDismiss={() => setDialog({ type: 'none' })}
-        >
-          <Dialog.Header>
-            <Dialog.Title>
-              {getString('genreStats.addChild')} — {dialog.parentName}
-            </Dialog.Title>
-          </Dialog.Header>
-          <Dialog.Content>
-            <TextInput
-              label={getString('genreStats.childNamePlaceholder')}
-              value={childName}
-              onChangeText={setChildName}
-              mode="outlined"
-            />
-          </Dialog.Content>
-          <Dialog.Actions>
-            <Dialog.Action onPress={() => setDialog({ type: 'none' })}>
-              {getString('common.cancel')}
-            </Dialog.Action>
-            <Dialog.Action onPress={handleAddChild}>
-              {getString('common.ok')}
-            </Dialog.Action>
-          </Dialog.Actions>
-        </Dialog.Root>
-      )}
 
       {/* Delete confirmations */}
       {deleteTarget?.type === 'parent' && (
@@ -315,18 +273,6 @@ const SettingsTaxonomyScreen = ({ navigation }: GenreTaxonomyScreenProps) => {
           message={getString('genreStats.deleteCategoryConfirm')}
           confirmLabel={getString('common.delete')}
           onConfirm={() => handleDeleteParent(deleteTarget.name)}
-          onDismiss={() => setDeleteTarget(null)}
-        />
-      )}
-      {deleteTarget?.type === 'child' && (
-        <ConfirmationDialog
-          visible
-          title={getString('genreStats.deleteConfirmTitle')}
-          message={getString('genreStats.deleteChildConfirm')}
-          confirmLabel={getString('common.delete')}
-          onConfirm={() =>
-            handleDeleteChild(deleteTarget.parentName, deleteTarget.childName)
-          }
           onDismiss={() => setDeleteTarget(null)}
         />
       )}
@@ -379,5 +325,14 @@ const styles = StyleSheet.create({
   childText: {
     fontSize: 14,
     flex: 1,
+  },
+  inlineAddChild: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 12,
+  },
+  inlineInput: {
+    flex: 1,
+    marginRight: 8,
   },
 });
