@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   useWindowDimensions,
   View,
 } from 'react-native';
+import {
+  LegendList,
+  LegendListRenderItemProps,
+} from '@legendapp/list/react-native';
 import { useNavigation } from '@react-navigation/native';
 import { TabView } from 'react-native-tab-view';
 
@@ -44,7 +47,10 @@ import { translateNovelStatus } from '@utils/translateEnum';
 import { getUserAgent } from '@hooks/persisted/useUserAgent';
 import { getPlugin } from '@plugins/pluginManager';
 import { formatTimeSpent } from './utils';
-import { buildGenreTree } from '@screens/GenreStatsScreen/utils';
+import {
+  buildGenreTree,
+  type GenreTreeNode,
+} from '@screens/GenreStatsScreen/utils';
 import { useGenreTaxonomy } from '@hooks/persisted/useGenreTaxonomy';
 import { GenreSection } from '@screens/GenreStatsScreen/components';
 import {
@@ -53,6 +59,17 @@ import {
   getStatusColors,
   ChapterBar,
 } from './components';
+
+type TimeSpentItem =
+  | {
+      type: 'novel';
+      id: number;
+      pluginId: string;
+      name: string;
+      cover: string | null;
+      timeSpent: number;
+    }
+  | { type: 'category'; id: number; name: string; timeSpent: number };
 
 const StatsScreen = () => {
   const theme = useTheme();
@@ -195,207 +212,246 @@ const StatsScreen = () => {
     ],
   );
 
+  const timeSpentData = useMemo<TimeSpentItem[]>(() => {
+    if (showingNovels) {
+      return (stats.topNovelsByTimeSpent ?? []).map(n => ({
+        type: 'novel' as const,
+        id: n.id,
+        pluginId: n.pluginId,
+        name: n.name,
+        cover: n.cover,
+        timeSpent: n.timeSpent,
+      }));
+    }
+    return (stats.topCategoriesByTimeSpent ?? []).map(c => ({
+      type: 'category' as const,
+      id: c.id,
+      name: c.name,
+      timeSpent: c.timeSpent,
+    }));
+  }, [
+    showingNovels,
+    stats.topNovelsByTimeSpent,
+    stats.topCategoriesByTimeSpent,
+  ]);
+
+  const renderOverviewItem = useCallback(
+    ({ item }: LegendListRenderItemProps<GenreTreeNode>) => (
+      <GenreSection
+        node={item}
+        globalMax={globalMax}
+        novels={allNovels}
+        theme={theme}
+        onNovelPress={handleNovelPress}
+      />
+    ),
+    [globalMax, allNovels, theme, handleNovelPress],
+  );
+
+  const renderTimeItem = useCallback(
+    ({ item }: LegendListRenderItemProps<TimeSpentItem>) => {
+      if (item.type === 'novel') {
+        const plugin = getPlugin(item.pluginId);
+        const headers = plugin?.imageRequestInit?.headers || {
+          'User-Agent': getUserAgent(),
+        };
+        const requestInit = { ...plugin?.imageRequestInit, headers };
+        return (
+          <View style={styles.timeSpentRow}>
+            <NovelCoverImage
+              uri={item.cover}
+              requestInit={requestInit}
+              theme={theme}
+              iconSize={22}
+              style={styles.timeSpentNovelCover}
+              contentFit="cover"
+            />
+            <View>
+              <Text style={[styles.timeSpentLabel, { color: theme.onSurface }]}>
+                {item.name}
+              </Text>
+              <Text style={{ color: theme.onSurfaceVariant }}>
+                {formatTimeSpent(item.timeSpent)}
+              </Text>
+            </View>
+          </View>
+        );
+      }
+      return (
+        <View style={styles.timeSpentRow}>
+          <View>
+            <Text style={[styles.timeSpentLabel, { color: theme.onSurface }]}>
+              {item.name}
+            </Text>
+            <Text style={{ color: theme.onSurfaceVariant }}>
+              {formatTimeSpent(item.timeSpent)}
+            </Text>
+          </View>
+        </View>
+      );
+    },
+    [theme],
+  );
+
+  const overviewListHeader = useCallback(
+    () => (
+      <View>
+        <Row style={styles.statsRow}>
+          <StatsCard
+            label={getString('statsScreen.titlesInLibrary')}
+            value={stats.novelsCount}
+          />
+          <StatsCard
+            label={getString('statsScreen.sources')}
+            value={stats.sourcesCount}
+          />
+        </Row>
+        <ChapterBar
+          read={stats.chaptersRead ?? 0}
+          total={stats.chaptersCount ?? 0}
+          downloaded={stats.chaptersDownloaded ?? 0}
+        />
+        <Text style={[styles.header, { color: theme.onSurfaceVariant }]}>
+          {getString('statsScreen.statusDistribution')}
+        </Text>
+        <View style={styles.donutContainer}>
+          <DonutChart
+            entries={Object.entries(stats.status || {})
+              .filter(([_, v]) => v > 0)
+              .map(([k, v]) => ({ key: k, value: v }))}
+            size={160}
+            thickness={28}
+            colors={statusColors}
+          />
+        </View>
+        <View style={styles.legendContainer}>
+          {Object.entries(stats.status || {})
+            .filter(([_, v]) => v > 0)
+            .sort((a, b) => b[1] - a[1])
+            .map(([key, count]) => (
+              <View key={key} style={styles.legendRow}>
+                <View
+                  style={[
+                    styles.legendDot,
+                    { backgroundColor: statusColors[key] || theme.outline },
+                  ]}
+                />
+                <Text
+                  style={[styles.legendLabel, { color: theme.onSurface }]}
+                  numberOfLines={1}
+                >
+                  {translateNovelStatus(key)}
+                </Text>
+                <Text
+                  style={[
+                    styles.legendValue,
+                    { color: theme.onSurfaceVariant },
+                  ]}
+                >
+                  {count}
+                </Text>
+              </View>
+            ))}
+        </View>
+        {tree.length > 0 && (
+          <View style={styles.genreSectionHeader}>
+            <Text style={[styles.header, { color: theme.onSurfaceVariant }]}>
+              {getString('statsScreen.genreDistribution')}
+            </Text>
+            <Pressable
+              onPress={() =>
+                navigation.navigate('SettingsStack', {
+                  screen: 'GenreTaxonomy',
+                })
+              }
+              accessibilityRole="button"
+              accessibilityLabel={getString('genreStats.editTaxonomy')}
+              hitSlop={12}
+            >
+              <MaterialCommunityIcons
+                name="cog-outline"
+                color={theme.onSurfaceVariant}
+                size={20}
+              />
+            </Pressable>
+          </View>
+        )}
+      </View>
+    ),
+    [stats, theme, statusColors, tree.length, navigation],
+  );
+
+  const timeListHeader = useCallback(
+    () => (
+      <>
+        <View style={styles.timeSpentCardContainer}>
+          <StatsCard
+            label={getString('statsScreen.totalTimeSpent')}
+            value={formatTimeSpent(stats.totalTimeSpent)}
+          />
+        </View>
+        <View style={styles.timeSpentHeader}>
+          <Text style={[styles.header, { color: theme.onSurfaceVariant }]}>
+            {showingNovels
+              ? getString('statsScreen.topNovelsByTimeSpent')
+              : getString('statsScreen.topCategoriesByTimeSpent')}
+          </Text>
+          <IconButton
+            icon={showingNovels ? 'label-outline' : 'book'}
+            iconColor={theme.onSurfaceVariant}
+            onPress={() => setShowingNovels(!showingNovels)}
+            accessibilityRole="button"
+            accessibilityLabel={
+              showingNovels
+                ? getString('statsScreen.showCategories')
+                : getString('statsScreen.showNovels')
+            }
+          />
+        </View>
+      </>
+    ),
+    [stats.totalTimeSpent, theme, showingNovels],
+  );
+
   const renderScene = useCallback(
     ({ route: tabRoute }: { route: StatsRoute }) => {
       if (tabRoute.key === 'overview') {
         return (
-          <ScrollView
+          <LegendList
             style={styles.screenCtn}
             contentContainerStyle={styles.contentCtn}
-          >
-            <Row style={styles.statsRow}>
-              <StatsCard
-                label={getString('statsScreen.titlesInLibrary')}
-                value={stats.novelsCount}
-              />
-              <StatsCard
-                label={getString('statsScreen.sources')}
-                value={stats.sourcesCount}
-              />
-            </Row>
-            <ChapterBar
-              read={stats.chaptersRead ?? 0}
-              total={stats.chaptersCount ?? 0}
-              downloaded={stats.chaptersDownloaded ?? 0}
-            />
-            <Text style={[styles.header, { color: theme.onSurfaceVariant }]}>
-              {getString('statsScreen.statusDistribution')}
-            </Text>
-            <View style={styles.donutContainer}>
-              <DonutChart
-                entries={Object.entries(stats.status || {})
-                  .filter(([_, v]) => v > 0)
-                  .map(([k, v]) => ({ key: k, value: v }))}
-                size={160}
-                thickness={28}
-                colors={statusColors}
-              />
-            </View>
-            <View style={styles.legendContainer}>
-              {Object.entries(stats.status || {})
-                .filter(([_, v]) => v > 0)
-                .sort((a, b) => b[1] - a[1])
-                .map(([key, count]) => (
-                  <View key={key} style={styles.legendRow}>
-                    <View
-                      style={[
-                        styles.legendDot,
-                        { backgroundColor: statusColors[key] || theme.outline },
-                      ]}
-                    />
-                    <Text
-                      style={[styles.legendLabel, { color: theme.onSurface }]}
-                      numberOfLines={1}
-                    >
-                      {translateNovelStatus(key)}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.legendValue,
-                        { color: theme.onSurfaceVariant },
-                      ]}
-                    >
-                      {count}
-                    </Text>
-                  </View>
-                ))}
-            </View>
-            {tree.length > 0 && (
-              <View>
-                <View style={styles.genreSectionHeader}>
-                  <Text
-                    style={[styles.header, { color: theme.onSurfaceVariant }]}
-                  >
-                    {getString('statsScreen.genreDistribution')}
-                  </Text>
-                  <Pressable
-                    onPress={() =>
-                      navigation.navigate('SettingsStack', {
-                        screen: 'GenreTaxonomy',
-                      })
-                    }
-                    accessibilityRole="button"
-                    accessibilityLabel={getString('genreStats.editTaxonomy')}
-                    hitSlop={12}
-                  >
-                    <MaterialCommunityIcons
-                      name="cog-outline"
-                      color={theme.onSurfaceVariant}
-                      size={20}
-                    />
-                  </Pressable>
-                </View>
-                {tree.map(node => (
-                  <GenreSection
-                    key={node.name}
-                    node={node}
-                    globalMax={globalMax}
-                    novels={allNovels}
-                    theme={theme}
-                    onNovelPress={handleNovelPress}
-                  />
-                ))}
-              </View>
-            )}
-          </ScrollView>
+            data={tree}
+            estimatedItemSize={64}
+            keyExtractor={item => item.name}
+            ListHeaderComponent={overviewListHeader}
+            renderItem={renderOverviewItem}
+            showsVerticalScrollIndicator={false}
+          />
         );
       }
 
       return (
-        <ScrollView
+        <LegendList
           style={styles.screenCtn}
           contentContainerStyle={styles.contentCtn}
-        >
-          <View style={styles.timeSpentCardContainer}>
-            <StatsCard
-              label={getString('statsScreen.totalTimeSpent')}
-              value={formatTimeSpent(stats.totalTimeSpent)}
-            />
-          </View>
-          <View style={styles.timeSpentHeader}>
-            <Text style={[styles.header, { color: theme.onSurfaceVariant }]}>
-              {showingNovels
-                ? getString('statsScreen.topNovelsByTimeSpent')
-                : getString('statsScreen.topCategoriesByTimeSpent')}
-            </Text>
-            <IconButton
-              icon={showingNovels ? 'label-outline' : 'book'}
-              iconColor={theme.onSurfaceVariant}
-              onPress={() => setShowingNovels(!showingNovels)}
-              accessibilityRole="button"
-              accessibilityLabel={
-                showingNovels
-                  ? getString('statsScreen.showCategories')
-                  : getString('statsScreen.showNovels')
-              }
-            />
-          </View>
-          {showingNovels &&
-            stats.topNovelsByTimeSpent?.map((novel, _) => {
-              const plugin = getPlugin(novel.pluginId);
-              const headers = plugin?.imageRequestInit?.headers || {
-                'User-Agent': getUserAgent(),
-              };
-              const requestInit = { ...plugin?.imageRequestInit, headers };
-              return (
-                <View key={novel.id} style={styles.timeSpentRow}>
-                  <NovelCoverImage
-                    uri={novel.cover}
-                    requestInit={requestInit}
-                    theme={theme}
-                    iconSize={22}
-                    style={styles.timeSpentNovelCover}
-                    contentFit="cover"
-                  />
-                  <View>
-                    <Text
-                      style={[
-                        styles.timeSpentLabel,
-                        { color: theme.onSurface },
-                      ]}
-                    >
-                      {novel.name}
-                    </Text>
-                    <Text style={{ color: theme.onSurfaceVariant }}>
-                      {formatTimeSpent(novel.timeSpent)}
-                    </Text>
-                  </View>
-                </View>
-              );
-            })}
-          {!showingNovels &&
-            stats.topCategoriesByTimeSpent?.map((category, _) => {
-              return (
-                <View key={category.id} style={styles.timeSpentRow}>
-                  <View>
-                    <Text
-                      style={[
-                        styles.timeSpentLabel,
-                        { color: theme.onSurface },
-                      ]}
-                    >
-                      {category.name}
-                    </Text>
-                    <Text style={{ color: theme.onSurfaceVariant }}>
-                      {formatTimeSpent(category.timeSpent)}
-                    </Text>
-                  </View>
-                </View>
-              );
-            })}
-        </ScrollView>
+          data={timeSpentData}
+          estimatedItemSize={56}
+          getItemType={item => item.type}
+          keyExtractor={item => `${item.type}-${item.id}`}
+          ListHeaderComponent={timeListHeader}
+          recycleItems
+          renderItem={renderTimeItem}
+          showsVerticalScrollIndicator={false}
+        />
       );
     },
     [
-      stats,
-      statusColors,
-      theme,
       tree,
-      globalMax,
-      allNovels,
-      handleNovelPress,
-      navigation,
-      showingNovels,
+      overviewListHeader,
+      renderOverviewItem,
+      timeSpentData,
+      timeListHeader,
+      renderTimeItem,
     ],
   );
 
