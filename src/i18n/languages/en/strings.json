@@ -700,6 +700,7 @@
   "statsScreen": {
     "downloadedChapters": "Downloaded chapters",
     "genreDistribution": "Genre distribution",
+    "novels": "novels",
     "readChapters": "Read chapters",
     "sources": "Sources",
     "statusDistribution": "Status distribution",

@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react';
+import React, { useMemo } from 'react';
+import { useRecyclingState } from '@legendapp/list/react-native';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import MaterialCommunityIcons from '@react-native-vector-icons/material-design-icons';
 import { NovelCoverImage } from '@components';
@@ -28,7 +29,7 @@ const PluginSection: React.FC<PluginSectionProps> = ({
   theme,
   onNovelPress,
 }) => {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useRecyclingState(false);
   const pluginNovels = useMemo(
     () => novels.filter(n => n.pluginId === pluginId),
     [novels, pluginId],

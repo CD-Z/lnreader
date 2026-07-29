@@ -11,6 +11,7 @@ interface DonutChartWithLegendProps {
   thickness?: number;
   colors: Record<string, string>;
   theme: ThemeColors;
+  centerLabel?: string;
   getLabel?: (key: string) => string;
 }
 
@@ -21,6 +22,7 @@ const DonutChartWithLegend: React.FC<DonutChartWithLegendProps> = ({
   thickness = 28,
   colors,
   theme,
+  centerLabel,
   getLabel,
 }) => {
   const [highlightedKey, setHighlightedKey] = useState<string | undefined>(
@@ -53,6 +55,7 @@ const DonutChartWithLegend: React.FC<DonutChartWithLegendProps> = ({
           size={size}
           thickness={thickness}
           colors={colors}
+          centerLabel={centerLabel}
           highlightedKey={highlightedKey}
           onSegmentPress={handleSegmentPress}
         />

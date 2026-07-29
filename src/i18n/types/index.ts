@@ -591,6 +591,7 @@ export interface StringMap {
   'sourceScreen.noResultsFound': 'string';
   'statsScreen.downloadedChapters': 'string';
   'statsScreen.genreDistribution': 'string';
+  'statsScreen.novels': 'string';
   'statsScreen.readChapters': 'string';
   'statsScreen.sources': 'string';
   'statsScreen.statusDistribution': 'string';

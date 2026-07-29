@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React from 'react';
+import { useRecyclingState } from '@legendapp/list/react-native';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import MaterialCommunityIcons from '@react-native-vector-icons/material-design-icons';
 import { getString } from '@i18n/translations';
@@ -23,7 +24,7 @@ const GenreSection: React.FC<GenreSectionProps> = ({
   theme,
   onNovelPress,
 }) => {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useRecyclingState(false);
 
   const hasChildren = node.children && node.children.length > 0;
 

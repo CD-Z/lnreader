@@ -55,6 +55,7 @@ interface DonutChartProps {
   size: number;
   thickness: number;
   colors: Record<string, string>;
+  centerLabel?: string;
   highlightedKey?: string;
   onSegmentPress?: (key: string) => void;
 }
@@ -155,6 +156,7 @@ export const DonutChart: React.FC<DonutChartProps> = ({
   size,
   thickness,
   colors,
+  centerLabel,
   highlightedKey,
   onSegmentPress,
 }) => {
@@ -221,7 +223,7 @@ export const DonutChart: React.FC<DonutChartProps> = ({
           {total}
         </Text>
         <Text style={[styles.centerUnit, { color: theme.onSurfaceVariant }]}>
-          novels
+          {centerLabel}
         </Text>
       </View>
     </View>

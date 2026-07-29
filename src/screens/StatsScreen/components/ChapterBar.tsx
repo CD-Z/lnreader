@@ -42,7 +42,7 @@ export const ChapterBar: React.FC<ChapterBarProps> = ({
         <View style={styles.labelsRow}>
           <View style={styles.labelCol}>
             <Text style={{ color: theme.onSurfaceVariant, fontSize: 12 }}>
-              Read
+              {getString('statsScreen.readChapters')}
             </Text>
             <Text
               style={{
@@ -56,7 +56,7 @@ export const ChapterBar: React.FC<ChapterBarProps> = ({
           </View>
           <View style={styles.labelCol}>
             <Text style={{ color: theme.onSurfaceVariant, fontSize: 12 }}>
-              Downloaded
+              {getString('statsScreen.downloadedChapters')}
             </Text>
             <Text
               style={{

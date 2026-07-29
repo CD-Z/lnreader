@@ -62,13 +62,13 @@ import {
 
 type TimeSpentItem =
   | {
-      type: 'novel';
-      id: number;
-      pluginId: string;
-      name: string;
-      cover: string | null;
-      timeSpent: number;
-    }
+    type: 'novel';
+    id: number;
+    pluginId: string;
+    name: string;
+    cover: string | null;
+    timeSpent: number;
+  }
   | { type: 'category'; id: number; name: string; timeSpent: number };
 
 const StatsScreen = () => {
@@ -291,21 +291,23 @@ const StatsScreen = () => {
         onNovelPress={handleNovelPress}
       />
     ),
-    [pluginData, allNovels, theme, handleNovelPress],
+    [allNovels, theme, handleNovelPress],
   );
 
+  const { donutEntries, colors: pluginColors } = pluginData;
   const pluginListHeader = useCallback(
     () => (
       <View>
         <DonutChartWithLegend
           title={getString('statsScreen.pluginDistribution')}
-          entries={pluginData.donutEntries}
-          colors={pluginData.colors}
+          entries={donutEntries}
+          colors={pluginColors}
           theme={theme}
+          centerLabel={getString('statsScreen.plugins')}
         />
       </View>
     ),
-    [pluginData, theme],
+    [donutEntries, pluginColors, theme],
   );
 
   const renderTimeItem = useCallback(
@@ -368,6 +370,7 @@ const StatsScreen = () => {
             .map(([k, v]) => ({ key: k, value: v }))}
           colors={statusColors}
           theme={theme}
+          centerLabel={getString('statsScreen.novels')}
           getLabel={key => translateNovelStatus(key)}
         />
         {tree.length > 0 && (
@@ -440,8 +443,10 @@ const StatsScreen = () => {
             data={tree}
             estimatedItemSize={64}
             keyExtractor={item => item.name}
+            getItemType={() => 'genre'}
             ListHeaderComponent={overviewListHeader}
             renderItem={renderOverviewItem}
+            recycleItems
             showsVerticalScrollIndicator={false}
           />
         );
@@ -455,8 +460,10 @@ const StatsScreen = () => {
             data={pluginData.nodes}
             estimatedItemSize={56}
             keyExtractor={item => item.pluginId}
+            getItemType={() => 'plugin'}
             ListHeaderComponent={pluginListHeader}
             renderItem={renderPluginItem}
+            recycleItems
             showsVerticalScrollIndicator={false}
           />
         );
