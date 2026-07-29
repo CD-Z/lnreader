@@ -1,6 +1,7 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { ThemeColors } from '@theme/types';
+import Animated from 'react-native-reanimated';
 
 export interface ChartLegendEntry {
   key: string;
@@ -21,39 +22,50 @@ const ChartLegend: React.FC<ChartLegendProps> = ({
   highlightedKey,
   onEntryPress,
   theme,
-}) => (
-  <View style={styles.legendContainer}>
-    {entries.map(entry => (
-      <Pressable
-        key={entry.key}
-        onPress={() => onEntryPress(entry.key)}
-        style={styles.legendRow}
-      >
-        <View
-          style={[
-            styles.legendDot,
-            {
-              backgroundColor: entry.color,
-              borderWidth: highlightedKey === entry.key ? 2 : 0,
-              borderColor: theme.onSurface,
-            },
-          ]}
-        />
-        <Text
-          style={[styles.legendLabel, { color: theme.onSurface }]}
-          numberOfLines={1}
-        >
-          {entry.label}
-        </Text>
-        <Text
-          style={[styles.legendValue, { color: theme.onSurfaceVariant }]}
-        >
-          {entry.value}
-        </Text>
-      </Pressable>
-    ))}
-  </View>
-);
+}) => {
+  return (
+    <View style={styles.legendContainer}>
+      {entries.map(entry => {
+        const isHighlighted = highlightedKey === entry.key;
+        return (
+          <Pressable
+            key={entry.key}
+            onPress={() => onEntryPress(entry.key)}
+            style={styles.legendRow}
+          >
+            <Animated.View
+              style={[
+                styles.legendDot,
+                {
+                  backgroundColor: entry.color,
+                  borderWidth: isHighlighted ? 2 : 0,
+                  width: isHighlighted ? 16 : 12,
+                  height: isHighlighted ? 16 : 12,
+                  marginLeft: isHighlighted ? 0 : 2,
+                  marginRight: isHighlighted ? 6 : 8,
+                  transitionDuration: '150ms',
+                  transitionProperty: 'all',
+                  borderColor: theme.onSurface,
+                },
+              ]}
+            />
+            <Text
+              style={[styles.legendLabel, { color: theme.onSurface }]}
+              numberOfLines={1}
+            >
+              {entry.label}
+            </Text>
+            <Text
+              style={[styles.legendValue, { color: theme.onSurfaceVariant }]}
+            >
+              {entry.value}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+};
 
 const styles = StyleSheet.create({
   legendContainer: {
@@ -65,10 +77,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   legendDot: {
-    width: 16,
-    height: 16,
     borderRadius: 8,
-    marginRight: 8,
   },
   legendLabel: {
     flex: 1,

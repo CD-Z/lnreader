@@ -62,13 +62,13 @@ import {
 
 type TimeSpentItem =
   | {
-    type: 'novel';
-    id: number;
-    pluginId: string;
-    name: string;
-    cover: string | null;
-    timeSpent: number;
-  }
+      type: 'novel';
+      id: number;
+      pluginId: string;
+      name: string;
+      cover: string | null;
+      timeSpent: number;
+    }
   | { type: 'category'; id: number; name: string; timeSpent: number };
 
 const StatsScreen = () => {
@@ -291,7 +291,7 @@ const StatsScreen = () => {
         onNovelPress={handleNovelPress}
       />
     ),
-    [allNovels, theme, handleNovelPress],
+    [pluginData, allNovels, theme, handleNovelPress],
   );
 
   const pluginListHeader = useCallback(
