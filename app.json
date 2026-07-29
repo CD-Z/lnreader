@@ -44,7 +44,8 @@
             }
           }
         }
-      ]
+      ],
+      "@rnrepo/expo-config-plugin"
     ],
     "android": {
       "versionCode": 4196354,
@@ -71,7 +72,9 @@
     "ios": {
       "bundleIdentifier": "com.rajarsheechatterjee.LNReader",
       "infoPlist": {
-        "UIBackgroundModes": ["audio"]
+        "UIBackgroundModes": [
+          "audio"
+        ]
       }
     }
   }
