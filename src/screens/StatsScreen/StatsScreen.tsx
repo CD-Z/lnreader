@@ -40,7 +40,6 @@ import {
   getNovelsWithGenresFromDb,
   type NovelWithGenres,
 } from '@database/queries/StatsQueries';
-import { Row } from '@components/Common';
 import { IconButton } from 'react-native-paper';
 import MaterialCommunityIcons from '@react-native-vector-icons/material-design-icons';
 import { translateNovelStatus } from '@utils/translateEnum';
@@ -56,8 +55,9 @@ import { GenreSection } from '@screens/GenreStatsScreen/components';
 import {
   StatsCard,
   DonutChart,
-  getStatusColors,
+  getDonutPalette,
   ChapterBar,
+  PluginSection,
 } from './components';
 
 type TimeSpentItem =
@@ -162,17 +162,18 @@ const StatsScreen = () => {
     [navigation],
   );
 
-  const statusColors = getStatusColors(theme);
+  const statusColors = getDonutPalette(Object.keys(stats.status || {}), theme);
   const layout = useWindowDimensions();
 
   type StatsRoute = {
-    key: 'overview' | 'time';
+    key: 'overview' | 'plugins' | 'time';
     title: string;
   };
 
   const routes: StatsRoute[] = useMemo(
     () => [
       { key: 'overview', title: getString('generalSettings') },
+      { key: 'plugins', title: getString('statsScreen.plugins') },
       { key: 'time', title: getString('statsScreen.totalTimeSpent') },
     ],
     [],
@@ -235,6 +236,35 @@ const StatsScreen = () => {
     stats.topCategoriesByTimeSpent,
   ]);
 
+  const pluginData = useMemo(() => {
+    const groups = new Map<
+      string,
+      { name: string; count: number; novelIds: number[] }
+    >();
+    for (const novel of allNovels) {
+      const plugin = getPlugin(novel.pluginId);
+      const name = plugin?.name ?? novel.pluginId;
+      const group = groups.get(novel.pluginId);
+      if (group) {
+        group.novelIds.push(novel.id);
+        group.count++;
+      } else {
+        groups.set(novel.pluginId, { name, count: 1, novelIds: [novel.id] });
+      }
+    }
+    const nodes = Array.from(groups.entries())
+      .map(([pluginId, data]) => ({
+        pluginId,
+        name: data.name,
+        count: data.count,
+      }))
+      .sort((a, b) => b.count - a.count);
+    const keys = nodes.map(n => n.name);
+    const colors = getDonutPalette(keys, theme);
+    const donutEntries = nodes.map(n => ({ key: n.name, value: n.count }));
+    return { nodes, colors, donutEntries };
+  }, [allNovels, theme]);
+
   const renderOverviewItem = useCallback(
     ({ item }: LegendListRenderItemProps<GenreTreeNode>) => (
       <GenreSection
@@ -246,6 +276,72 @@ const StatsScreen = () => {
       />
     ),
     [globalMax, allNovels, theme, handleNovelPress],
+  );
+
+  const renderPluginItem = useCallback(
+    ({
+      item,
+    }: LegendListRenderItemProps<(typeof pluginData.nodes)[number]>) => (
+      <PluginSection
+        pluginId={item.pluginId}
+        name={item.name}
+        count={item.count}
+        novels={allNovels}
+        theme={theme}
+        onNovelPress={handleNovelPress}
+      />
+    ),
+    [allNovels, theme, handleNovelPress],
+  );
+
+  const pluginListHeader = useCallback(
+    () => (
+      <View>
+        <View style={styles.donutContainer}>
+          <DonutChart
+            entries={pluginData.donutEntries}
+            size={160}
+            thickness={28}
+            colors={pluginData.colors}
+          />
+        </View>
+        <View style={styles.legendContainer}>
+          {pluginData.donutEntries
+            .filter(e => e.value > 0)
+            .map(entry => (
+              <View key={entry.key} style={styles.legendRow}>
+                <View
+                  style={[
+                    styles.legendDot,
+                    {
+                      backgroundColor:
+                        pluginData.colors[entry.key] || theme.outline,
+                    },
+                  ]}
+                />
+                <Text
+                  style={[styles.legendLabel, { color: theme.onSurface }]}
+                  numberOfLines={1}
+                >
+                  {entry.key}
+                </Text>
+                <Text
+                  style={[
+                    styles.legendValue,
+                    { color: theme.onSurfaceVariant },
+                  ]}
+                >
+                  {entry.value}
+                </Text>
+              </View>
+            ))}
+        </View>
+        <Text style={[styles.header, { color: theme.onSurfaceVariant }]}>
+          {getString('statsScreen.pluginDistribution')}
+        </Text>
+      </View>
+    ),
+    [pluginData, theme],
   );
 
   const renderTimeItem = useCallback(
@@ -296,16 +392,6 @@ const StatsScreen = () => {
   const overviewListHeader = useCallback(
     () => (
       <View>
-        <Row style={styles.statsRow}>
-          <StatsCard
-            label={getString('statsScreen.titlesInLibrary')}
-            value={stats.novelsCount}
-          />
-          <StatsCard
-            label={getString('statsScreen.sources')}
-            value={stats.sourcesCount}
-          />
-        </Row>
         <ChapterBar
           read={stats.chaptersRead ?? 0}
           total={stats.chaptersCount ?? 0}
@@ -430,6 +516,21 @@ const StatsScreen = () => {
         );
       }
 
+      if (tabRoute.key === 'plugins') {
+        return (
+          <LegendList
+            style={styles.screenCtn}
+            contentContainerStyle={styles.contentCtn}
+            data={pluginData.nodes}
+            estimatedItemSize={56}
+            keyExtractor={item => item.pluginId}
+            ListHeaderComponent={pluginListHeader}
+            renderItem={renderPluginItem}
+            showsVerticalScrollIndicator={false}
+          />
+        );
+      }
+
       return (
         <LegendList
           style={styles.screenCtn}
@@ -449,6 +550,9 @@ const StatsScreen = () => {
       tree,
       overviewListHeader,
       renderOverviewItem,
+      pluginData,
+      pluginListHeader,
+      renderPluginItem,
       timeSpentData,
       timeListHeader,
       renderTimeItem,
@@ -521,10 +625,7 @@ const styles = StyleSheet.create({
   screenCtn: {
     paddingHorizontal: 16,
   },
-  statsRow: {
-    justifyContent: 'center',
-    marginBottom: 8,
-  },
+
   timeSpentHeader: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -711,7 +711,9 @@
     "topCategoriesByTimeSpent": "Top categories by time spent",
     "totalTimeSpent": "Total time spent",
     "showNovels": "Group by novel",
-    "showCategories": "Group by category"
+    "showCategories": "Group by category",
+    "plugins": "Plugins",
+    "pluginDistribution": "Plugin distribution"
   },
   "tracking": "Tracking",
   "trackingScreen": {

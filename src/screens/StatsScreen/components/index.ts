@@ -1,3 +1,4 @@
 export { StatsCard } from './StatsCard';
-export { DonutChart, getStatusColors } from './DonutChart';
+export { DonutChart, getDonutPalette } from './DonutChart';
 export { ChapterBar } from './ChapterBar';
+export { default as PluginSection } from './PluginSection';

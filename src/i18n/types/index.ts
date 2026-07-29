@@ -603,6 +603,8 @@ export interface StringMap {
   'statsScreen.totalTimeSpent': 'string';
   'statsScreen.showNovels': 'string';
   'statsScreen.showCategories': 'string';
+  'statsScreen.plugins': 'string';
+  'statsScreen.pluginDistribution': 'string';
   'tracking': 'string';
   'trackingScreen.info': 'string';
   'trackingScreen.logOutMessage': 'string';

@@ -4,17 +4,37 @@ import Svg, { Path, Circle, G } from 'react-native-svg';
 
 import { useTheme } from '@hooks/persisted';
 import { ThemeColors } from '@theme/types';
+import color from 'color';
 
-export function getStatusColors(theme: ThemeColors): Record<string, string> {
-  return {
-    Ongoing: theme.primary,
-    Completed: theme.tertiary,
-    'On Hiatus': theme.secondary,
-    Cancelled: theme.error,
-    Unknown: theme.outline,
-    Licensed: theme.primaryContainer,
-    'Publishing Finished': theme.secondaryContainer,
-  };
+export function getDonutPalette(
+  keys: string[],
+  theme: ThemeColors,
+): Record<string, string> {
+  const bases = [
+    theme.primary,
+    theme.primaryContainer,
+    theme.tertiary,
+    theme.tertiaryContainer,
+    theme.secondary,
+    theme.secondaryContainer,
+    theme.surface,
+    theme.surfaceVariant,
+    theme.onPrimary,
+  ];
+  const result: Record<string, string> = {};
+  keys.forEach((key, i) => {
+    const base = bases[i % bases.length];
+    const cycle = Math.floor(i / bases.length);
+    if (cycle === 0) {
+      result[key] = base;
+    } else {
+      const factor = cycle * 0.15;
+      result[key] = theme.isDark
+        ? color(base).lighten(factor).hex()
+        : color(base).darken(factor).hex();
+    }
+  });
+  return result;
 }
 
 interface DonutChartProps {
@@ -42,7 +62,8 @@ export const DonutChart: React.FC<DonutChartProps> = ({
   const active = entries.filter(e => e.value > 0);
 
   // Build accumulated angles (math coords, CW from 3 o'clock)
-  const segments: { color: string; startAngle: number; endAngle: number }[] = [];
+  const segments: { color: string; startAngle: number; endAngle: number }[] =
+    [];
   let cursor = 0;
 
   for (const entry of active) {

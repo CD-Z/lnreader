@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 
 import { useTheme } from '@hooks/persisted';
+import { getString } from '@i18n/translations';
 
 interface ChapterBarProps {
   read: number;
@@ -20,12 +21,13 @@ export const ChapterBar: React.FC<ChapterBarProps> = ({
 
   return (
     <View style={styles.container}>
-      <View
-        style={[
-          styles.track,
-          { backgroundColor: theme.surfaceVariant },
-        ]}
-      >
+      <Text style={[styles.totalLabel, { color: theme.onSurface }]}>
+        {getString('statsScreen.totalChapters')}
+      </Text>
+      <Text style={[styles.totalCount, { color: theme.onSurface }]}>
+        {total}
+      </Text>
+      <View style={[styles.track, { backgroundColor: theme.surfaceVariant }]}>
         <View
           style={[
             styles.fill,
@@ -36,21 +38,36 @@ export const ChapterBar: React.FC<ChapterBarProps> = ({
           ]}
         />
       </View>
-      {total === 0 ? (
-        <Text style={[styles.noChaptersText, { color: theme.onSurfaceVariant }]}>
-          No chapters
-        </Text>
-      ) : (
+      {total > 0 && (
         <View style={styles.labelsRow}>
-          <Text style={[styles.label, { color: theme.onSurfaceVariant }]}>
-            Read {read}
-          </Text>
-          <Text style={[styles.label, { color: theme.onSurfaceVariant }]}>
-            Total {total}
-          </Text>
-          <Text style={[styles.label, { color: theme.onSurfaceVariant }]}>
-            Downloaded {downloaded}
-          </Text>
+          <View style={styles.labelCol}>
+            <Text style={{ color: theme.onSurfaceVariant, fontSize: 12 }}>
+              Read
+            </Text>
+            <Text
+              style={{
+                color: theme.onSurface,
+                fontWeight: 'bold',
+                fontSize: 14,
+              }}
+            >
+              {read}
+            </Text>
+          </View>
+          <View style={styles.labelCol}>
+            <Text style={{ color: theme.onSurfaceVariant, fontSize: 12 }}>
+              Downloaded
+            </Text>
+            <Text
+              style={{
+                color: theme.onSurface,
+                fontWeight: 'bold',
+                fontSize: 14,
+              }}
+            >
+              {downloaded}
+            </Text>
+          </View>
         </View>
       )}
     </View>
@@ -60,6 +77,17 @@ export const ChapterBar: React.FC<ChapterBarProps> = ({
 const styles = StyleSheet.create({
   container: {
     marginBottom: 12,
+  },
+  totalLabel: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  totalCount: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 4,
   },
   track: {
     height: 20,
@@ -72,15 +100,11 @@ const styles = StyleSheet.create({
   },
   labelsRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'space-around',
     marginTop: 4,
   },
-  label: {
-    fontSize: 12,
-  },
-  noChaptersText: {
-    fontSize: 12,
-    textAlign: 'center',
-    marginTop: 4,
+  labelCol: {
+    flex: 1,
+    alignItems: 'center',
   },
 });
