@@ -54,21 +54,21 @@ import { useGenreTaxonomy } from '@hooks/persisted/useGenreTaxonomy';
 import { GenreSection } from '@screens/GenreStatsScreen/components';
 import {
   StatsCard,
-  DonutChart,
   getDonutPalette,
   ChapterBar,
   PluginSection,
+  DonutChartWithLegend,
 } from './components';
 
 type TimeSpentItem =
   | {
-      type: 'novel';
-      id: number;
-      pluginId: string;
-      name: string;
-      cover: string | null;
-      timeSpent: number;
-    }
+    type: 'novel';
+    id: number;
+    pluginId: string;
+    name: string;
+    cover: string | null;
+    timeSpent: number;
+  }
   | { type: 'category'; id: number; name: string; timeSpent: number };
 
 const StatsScreen = () => {
@@ -297,48 +297,12 @@ const StatsScreen = () => {
   const pluginListHeader = useCallback(
     () => (
       <View>
-        <View style={styles.donutContainer}>
-          <DonutChart
-            entries={pluginData.donutEntries}
-            size={160}
-            thickness={28}
-            colors={pluginData.colors}
-          />
-        </View>
-        <View style={styles.legendContainer}>
-          {pluginData.donutEntries
-            .filter(e => e.value > 0)
-            .map(entry => (
-              <View key={entry.key} style={styles.legendRow}>
-                <View
-                  style={[
-                    styles.legendDot,
-                    {
-                      backgroundColor:
-                        pluginData.colors[entry.key] || theme.outline,
-                    },
-                  ]}
-                />
-                <Text
-                  style={[styles.legendLabel, { color: theme.onSurface }]}
-                  numberOfLines={1}
-                >
-                  {entry.key}
-                </Text>
-                <Text
-                  style={[
-                    styles.legendValue,
-                    { color: theme.onSurfaceVariant },
-                  ]}
-                >
-                  {entry.value}
-                </Text>
-              </View>
-            ))}
-        </View>
-        <Text style={[styles.header, { color: theme.onSurfaceVariant }]}>
-          {getString('statsScreen.pluginDistribution')}
-        </Text>
+        <DonutChartWithLegend
+          title={getString('statsScreen.pluginDistribution')}
+          entries={pluginData.donutEntries}
+          colors={pluginData.colors}
+          theme={theme}
+        />
       </View>
     ),
     [pluginData, theme],
@@ -397,48 +361,15 @@ const StatsScreen = () => {
           total={stats.chaptersCount ?? 0}
           downloaded={stats.chaptersDownloaded ?? 0}
         />
-        <Text style={[styles.header, { color: theme.onSurfaceVariant }]}>
-          {getString('statsScreen.statusDistribution')}
-        </Text>
-        <View style={styles.donutContainer}>
-          <DonutChart
-            entries={Object.entries(stats.status || {})
-              .filter(([_, v]) => v > 0)
-              .map(([k, v]) => ({ key: k, value: v }))}
-            size={160}
-            thickness={28}
-            colors={statusColors}
-          />
-        </View>
-        <View style={styles.legendContainer}>
-          {Object.entries(stats.status || {})
+        <DonutChartWithLegend
+          title={getString('statsScreen.statusDistribution')}
+          entries={Object.entries(stats.status || {})
             .filter(([_, v]) => v > 0)
-            .sort((a, b) => b[1] - a[1])
-            .map(([key, count]) => (
-              <View key={key} style={styles.legendRow}>
-                <View
-                  style={[
-                    styles.legendDot,
-                    { backgroundColor: statusColors[key] || theme.outline },
-                  ]}
-                />
-                <Text
-                  style={[styles.legendLabel, { color: theme.onSurface }]}
-                  numberOfLines={1}
-                >
-                  {translateNovelStatus(key)}
-                </Text>
-                <Text
-                  style={[
-                    styles.legendValue,
-                    { color: theme.onSurfaceVariant },
-                  ]}
-                >
-                  {count}
-                </Text>
-              </View>
-            ))}
-        </View>
+            .map(([k, v]) => ({ key: k, value: v }))}
+          colors={statusColors}
+          theme={theme}
+          getLabel={key => translateNovelStatus(key)}
+        />
         {tree.length > 0 && (
           <View style={styles.genreSectionHeader}>
             <Text style={[styles.header, { color: theme.onSurfaceVariant }]}>
@@ -648,34 +579,8 @@ const styles = StyleSheet.create({
   timeSpentLabel: {
     fontWeight: 'bold',
   },
-  donutContainer: {
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  legendContainer: {
-    marginBottom: 8,
-  },
-  legendRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  legendDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    marginRight: 8,
-  },
-  legendLabel: {
-    flex: 1,
-    fontSize: 14,
-  },
-  legendValue: {
-    fontSize: 14,
-    textAlign: 'right',
-    width: 40,
-  },
   contentCtn: {
+    paddingTop: 16,
     paddingBottom: 40,
   },
 });
