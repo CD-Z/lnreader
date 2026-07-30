@@ -25,7 +25,6 @@ interface GenreSectionProps {
     cover: string | null;
     pluginId: string;
   }) => void;
-  onCarouselScrollChange?: (isScrolling: boolean) => void;
 }
 
 const GenreSection: React.FC<GenreSectionProps> = ({
@@ -34,7 +33,6 @@ const GenreSection: React.FC<GenreSectionProps> = ({
   novels,
   theme,
   onNovelPress,
-  onCarouselScrollChange,
 }) => {
   const [expanded, setExpanded] = useRecyclingState(false);
   const adaptiveRender = useAdaptiveRender();
@@ -112,7 +110,6 @@ const GenreSection: React.FC<GenreSectionProps> = ({
             genreName={node.name}
             theme={theme}
             onNovelPress={onNovelPress}
-            onScrollChange={onCarouselScrollChange}
           />
           <View style={{ height: 20 }} />
         </AnimatedHeight>

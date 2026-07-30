@@ -1,9 +1,10 @@
-import React, { useState, useRef } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useState } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import MaterialCommunityIcons from '@react-native-vector-icons/material-design-icons';
 import { getString } from '@i18n/translations';
 import NovelCard from './NovelCard';
 import type { ThemeColors } from '@theme/types';
+import { FlatList } from 'react-native-gesture-handler';
 
 interface NovelCarouselProps {
   novels: {
@@ -22,18 +23,18 @@ interface NovelCarouselProps {
     cover: string | null;
     pluginId: string;
   }) => void;
-  onScrollChange?: (isScrolling: boolean) => void;
 }
 
-const MAX_VISIBLE = 20;
+const MAX_VISIBLE = 10;
 
 const NovelCarousel: React.FC<NovelCarouselProps> = ({
   novels,
   genreName,
   theme,
   onNovelPress,
-  onScrollChange,
 }) => {
+  const [showAll, setShowAll] = useState(false);
+
   if (novels.length === 0) {
     return (
       <Text style={[styles.emptyText, { color: theme.onSurfaceVariant }]}>
@@ -41,9 +42,6 @@ const NovelCarousel: React.FC<NovelCarouselProps> = ({
       </Text>
     );
   }
-
-  const [showAll, setShowAll] = useState(false);
-  const scrollingRef = useRef(false);
 
   const visibleNovels = showAll ? novels : novels.slice(0, MAX_VISIBLE);
   const hasMore = !showAll && novels.length > MAX_VISIBLE;
@@ -61,24 +59,6 @@ const NovelCarousel: React.FC<NovelCarouselProps> = ({
         horizontal
         showsHorizontalScrollIndicator={false}
         data={data}
-        onScrollBeginDrag={() => {
-          if (!scrollingRef.current && onScrollChange) {
-            scrollingRef.current = true;
-            onScrollChange(true);
-          }
-        }}
-        onScrollEndDrag={() => {
-          if (scrollingRef.current && onScrollChange) {
-            scrollingRef.current = false;
-            onScrollChange(false);
-          }
-        }}
-        onMomentumScrollEnd={() => {
-          if (scrollingRef.current && onScrollChange) {
-            scrollingRef.current = false;
-            onScrollChange(false);
-          }
-        }}
         keyExtractor={item =>
           item.id != null && item.id !== -1 ? String(item.id) : 'see-all'
         }
