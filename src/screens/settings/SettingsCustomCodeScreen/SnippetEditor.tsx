@@ -10,6 +10,7 @@ import { useNavigation } from '@react-navigation/native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { Dialog, IconButtonV2 } from '@components';
 import type { HighlightMode } from './Components/SimpleCodeEditor';
+import { useMMKVString } from 'react-native-mmkv';
 export type SnippetEditorHandle = {
   save: () => void;
   setCode: (val: string) => void;
@@ -36,8 +37,10 @@ const SnippetEditor = React.forwardRef<SnippetEditorHandle, SnippetEditorProps>(
 
     const [code, setCode] = React.useState<string>(snippet?.code ?? '');
     const [error, setError] = React.useState({ code: false });
-    const [highlightMode, setHighlightMode] =
-      React.useState<HighlightMode>('combined');
+    const [highlightMode = 'combined', setHighlightMode] = useMMKVString(
+      `snippetEditorHighlightMode`,
+    ) as [HighlightMode, (value: HighlightMode) => void];
+
     const [snippetName, setSnippetName] = React.useState('');
 
     const [showNameModal, setShowNameModal] = React.useState(false);
