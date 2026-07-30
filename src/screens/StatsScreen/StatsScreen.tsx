@@ -25,15 +25,10 @@ import {
   TopTabBar,
 } from '@components';
 
+import { countBy } from 'lodash-es';
 import { LibraryStats } from '@database/types';
 import {
-  getChaptersDownloadedCountFromDb,
-  getChaptersReadCountFromDb,
-  getChaptersTotalCountFromDb,
-  getChaptersUnreadCountFromDb,
-  getLibraryStatsFromDb,
-  getNovelGenresFromDb,
-  getNovelStatusFromDb,
+  getAggregateStatsFromDb,
   getTopCategoriesByTimeSpentFromDb,
   getTopNovelsByTimeSpentFromDb,
   getTotalTimeSpentFromDb,
@@ -62,13 +57,13 @@ import {
 
 type TimeSpentItem =
   | {
-    type: 'novel';
-    id: number;
-    pluginId: string;
-    name: string;
-    cover: string | null;
-    timeSpent: number;
-  }
+      type: 'novel';
+      id: number;
+      pluginId: string;
+      name: string;
+      cover: string | null;
+      timeSpent: number;
+    }
   | { type: 'category'; id: number; name: string; timeSpent: number };
 
 const StatsScreen = () => {
@@ -88,32 +83,35 @@ const StatsScreen = () => {
 
     const loadStats = async () => {
       try {
-        const res = await Promise.all([
-          getLibraryStatsFromDb(),
-          getChaptersTotalCountFromDb(),
-          getChaptersReadCountFromDb(),
-          getChaptersUnreadCountFromDb(),
-          getChaptersDownloadedCountFromDb(),
-          getNovelGenresFromDb(),
-          getNovelStatusFromDb(),
-          getTopNovelsByTimeSpentFromDb(),
-          getTopCategoriesByTimeSpentFromDb(),
-          getNovelsWithGenresFromDb(),
-          getTotalTimeSpentFromDb(),
-        ]);
+        const [aggregateStats, topNovels, topCategories, novelsWithGenres] =
+          await Promise.all([
+            getAggregateStatsFromDb(),
+            getTopNovelsByTimeSpentFromDb(),
+            getTopCategoriesByTimeSpentFromDb(),
+            getNovelsWithGenresFromDb(),
+          ]);
 
         if (!cancelled) {
-          setStats(
-            res.reduce<LibraryStats>(
-              (combinedStats, currentStats) => ({
-                ...combinedStats,
-                ...currentStats,
-              }),
-              {},
-            ),
-          );
+          const allGenres: string[] = [];
+          const statusMap: Record<string, number> = {};
+          for (const n of novelsWithGenres) {
+            if (n.genres) {
+              allGenres.push(...n.genres.split(/\s*,\s*/));
+            }
+            const s = n.status?.trim() || 'Unknown';
+            statusMap[s] = (statusMap[s] ?? 0) + 1;
+          }
+          const genres = countBy(allGenres);
+
+          setStats({
+            ...aggregateStats,
+            ...topNovels,
+            ...topCategories,
+            genres,
+            status: statusMap,
+          });
         }
-        if (!cancelled) setAllNovels(res[9] as NovelWithGenres[]);
+        if (!cancelled) setAllNovels(novelsWithGenres);
       } catch (err) {
         if (!cancelled) {
           setError(err);
@@ -291,7 +289,7 @@ const StatsScreen = () => {
         onNovelPress={handleNovelPress}
       />
     ),
-    [allNovels, theme, handleNovelPress],
+    [pluginData, allNovels, theme, handleNovelPress],
   );
 
   const { donutEntries, colors: pluginColors } = pluginData;
