@@ -1,3 +1,4 @@
+export { default as AnimatedHeight } from './AnimatedHeight';
 export { StatsCard } from './StatsCard';
 export { DonutChart, getDonutPalette } from './DonutChart';
 export { ChapterBar } from './ChapterBar';

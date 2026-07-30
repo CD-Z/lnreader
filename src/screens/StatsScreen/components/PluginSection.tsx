@@ -1,8 +1,12 @@
 import React, { useMemo } from 'react';
-import { useRecyclingState } from '@legendapp/list/react-native';
+import {
+  useRecyclingState,
+  useAdaptiveRender,
+} from '@legendapp/list/react-native';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import MaterialCommunityIcons from '@react-native-vector-icons/material-design-icons';
 import { NovelCoverImage } from '@components';
+import AnimatedHeight from './AnimatedHeight';
 import type { ThemeColors } from '@theme/types';
 import type { NovelWithGenres } from '@database/queries/StatsQueries';
 
@@ -30,6 +34,7 @@ const PluginSection: React.FC<PluginSectionProps> = ({
   onNovelPress,
 }) => {
   const [expanded, setExpanded] = useRecyclingState(false);
+  const adaptiveRender = useAdaptiveRender();
   const pluginNovels = useMemo(
     () => novels.filter(n => n.pluginId === pluginId),
     [novels, pluginId],
@@ -63,8 +68,8 @@ const PluginSection: React.FC<PluginSectionProps> = ({
           />
         </View>
       </Pressable>
-      {expanded && (
-        <View style={styles.novelList}>
+      {adaptiveRender === 'light' ? null : (
+        <AnimatedHeight expanded={expanded}>
           {pluginNovels.map(novel => (
             <Pressable
               key={novel.id}
@@ -87,7 +92,7 @@ const PluginSection: React.FC<PluginSectionProps> = ({
               </Text>
             </Pressable>
           ))}
-        </View>
+        </AnimatedHeight>
       )}
     </View>
   );
@@ -104,7 +109,6 @@ const styles = StyleSheet.create({
   name: { fontWeight: '600', flex: 1 },
   headerRight: { flexDirection: 'row', alignItems: 'center' },
   count: { marginRight: 8 },
-  novelList: { paddingTop: 8 },
   novelRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
   novelCover: {
     width: 36,

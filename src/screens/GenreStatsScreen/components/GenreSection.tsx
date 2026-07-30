@@ -1,10 +1,14 @@
 import React from 'react';
-import { useRecyclingState } from '@legendapp/list/react-native';
+import {
+  useAdaptiveRender,
+  useRecyclingState,
+} from '@legendapp/list/react-native';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import MaterialCommunityIcons from '@react-native-vector-icons/material-design-icons';
 import { getString } from '@i18n/translations';
 import GenreRow from './GenreRow';
 import NovelCarousel from './NovelCarousel';
+import AnimatedHeight from '@screens/StatsScreen/components/AnimatedHeight';
 import type { ThemeColors } from '@theme/types';
 import type { GenreTreeNode } from '../utils';
 import type { NovelWithGenres } from '@database/queries/StatsQueries';
@@ -14,7 +18,14 @@ interface GenreSectionProps {
   globalMax: number; // global bar scale max
   novels: NovelWithGenres[]; // ALL novels (filtered internally)
   theme: ThemeColors;
-  onNovelPress: (novel: { id: number; name: string; path: string; cover: string | null; pluginId: string }) => void;
+  onNovelPress: (novel: {
+    id: number;
+    name: string;
+    path: string;
+    cover: string | null;
+    pluginId: string;
+  }) => void;
+  onCarouselScrollChange?: (isScrolling: boolean) => void;
 }
 
 const GenreSection: React.FC<GenreSectionProps> = ({
@@ -23,16 +34,17 @@ const GenreSection: React.FC<GenreSectionProps> = ({
   novels,
   theme,
   onNovelPress,
+  onCarouselScrollChange,
 }) => {
   const [expanded, setExpanded] = useRecyclingState(false);
-
+  const adaptiveRender = useAdaptiveRender();
   const hasChildren = node.children && node.children.length > 0;
 
   const categoryNovels = React.useMemo(
     () =>
-      novels.filter(n => node.novelIds.includes(n.id)).sort((a, b) =>
-        a.name.localeCompare(b.name),
-      ),
+      novels
+        .filter(n => node.novelIds.includes(n.id))
+        .sort((a, b) => a.name.localeCompare(b.name)),
     [novels, node.novelIds],
   );
 
@@ -62,17 +74,15 @@ const GenreSection: React.FC<GenreSectionProps> = ({
             {node.name}
           </Text>
           {!expanded && hasChildren && (
-            <Text
-              style={[styles.subtitle, { color: theme.onSurfaceVariant }]}
-            >
-              {getString('genreStats.subgenres', { count: node.children!.length })}
+            <Text style={[styles.subtitle, { color: theme.onSurfaceVariant }]}>
+              {getString('genreStats.subgenres', {
+                count: node.children!.length,
+              })}
             </Text>
           )}
         </View>
         <View style={styles.headerRight}>
-          <Text
-            style={[styles.headerCount, { color: theme.onSurfaceVariant }]}
-          >
+          <Text style={[styles.headerCount, { color: theme.onSurfaceVariant }]}>
             {node.categoryTotal}
           </Text>
           <MaterialCommunityIcons
@@ -83,8 +93,8 @@ const GenreSection: React.FC<GenreSectionProps> = ({
         </View>
       </Pressable>
 
-      {expanded && (
-        <View style={styles.expandedContent}>
+      {adaptiveRender === 'light' ? null : (
+        <AnimatedHeight key={node.name + '-colapse'} expanded={expanded}>
           {hasChildren &&
             node.children!.map(child => (
               <GenreRow
@@ -102,8 +112,10 @@ const GenreSection: React.FC<GenreSectionProps> = ({
             genreName={node.name}
             theme={theme}
             onNovelPress={onNovelPress}
+            onScrollChange={onCarouselScrollChange}
           />
-        </View>
+          <View style={{ height: 20 }} />
+        </AnimatedHeight>
       )}
     </View>
   );

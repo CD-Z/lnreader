@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useRef } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import MaterialCommunityIcons from '@react-native-vector-icons/material-design-icons';
 import { getString } from '@i18n/translations';
@@ -6,10 +6,23 @@ import NovelCard from './NovelCard';
 import type { ThemeColors } from '@theme/types';
 
 interface NovelCarouselProps {
-  novels: { id: number; name: string; path: string; cover: string | null; pluginId: string }[];
+  novels: {
+    id: number;
+    name: string;
+    path: string;
+    cover: string | null;
+    pluginId: string;
+  }[];
   genreName: string;
   theme: ThemeColors;
-  onNovelPress: (novel: { id: number; name: string; path: string; cover: string | null; pluginId: string }) => void;
+  onNovelPress: (novel: {
+    id: number;
+    name: string;
+    path: string;
+    cover: string | null;
+    pluginId: string;
+  }) => void;
+  onScrollChange?: (isScrolling: boolean) => void;
 }
 
 const MAX_VISIBLE = 20;
@@ -19,19 +32,21 @@ const NovelCarousel: React.FC<NovelCarouselProps> = ({
   genreName,
   theme,
   onNovelPress,
+  onScrollChange,
 }) => {
   if (novels.length === 0) {
     return (
-      <Text
-        style={[styles.emptyText, { color: theme.onSurfaceVariant }]}
-      >
+      <Text style={[styles.emptyText, { color: theme.onSurfaceVariant }]}>
         {getString('genreStats.noNovels')}
       </Text>
     );
   }
 
-  const visibleNovels = novels.slice(0, MAX_VISIBLE);
-  const hasMore = novels.length > MAX_VISIBLE;
+  const [showAll, setShowAll] = useState(false);
+  const scrollingRef = useRef(false);
+
+  const visibleNovels = showAll ? novels : novels.slice(0, MAX_VISIBLE);
+  const hasMore = !showAll && novels.length > MAX_VISIBLE;
 
   const data = hasMore
     ? [...visibleNovels, { id: -1, name: '', cover: null, pluginId: '' } as any]
@@ -39,26 +54,39 @@ const NovelCarousel: React.FC<NovelCarouselProps> = ({
 
   return (
     <View style={styles.container}>
-      <Text
-        style={[styles.heading, { color: theme.onSurfaceVariant }]}
-
-      >
+      <Text style={[styles.heading, { color: theme.onSurfaceVariant }]}>
         {getString('genreStats.novelsIn', { genre: genreName })}
       </Text>
       <FlatList
         horizontal
         showsHorizontalScrollIndicator={false}
         data={data}
-        keyExtractor={(item) =>
-          item.id != null && item.id !== -1
-            ? String(item.id)
-            : 'see-all'
+        onScrollBeginDrag={() => {
+          if (!scrollingRef.current && onScrollChange) {
+            scrollingRef.current = true;
+            onScrollChange(true);
+          }
+        }}
+        onScrollEndDrag={() => {
+          if (scrollingRef.current && onScrollChange) {
+            scrollingRef.current = false;
+            onScrollChange(false);
+          }
+        }}
+        onMomentumScrollEnd={() => {
+          if (scrollingRef.current && onScrollChange) {
+            scrollingRef.current = false;
+            onScrollChange(false);
+          }
+        }}
+        keyExtractor={item =>
+          item.id != null && item.id !== -1 ? String(item.id) : 'see-all'
         }
         renderItem={({ item }) => {
           if (item.id === -1) {
             return (
               <Pressable
-                onPress={() => { }}
+                onPress={() => setShowAll(true)}
                 accessibilityRole="button"
                 accessibilityLabel={getString('genreStats.seeAllNovels')}
                 style={styles.seeAllCard}

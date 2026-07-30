@@ -31,7 +31,6 @@ import {
   getAggregateStatsFromDb,
   getTopCategoriesByTimeSpentFromDb,
   getTopNovelsByTimeSpentFromDb,
-  getTotalTimeSpentFromDb,
   getNovelsWithGenresFromDb,
   type NovelWithGenres,
 } from '@database/queries/StatsQueries';
@@ -446,6 +445,7 @@ const StatsScreen = () => {
             renderItem={renderOverviewItem}
             recycleItems
             showsVerticalScrollIndicator={false}
+            experimental_adaptiveRender={{}}
           />
         );
       }
@@ -463,6 +463,7 @@ const StatsScreen = () => {
             renderItem={renderPluginItem}
             recycleItems
             showsVerticalScrollIndicator={false}
+            experimental_adaptiveRender={{}}
           />
         );
       }

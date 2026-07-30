@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View, ViewStyle } from 'react-native';
 import type { ThemeColors } from '@theme/types';
 
 interface GenreRowProps {
@@ -22,26 +22,17 @@ const GenreRow: React.FC<GenreRowProps> = ({
   onPress,
 }) => {
   const barWidth =
-    count > 0
-      ? maxCount > 0
-        ? (count / maxCount) * 100
-        : 0
-      : 0;
+    count > 0 ? (maxCount > 0 ? (count / maxCount) * 100 : 0) : 0;
 
-  const barStyle = {
-    width: `${Math.max(barWidth, count > 0 ? 2 : 0)}%` as any,
+  const barStyle: ViewStyle = {
+    width: `${Math.max(barWidth, count > 0 ? 2 : 0)}%`,
     backgroundColor: theme.primary,
-    height: '100%' as any,
+    height: '100%',
     borderRadius: 6,
   };
 
   const row = (
-    <View
-      style={[
-        styles.row,
-        isChild && styles.childRow,
-      ]}
-    >
+    <View style={[styles.row, isChild && styles.childRow]}>
       <Text
         style={[
           styles.label,
@@ -61,9 +52,7 @@ const GenreRow: React.FC<GenreRowProps> = ({
           <View style={barStyle} />
         </View>
       )}
-      <Text
-        style={[styles.count, { color: theme.onSurfaceVariant }]}
-      >
+      <Text style={[styles.count, { color: theme.onSurfaceVariant }]}>
         {count}
       </Text>
     </View>
