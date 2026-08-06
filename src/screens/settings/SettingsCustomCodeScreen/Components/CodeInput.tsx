@@ -1,5 +1,5 @@
 import React from 'react';
-import { PixelRatio, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '@hooks/persisted';
 import { getString } from '@i18n/translations';
 import {

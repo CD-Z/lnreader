@@ -39,7 +39,10 @@ const SnippetEditor = React.forwardRef<SnippetEditorHandle, SnippetEditorProps>(
     const [error, setError] = React.useState({ code: false });
     const [highlightMode = 'combined', setHighlightMode] = useMMKVString(
       `snippetEditorHighlightMode`,
-    ) as [HighlightMode, (value: HighlightMode) => void];
+    ) as [
+      HighlightMode,
+      (value: HighlightMode | ((prev: HighlightMode) => HighlightMode)) => void,
+    ];
 
     const [snippetName, setSnippetName] = React.useState('');
 
@@ -114,7 +117,7 @@ const SnippetEditor = React.forwardRef<SnippetEditorHandle, SnippetEditorProps>(
             size={24}
             theme={theme}
             onPress={() =>
-              setHighlightMode(prev =>
+              setHighlightMode((prev: HighlightMode) =>
                 prev === 'off'
                   ? 'combined'
                   : prev === 'combined'
