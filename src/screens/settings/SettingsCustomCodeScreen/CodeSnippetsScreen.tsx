@@ -39,6 +39,7 @@ const CodeSnippetsScreen: React.FC<CodeSnippetsScreenProps> = ({
   const layout = useWindowDimensions();
 
   const [index, setIndex] = React.useState(0);
+  const [exampleCode, setExampleCode] = React.useState<string>();
   const editorRef = React.useRef<SnippetEditorHandle>(null);
 
   const renderScene = ({
@@ -59,7 +60,12 @@ const CodeSnippetsScreen: React.FC<CodeSnippetsScreenProps> = ({
           />
         );
       case 'example':
-        return <SettingsReaderWebView />;
+        return (
+          <SettingsReaderWebView
+            customCSS={isJS === false ? exampleCode : undefined}
+            customJS={isJS === false ? undefined : exampleCode}
+          />
+        );
       default:
         return null;
     }
@@ -151,7 +157,12 @@ const CodeSnippetsScreen: React.FC<CodeSnippetsScreenProps> = ({
         navigationState={{ index, routes }}
         renderScene={renderScene}
         renderTabBar={renderTabBar}
-        onIndexChange={setIndex}
+        onIndexChange={i => {
+          if (routes[i]?.key === 'example') {
+            setExampleCode(editorRef.current?.getCode());
+          }
+          setIndex(i);
+        }}
         initialLayout={{ width: layout.width }}
       />
     </SafeAreaView>

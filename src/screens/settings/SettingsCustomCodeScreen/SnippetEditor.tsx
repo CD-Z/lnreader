@@ -14,6 +14,7 @@ import { useMMKVString } from 'react-native-mmkv';
 export type SnippetEditorHandle = {
   save: () => void;
   setCode: (val: string) => void;
+  getCode: () => string;
 };
 
 type SnippetEditorProps = {
@@ -100,7 +101,11 @@ const SnippetEditor = React.forwardRef<SnippetEditorHandle, SnippetEditorProps>(
       setSnippetName('');
     }, []);
 
-    React.useImperativeHandle(ref, () => ({ save, setCode }), [save, setCode]);
+    React.useImperativeHandle(
+      ref,
+      () => ({ save, setCode, getCode: () => code }),
+      [save, setCode, code],
+    );
 
     return (
       <>

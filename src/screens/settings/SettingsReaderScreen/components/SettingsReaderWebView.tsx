@@ -22,6 +22,11 @@ type WebViewPostEvent = {
   msg?: string;
 };
 
+type SettingsReaderWebViewProps = {
+  customCSS?: string;
+  customJS?: string;
+};
+
 const toNativeTtsSettings = (
   settings: ChapterReaderSettings['tts'],
 ): TtsSettings => ({
@@ -31,7 +36,10 @@ const toNativeTtsSettings = (
   pitch: settings?.pitch ?? 1,
 });
 
-const SettingsReaderWebView = () => {
+const SettingsReaderWebView = ({
+  customCSS,
+  customJS,
+}: SettingsReaderWebViewProps) => {
   const theme = useTheme();
   const webViewRef = useRef<WebView<object>>(null);
 
@@ -120,7 +128,7 @@ const SettingsReaderWebView = () => {
       }
     </style>
 
-    <style>${readerSettings.customCSS}</style>
+    <style>${customCSS ?? readerSettings.customCSS}</style>
   `;
 
   const readerBackgroundColor = readerSettings.theme;
@@ -265,7 +273,7 @@ const SettingsReaderWebView = () => {
               <script src="${assetsUriPrefix}/js/core.js"></script>
               <script src="${assetsUriPrefix}/js/index.js"></script>
               <script>
-                ${readerSettings.customJS}
+                ${customJS ?? readerSettings.customJS}
               </script>
             </html>
             `,
