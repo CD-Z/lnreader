@@ -417,17 +417,12 @@ export function MemoizedHighlightedCode({
     <View style={[styles.lineContainer, opacityStyle]}>
       {resolvedLines.map((line, index) => (
         <View key={line.id} style={styles.row}>
-          <Text
-            allowFontScaling={false}
-            style={[textStyle, styles.lineNumber, styles.withoutFontPadding]}
-          >
-            {index + 1 + startLine}
-          </Text>
-
-          <HighlightedLine
-            code={line.code}
+          <LineRenderer
+            line={line}
+            index={index}
             isDark={isDark}
             mode={mode}
+            startLine={startLine}
             hide={hide}
             textStyle={textStyle}
           />
@@ -436,6 +431,47 @@ export function MemoizedHighlightedCode({
     </View>
   );
 }
+
+const LineRenderer = memo(
+  ({
+    line,
+    index,
+    mode,
+    startLine,
+    textStyle,
+    hide,
+    isDark,
+  }: {
+    line: LineModel;
+    index: number;
+    startLine: number;
+    mode: SupportedMode;
+    textStyle: TextStyle;
+    hide: boolean;
+    isDark: boolean;
+  }) => {
+    return (
+      <>
+        <Text
+          allowFontScaling={false}
+          style={[textStyle, styles.lineNumber, styles.withoutFontPadding]}
+        >
+          {index + 1 + startLine}
+        </Text>
+        <HighlightedLine
+          code={line.code}
+          isDark={isDark}
+          mode={mode}
+          hide={hide}
+          textStyle={textStyle}
+        />
+      </>
+    );
+  },
+  (prev, next) => {
+    return prev.line.code === next.line.code && prev.hide === next.hide;
+  },
+);
 
 export function SimpleCodeEditor({
   highlightMode = 'combined',
