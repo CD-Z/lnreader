@@ -1,6 +1,5 @@
 import React, {
   memo,
-  Suspense,
   useCallback,
   useEffect,
   useMemo,
@@ -8,7 +7,6 @@ import React, {
   useState,
 } from 'react';
 import {
-  AnimatableNumericValue,
   ColorValue,
   StyleProp,
   StyleSheet,
@@ -244,7 +242,7 @@ const HighlightedLine = memo(
   function _HighlightedLine({
     code,
     mode,
-    isDark = true,
+    isDark,
     textStyle,
   }: HighlightedLineProps) {
     return (
@@ -275,10 +273,6 @@ const HighlightedLine = memo(
     shallowEqualTextStyle(prev.textStyle, next.textStyle),
 );
 
-function splitLines(value: string): string[] {
-  return value.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
-}
-
 export function useStableLineModels(value: string): LineModel[] {
   const previousRef = useRef<{
     lines: string[];
@@ -288,7 +282,10 @@ export function useStableLineModels(value: string): LineModel[] {
   const nextIdRef = useRef(0);
 
   return useMemo(() => {
-    const newLines = splitLines(value);
+    const newLines = value
+      .replace(/\r\n/g, '\n')
+      .replace(/\r/g, '\n')
+      .split('\n');
     const previous = previousRef.current;
 
     if (!previous) {
@@ -359,9 +356,7 @@ export function useStableLineModels(value: string): LineModel[] {
   }, [value]);
 }
 
-function extractOpacityStyle(style: StyleProp<TextStyle>): {
-  opacity: AnimatableNumericValue;
-} {
+function extractOpacityStyle(style: StyleProp<TextStyle>) {
   const flat = StyleSheet.flatten(style) ?? {};
 
   return {
@@ -399,6 +394,7 @@ export type MemoizedHighlightedCodeProps = {
 const TOP_OVERS = 6;
 const BOTTOM_OVERS = 8;
 const CHAR_MEASURE_STENCIL = 'WWWWWWWWWWWWWWWWWWWW';
+const GUTTER_WIDTH = 32;
 
 export function MemoizedHighlightedCode({
   lines,
@@ -430,10 +426,8 @@ export function MemoizedHighlightedCode({
   const containerWidthRef = useRef<number | null>(null);
   const heightsRef = useRef<Map<string, number>>(new Map());
   const linesRef = useRef(resolvedLines);
-  const lineCountRef = useRef(resolvedLines.length);
 
   linesRef.current = resolvedLines;
-  lineCountRef.current = resolvedLines.length;
   viewportHRef.current = viewportHeight;
 
   // Without a sink (static previews) the whole list renders, so the window
@@ -490,7 +484,7 @@ export function MemoizedHighlightedCode({
       const windowY = y - layerY;
       const viewportH = viewportHRef.current;
       const rows = linesRef.current;
-      const count = lineCountRef.current;
+      const count = rows.length;
       let cum = 0;
       let W = -1;
       let E = -1;
@@ -533,11 +527,6 @@ export function MemoizedHighlightedCode({
     });
   }, [handleScroll]);
 
-  useEffect(() => {
-    if (!scrollSink) return;
-    measureLayerY();
-  }, [scrollSink, measureLayerY]);
-
   // Self-correction: the window's padding must equal the TextInput's true
   // cumulative text height; estimates + native insets leave a residual that
   // this measures directly off the first rendered row and folds into corr.
@@ -557,6 +546,11 @@ export function MemoizedHighlightedCode({
   useEffect(() => {
     setLines?.(resolvedLines.length);
   }, [resolvedLines.length, setLines]);
+
+  // Without a sink the whole list renders (static previews): the window is
+  // {0, 0}, so start/end expand to the full list and the row extras are off.
+  const start = scrollSink ? window.start : 0;
+  const end = scrollSink ? window.end : resolvedLines.length;
 
   return (
     <View
@@ -581,23 +575,29 @@ export function MemoizedHighlightedCode({
       >
         {CHAR_MEASURE_STENCIL}
       </Text>
-      {hide ? null : scrollSink ? (
-        <View style={{ paddingTop: cumSum(window.start) + corr }}>
-          {resolvedLines.slice(window.start, window.end).map((line, i) => (
+      {hide ? null : (
+        <View
+          style={scrollSink ? { paddingTop: cumSum(start) + corr } : undefined}
+        >
+          {resolvedLines.slice(start, end).map((line, i) => (
             <View
               key={line.id}
               style={styles.row}
-              ref={i === 0 ? firstRowRef : undefined}
-              onLayout={e => {
-                const h = e.nativeEvent.layout.height;
-                if (heightsRef.current.get(line.id) !== h) {
-                  heightsRef.current.set(line.id, h);
-                }
-              }}
+              ref={scrollSink && i === 0 ? firstRowRef : undefined}
+              onLayout={
+                scrollSink
+                  ? e => {
+                      const h = e.nativeEvent.layout.height;
+                      if (heightsRef.current.get(line.id) !== h) {
+                        heightsRef.current.set(line.id, h);
+                      }
+                    }
+                  : undefined
+              }
             >
               <LineRenderer
                 line={line}
-                index={window.start + i}
+                index={i + start}
                 isDark={isDark}
                 mode={mode}
                 startLine={startLine}
@@ -606,19 +606,6 @@ export function MemoizedHighlightedCode({
             </View>
           ))}
         </View>
-      ) : (
-        resolvedLines.map((line, index) => (
-          <View key={line.id} style={styles.row}>
-            <LineRenderer
-              line={line}
-              index={index}
-              isDark={isDark}
-              mode={mode}
-              startLine={startLine}
-              textStyle={textStyle}
-            />
-          </View>
-        ))
       )}
     </View>
   );
@@ -685,13 +672,6 @@ export function SimpleCodeEditor({
 
   const textStyle = useMemo(() => extractTextStyle(style), [style]);
 
-  const handleChangeText = useCallback(
-    (text: string) => {
-      onChangeText?.(text);
-    },
-    [onChangeText],
-  );
-
   const inputColor = hideHighlight ? textStyle.color : 'rgba(0, 0, 0, 0.1)';
 
   return (
@@ -723,8 +703,7 @@ export function SimpleCodeEditor({
         scrollEnabled={scrollEnabled}
         underlineColorAndroid="transparent"
         value={value}
-        onChangeText={handleChangeText}
-        //onScroll={handleScroll}
+        onChangeText={onChangeText}
         cursorColor="#abb2bf"
         selectionColor="#abb2bf"
         style={[
@@ -739,8 +718,6 @@ export function SimpleCodeEditor({
     </View>
   );
 }
-
-const GUTTER_WIDTH = 32;
 
 const styles = StyleSheet.create({
   container: {
