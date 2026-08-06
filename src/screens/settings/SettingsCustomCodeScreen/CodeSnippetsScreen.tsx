@@ -164,6 +164,7 @@ const styles = StyleSheet.create({
   tabBar: {
     borderBottomWidth: 1,
     elevation: 0,
+    marginBottom: -8,
   },
   tabBarIndicator: {
     height: 3,

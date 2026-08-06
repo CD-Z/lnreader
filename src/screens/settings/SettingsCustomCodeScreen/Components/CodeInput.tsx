@@ -8,15 +8,12 @@ import {
   HighlightMode,
   ScrollSink,
   useStableLineModels,
+  FONT_SIZE,
+  LINE_HEIGHT,
 } from './SimpleCodeEditor';
-import { Portal } from 'react-native-paper';
-import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
 
-export const FONT_SIZE = 14;
-export const LINE_HEIGHT = Math.ceil(FONT_SIZE * 1.2);
 const MIN_LINES = 16;
-
-const MD3_DEFAULT_APPBAR_HEIGHT = 64;
 
 type CodeInputProps = {
   language: 'css' | 'js';
@@ -105,19 +102,26 @@ const CodeInput = ({
 
   return (
     <View style={[styles.container]}>
-      <Portal>
-        {!error ? null : (
-          <Animated.View
-            entering={FadeIn.duration(150)}
-            exiting={FadeOut.duration(150)}
-            style={[styles.error, { backgroundColor: theme.errorContainer }]}
-          >
-            <Text style={[styles.errorText, { color: theme.onErrorContainer }]}>
-              {error}
-            </Text>
-          </Animated.View>
-        )}
-      </Portal>
+      <Animated.View
+        style={[
+          styles.error,
+          {
+            backgroundColor: theme.errorContainer,
+            maxHeight: error ? 35 : 0,
+            padding: error ? 8 : 0,
+            transitionProperty: ['maxHeight', 'padding'],
+            transitionDuration: '150ms',
+          },
+        ]}
+      >
+        <Text
+          numberOfLines={1}
+          style={[styles.errorText, { color: theme.onErrorContainer }]}
+        >
+          {error}
+        </Text>
+      </Animated.View>
+
       <MemoizedHighlightedCode
         style={[
           codeFieldStyle,
@@ -161,11 +165,8 @@ export default CodeInput;
 const styles = StyleSheet.create({
   error: {
     width: '100%',
-    position: 'absolute',
-    top: MD3_DEFAULT_APPBAR_HEIGHT * 1.3,
     padding: 8,
-    transform: [{ translateY: 20 }],
-    zIndex: 9999,
+    marginBottom: 8,
     backgroundColor: 'red',
   },
   errorText: {
@@ -173,7 +174,6 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    marginVertical: 8,
     paddingBottom: 8,
   },
   rowContainer: {

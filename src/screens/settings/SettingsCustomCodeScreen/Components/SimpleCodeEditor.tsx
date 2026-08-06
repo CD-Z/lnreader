@@ -18,12 +18,15 @@ import {
   ViewStyle,
   useWindowDimensions,
 } from 'react-native';
+import Color from 'color';
 import { PrismLight as Light } from 'react-syntax-highlighter';
 import css from 'react-syntax-highlighter/dist/esm/languages/prism/css';
 import js from 'react-syntax-highlighter/dist/esm/languages/prism/javascript';
 import materialDark from 'react-syntax-highlighter/dist/esm/styles/prism/material-dark';
 import materialLight from 'react-syntax-highlighter/dist/esm/styles/prism/material-light';
-import { FONT_SIZE, LINE_HEIGHT } from './CodeInput';
+
+export const FONT_SIZE = 14;
+export const LINE_HEIGHT = Math.ceil(FONT_SIZE * 1.2);
 
 Light.registerLanguage('javascript', js);
 Light.registerLanguage('css', css);
@@ -384,7 +387,7 @@ export type MemoizedHighlightedCodeProps = {
   value?: string;
   mode: SupportedMode;
   style?: StyleProp<TextStyle>;
-  hide?: boolean;
+  hideCode?: boolean;
   isDark?: boolean;
   setLines?: (num: number) => void;
   startLine?: number;
@@ -401,7 +404,7 @@ export function MemoizedHighlightedCode({
   value,
   mode,
   style,
-  hide = false,
+  hideCode = false,
   setLines,
   isDark = false,
   startLine = 0,
@@ -436,12 +439,12 @@ export function MemoizedHighlightedCode({
   const [window, setWindow] = useState<{ start: number; end: number }>(() =>
     scrollSink
       ? {
-          start: 0,
-          end: Math.min(
-            resolvedLines.length,
-            Math.ceil(viewportHeight / LINE_HEIGHT) + BOTTOM_OVERS,
-          ),
-        }
+        start: 0,
+        end: Math.min(
+          resolvedLines.length,
+          Math.ceil(viewportHeight / LINE_HEIGHT) + BOTTOM_OVERS,
+        ),
+      }
       : { start: 0, end: 0 },
   );
   const [corr, setCorr] = useState(0);
@@ -575,38 +578,37 @@ export function MemoizedHighlightedCode({
       >
         {CHAR_MEASURE_STENCIL}
       </Text>
-      {hide ? null : (
-        <View
-          style={scrollSink ? { paddingTop: cumSum(start) + corr } : undefined}
-        >
-          {resolvedLines.slice(start, end).map((line, i) => (
-            <View
-              key={line.id}
-              style={styles.row}
-              ref={scrollSink && i === 0 ? firstRowRef : undefined}
-              onLayout={
-                scrollSink
-                  ? e => {
-                      const h = e.nativeEvent.layout.height;
-                      if (heightsRef.current.get(line.id) !== h) {
-                        heightsRef.current.set(line.id, h);
-                      }
-                    }
-                  : undefined
-              }
-            >
-              <LineRenderer
-                line={line}
-                index={i + start}
-                isDark={isDark}
-                mode={mode}
-                startLine={startLine}
-                textStyle={textStyle}
-              />
-            </View>
-          ))}
-        </View>
-      )}
+      <View
+        style={scrollSink ? { paddingTop: cumSum(start) + corr } : undefined}
+      >
+        {resolvedLines.slice(start, end).map((line, i) => (
+          <View
+            key={line.id}
+            style={styles.row}
+            ref={scrollSink && i === 0 ? firstRowRef : undefined}
+            onLayout={
+              scrollSink
+                ? e => {
+                  const h = e.nativeEvent.layout.height;
+                  if (heightsRef.current.get(line.id) !== h) {
+                    heightsRef.current.set(line.id, h);
+                  }
+                }
+                : undefined
+            }
+          >
+            <LineRenderer
+              line={line}
+              index={i + start}
+              isDark={isDark}
+              mode={mode}
+              startLine={startLine}
+              textStyle={textStyle}
+              hideCode={hideCode}
+            />
+          </View>
+        ))}
+      </View>
     </View>
   );
 }
@@ -619,6 +621,7 @@ const LineRenderer = memo(
     startLine,
     textStyle,
     isDark,
+    hideCode,
   }: {
     line: LineModel;
     index: number;
@@ -626,6 +629,7 @@ const LineRenderer = memo(
     mode: SupportedMode;
     textStyle: TextStyle;
     isDark: boolean;
+    hideCode: boolean;
   }) => {
     return (
       <>
@@ -635,12 +639,14 @@ const LineRenderer = memo(
         >
           {index + 1 + startLine}
         </Text>
-        <HighlightedLine
-          code={line.code}
-          isDark={isDark}
-          mode={mode}
-          textStyle={textStyle}
-        />
+        {hideCode ? null : (
+          <HighlightedLine
+            code={line.code}
+            isDark={isDark}
+            mode={mode}
+            textStyle={textStyle}
+          />
+        )}
       </>
     );
   },
@@ -650,6 +656,7 @@ const LineRenderer = memo(
     prev.startLine === next.startLine &&
     prev.mode === next.mode &&
     prev.isDark === next.isDark &&
+    prev.hideCode === next.hideCode &&
     shallowEqualTextStyle(prev.textStyle, next.textStyle),
 );
 
@@ -667,12 +674,17 @@ export function SimpleCodeEditor({
   startLine,
   scrollSink,
   ...props
-}: SimpleCodeEditorProps & Omit<MemoizedHighlightedCodeProps, 'hide'>) {
+}: SimpleCodeEditorProps & Omit<MemoizedHighlightedCodeProps, 'hideCode'>) {
   const hideHighlight = highlightMode === 'off';
 
   const textStyle = useMemo(() => extractTextStyle(style), [style]);
 
-  const inputColor = hideHighlight ? textStyle.color : 'rgba(0, 0, 0, 0.1)';
+  const inputColor =
+    highlightMode === 'off'
+      ? textStyle.color
+      : highlightMode === 'combined'
+        ? Color(textStyle.color).alpha(0.4).string()
+        : 'rgba(0, 0, 0, 0.1)';
 
   return (
     <View style={[styles.container, containerStyle]}>
@@ -685,7 +697,7 @@ export function SimpleCodeEditor({
           value={value}
           mode={mode}
           style={style}
-          hide={hideHighlight}
+          hideCode={hideHighlight}
           isDark={isDark}
           setLines={setLines}
           startLine={startLine}
