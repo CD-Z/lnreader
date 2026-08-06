@@ -1,7 +1,14 @@
-import React, { memo, useCallback, useEffect, useMemo, useRef } from 'react';
+import React, {
+  memo,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
   AnimatableNumericValue,
-  Animated,
   ColorValue,
   StyleProp,
   StyleSheet,
@@ -11,6 +18,7 @@ import {
   TextStyle,
   View,
   ViewStyle,
+  useWindowDimensions,
 } from 'react-native';
 import { PrismLight as Light } from 'react-syntax-highlighter';
 import css from 'react-syntax-highlighter/dist/esm/languages/prism/css';
@@ -44,6 +52,9 @@ interface RendererNode {
 
 export type HighlightMode = 'off' | 'on' | 'combined';
 
+/** The owning ScrollView registers a callback here that receives contentOffset.y. */
+export type ScrollSink = React.MutableRefObject<((y: number) => void) | null>;
+
 type SimpleCodeEditorProps = Omit<
   TextInputProps,
   'value' | 'defaultValue' | 'children' | 'onChangeText'
@@ -51,6 +62,7 @@ type SimpleCodeEditorProps = Omit<
   highlightMode?: HighlightMode;
   onChangeText?: (text: string) => void;
   containerStyle?: StyleProp<ViewStyle>;
+  scrollSink?: ScrollSink;
 };
 
 interface LineModel {
@@ -63,7 +75,6 @@ interface HighlightedLineProps {
   isDark?: boolean;
   mode: SupportedMode;
   textStyle: TextStyle;
-  hide: boolean;
 }
 
 type PrismStylesheet = Record<string, React.CSSProperties>;
@@ -235,17 +246,11 @@ const HighlightedLine = memo(
     mode,
     isDark = true,
     textStyle,
-    hide,
   }: HighlightedLineProps) {
     return (
       <Text
         allowFontScaling={false}
-        style={[
-          textStyle,
-          styles.codeLine,
-          hide && styles.hidden,
-          styles.withoutFontPadding,
-        ]}
+        style={[textStyle, styles.codeLine, styles.withoutFontPadding]}
       >
         {code.length === 0 ? (
           '\u200B'
@@ -267,7 +272,6 @@ const HighlightedLine = memo(
     prev.code === next.code &&
     prev.mode === next.mode &&
     prev.isDark === next.isDark &&
-    prev.hide === next.hide &&
     shallowEqualTextStyle(prev.textStyle, next.textStyle),
 );
 
@@ -389,7 +393,12 @@ export type MemoizedHighlightedCodeProps = {
   isDark?: boolean;
   setLines?: (num: number) => void;
   startLine?: number;
+  scrollSink?: ScrollSink;
 };
+
+const TOP_OVERS = 6;
+const BOTTOM_OVERS = 8;
+const CHAR_MEASURE_STENCIL = 'WWWWWWWWWWWWWWWWWWWW';
 
 export function MemoizedHighlightedCode({
   lines,
@@ -400,6 +409,7 @@ export function MemoizedHighlightedCode({
   setLines,
   isDark = false,
   startLine = 0,
+  scrollSink,
 }: MemoizedHighlightedCodeProps) {
   // Never call a hook conditionally. Generating this for externally supplied
   // lines is cheap and keeps the hook order valid.
@@ -409,25 +419,207 @@ export function MemoizedHighlightedCode({
   const opacityStyle = useMemo(() => extractOpacityStyle(style), [style]);
   const textStyle = useMemo(() => extractTextStyle(style), [style]);
 
+  const { height: viewportHeight } = useWindowDimensions();
+
+  const layerRef = useRef<View>(null);
+  const firstRowRef = useRef<View>(null);
+  const lastScrollYRef = useRef<number | null>(null);
+  const layerContentYRef = useRef<number | null>(null);
+  const viewportHRef = useRef(viewportHeight);
+  const charWidthRef = useRef<number | null>(null);
+  const containerWidthRef = useRef<number | null>(null);
+  const heightsRef = useRef<Map<string, number>>(new Map());
+  const linesRef = useRef(resolvedLines);
+  const lineCountRef = useRef(resolvedLines.length);
+
+  linesRef.current = resolvedLines;
+  lineCountRef.current = resolvedLines.length;
+  viewportHRef.current = viewportHeight;
+
+  // Without a sink (static previews) the whole list renders, so the window
+  // state is inert. With a sink, seed a conservative superset window until
+  // the layer position is measured and the exact window is computed.
+  const [window, setWindow] = useState<{ start: number; end: number }>(() =>
+    scrollSink
+      ? {
+          start: 0,
+          end: Math.min(
+            resolvedLines.length,
+            Math.ceil(viewportHeight / LINE_HEIGHT) + BOTTOM_OVERS,
+          ),
+        }
+      : { start: 0, end: 0 },
+  );
+  const [corr, setCorr] = useState(0);
+
+  const estimateHeight = useCallback((line: LineModel): number => {
+    const charWidth = charWidthRef.current;
+    const containerWidth = containerWidthRef.current;
+    if (charWidth == null || containerWidth == null) {
+      return LINE_HEIGHT;
+    }
+    const charsPerLine = Math.max(
+      1,
+      Math.floor((containerWidth - GUTTER_WIDTH) / charWidth),
+    );
+    return (
+      Math.max(1, Math.ceil(line.code.length / charsPerLine)) * LINE_HEIGHT
+    );
+  }, []);
+
+  const cumSum = useCallback(
+    (count: number): number => {
+      const rows = linesRef.current;
+      let sum = 0;
+      for (let i = 0; i < count; i += 1) {
+        sum += heightsRef.current.get(rows[i].id) ?? estimateHeight(rows[i]);
+      }
+      return sum;
+    },
+    [estimateHeight],
+  );
+
+  const handleScroll = useCallback(
+    (y: number) => {
+      lastScrollYRef.current = y;
+      const layerY = layerContentYRef.current;
+      if (layerY == null) return;
+      // layerContentYRef is the layer's window y measured at scroll offset 0
+      // (measureInWindow y + scroll y is invariant), so the viewport top
+      // relative to the layer grows with the scroll offset.
+      const windowY = y - layerY;
+      const viewportH = viewportHRef.current;
+      const rows = linesRef.current;
+      const count = lineCountRef.current;
+      let cum = 0;
+      let W = -1;
+      let E = -1;
+      for (let i = 0; i < count; i += 1) {
+        const h = heightsRef.current.get(rows[i].id) ?? estimateHeight(rows[i]);
+        if (W < 0 && cum + h > windowY) W = i; // first line whose bottom is below the viewport top
+        if (W >= 0 && cum >= windowY + viewportH) {
+          E = i; // first line whose top is below the viewport bottom
+          break;
+        }
+        cum += h;
+      }
+      if (W < 0) W = count;
+      if (E < 0) E = count;
+      const start = Math.max(0, W - TOP_OVERS);
+      const end = Math.min(count, E + BOTTOM_OVERS);
+      setWindow(prev =>
+        prev.start === start && prev.end === end ? prev : { start, end },
+      );
+    },
+    [estimateHeight],
+  );
+
+  useEffect(() => {
+    if (!scrollSink) return;
+    scrollSink.current = handleScroll;
+    return () => {
+      if (scrollSink.current === handleScroll) {
+        scrollSink.current = null;
+      }
+    };
+  }, [scrollSink, handleScroll]);
+
+  const measureLayerY = useCallback(() => {
+    const layer = layerRef.current;
+    if (!layer) return;
+    layer.measureInWindow((_, y) => {
+      layerContentYRef.current = y + (lastScrollYRef.current ?? 0);
+      handleScroll(lastScrollYRef.current ?? 0);
+    });
+  }, [handleScroll]);
+
+  useEffect(() => {
+    if (!scrollSink) return;
+    measureLayerY();
+  }, [scrollSink, measureLayerY]);
+
+  // Self-correction: the window's padding must equal the TextInput's true
+  // cumulative text height; estimates + native insets leave a residual that
+  // this measures directly off the first rendered row and folds into corr.
+  useEffect(() => {
+    if (!scrollSink) return;
+    const first = firstRowRef.current;
+    const layer = layerRef.current;
+    if (!first || !layer) return;
+    layer.measureInWindow((_, ly) => {
+      first.measureInWindow((_, fy) => {
+        const residual = fy - ly - cumSum(window.start);
+        setCorr(prev => (Math.abs(prev - residual) < 0.5 ? prev : residual));
+      });
+    });
+  }, [scrollSink, window.start, lines, cumSum]);
+
   useEffect(() => {
     setLines?.(resolvedLines.length);
   }, [resolvedLines.length, setLines]);
 
   return (
-    <View style={[styles.lineContainer, opacityStyle]}>
-      {resolvedLines.map((line, index) => (
-        <View key={line.id} style={styles.row}>
-          <LineRenderer
-            line={line}
-            index={index}
-            isDark={isDark}
-            mode={mode}
-            startLine={startLine}
-            hide={hide}
-            textStyle={textStyle}
-          />
+    <View
+      ref={layerRef}
+      style={[styles.lineContainer, opacityStyle]}
+      onLayout={e => {
+        containerWidthRef.current = e.nativeEvent.layout.width;
+        measureLayerY();
+      }}
+    >
+      <Text
+        pointerEvents="none"
+        style={[textStyle, styles.withoutFontPadding, styles.charMeasure]}
+        onLayout={e => {
+          charWidthRef.current =
+            e.nativeEvent.layout.width / CHAR_MEASURE_STENCIL.length;
+          // The first window computation runs before this measured width is
+          // available (single-row estimates); re-derive it now that wrapping
+          // can be estimated correctly.
+          measureLayerY();
+        }}
+      >
+        {CHAR_MEASURE_STENCIL}
+      </Text>
+      {hide ? null : scrollSink ? (
+        <View style={{ paddingTop: cumSum(window.start) + corr }}>
+          {resolvedLines.slice(window.start, window.end).map((line, i) => (
+            <View
+              key={line.id}
+              style={styles.row}
+              ref={i === 0 ? firstRowRef : undefined}
+              onLayout={e => {
+                const h = e.nativeEvent.layout.height;
+                if (heightsRef.current.get(line.id) !== h) {
+                  heightsRef.current.set(line.id, h);
+                }
+              }}
+            >
+              <LineRenderer
+                line={line}
+                index={window.start + i}
+                isDark={isDark}
+                mode={mode}
+                startLine={startLine}
+                textStyle={textStyle}
+              />
+            </View>
+          ))}
         </View>
-      ))}
+      ) : (
+        resolvedLines.map((line, index) => (
+          <View key={line.id} style={styles.row}>
+            <LineRenderer
+              line={line}
+              index={index}
+              isDark={isDark}
+              mode={mode}
+              startLine={startLine}
+              textStyle={textStyle}
+            />
+          </View>
+        ))
+      )}
     </View>
   );
 }
@@ -439,7 +631,6 @@ const LineRenderer = memo(
     mode,
     startLine,
     textStyle,
-    hide,
     isDark,
   }: {
     line: LineModel;
@@ -447,7 +638,6 @@ const LineRenderer = memo(
     startLine: number;
     mode: SupportedMode;
     textStyle: TextStyle;
-    hide: boolean;
     isDark: boolean;
   }) => {
     return (
@@ -462,21 +652,23 @@ const LineRenderer = memo(
           code={line.code}
           isDark={isDark}
           mode={mode}
-          hide={hide}
           textStyle={textStyle}
         />
       </>
     );
   },
-  (prev, next) => {
-    return prev.line.code === next.line.code && prev.hide === next.hide;
-  },
+  (prev, next) =>
+    prev.line.code === next.line.code &&
+    prev.index === next.index &&
+    prev.startLine === next.startLine &&
+    prev.mode === next.mode &&
+    prev.isDark === next.isDark &&
+    shallowEqualTextStyle(prev.textStyle, next.textStyle),
 );
 
 export function SimpleCodeEditor({
   highlightMode = 'combined',
   onChangeText,
-  onScroll,
   containerStyle,
   scrollEnabled = true,
   lines,
@@ -486,15 +678,10 @@ export function SimpleCodeEditor({
   isDark,
   setLines,
   startLine,
+  scrollSink,
   ...props
 }: SimpleCodeEditorProps & Omit<MemoizedHighlightedCodeProps, 'hide'>) {
   const hideHighlight = highlightMode === 'off';
-  const scrollY = useRef(new Animated.Value(0)).current;
-
-  const negativeScrollY = useMemo(
-    () => Animated.multiply(scrollY, -1),
-    [scrollY],
-  );
 
   const textStyle = useMemo(() => extractTextStyle(style), [style]);
 
@@ -505,39 +692,13 @@ export function SimpleCodeEditor({
     [onChangeText],
   );
 
-  const handleScroll = useMemo(
-    () =>
-      Animated.event(
-        [
-          {
-            nativeEvent: {
-              contentOffset: {
-                y: scrollY,
-              },
-            },
-          },
-        ],
-        {
-          useNativeDriver: true,
-          listener: onScroll,
-        },
-      ) as NonNullable<TextInputProps['onScroll']>,
-    [onScroll, scrollY],
-  );
-
   const inputColor = hideHighlight ? textStyle.color : 'rgba(0, 0, 0, 0.1)';
 
   return (
     <View style={[styles.container, containerStyle]}>
-      <Animated.View
+      <View
         pointerEvents="none"
-        style={[
-          StyleSheet.absoluteFill,
-          styles.highlightLayer,
-          {
-            transform: [{ translateY: negativeScrollY }],
-          },
-        ]}
+        style={[StyleSheet.absoluteFill, styles.highlightLayer]}
       >
         <MemoizedHighlightedCode
           lines={lines}
@@ -548,8 +709,9 @@ export function SimpleCodeEditor({
           isDark={isDark}
           setLines={setLines}
           startLine={startLine}
+          scrollSink={scrollSink}
         />
-      </Animated.View>
+      </View>
 
       <TextInput
         {...props}
@@ -622,7 +784,8 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
     includeFontPadding: false,
   },
-  hidden: {
+  charMeasure: {
+    position: 'absolute',
     opacity: 0,
   },
   withoutFontPadding: {

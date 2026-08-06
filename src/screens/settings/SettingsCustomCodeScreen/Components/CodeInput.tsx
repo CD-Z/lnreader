@@ -25,6 +25,7 @@ type CodeInputProps = {
   error?: boolean;
   onFocus?: () => void;
   onBlur?: () => void;
+  scrollSink?: React.MutableRefObject<((y: number) => void) | null>;
 };
 
 const START_JS_CODE = `const qs = (s) => document.querySelector(s);
@@ -61,6 +62,7 @@ const CodeInput = ({
   highlightMode,
   onFocus,
   onBlur,
+  scrollSink,
 }: CodeInputProps) => {
   const theme = useTheme();
 
@@ -139,6 +141,7 @@ const CodeInput = ({
         startLine={startLines.length}
         isDark={theme.isDark}
         style={[codeFieldStyle, styles.fontStyle, styles.codeField]}
+        scrollSink={scrollSink}
       />
       {language !== 'js' ? null : (
         <MemoizedHighlightedCode

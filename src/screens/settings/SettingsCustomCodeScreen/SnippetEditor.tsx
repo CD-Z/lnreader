@@ -45,6 +45,8 @@ const SnippetEditor = React.forwardRef<SnippetEditorHandle, SnippetEditorProps>(
 
     const [showNameModal, setShowNameModal] = React.useState(false);
 
+    const editorScrollSink = React.useRef<((y: number) => void) | null>(null);
+
     const save = React.useCallback(() => {
       setError({ code: false });
       if (!code.trim()) {
@@ -127,6 +129,10 @@ const SnippetEditor = React.forwardRef<SnippetEditorHandle, SnippetEditorProps>(
           style={styles.scrollContainer}
           bottomOffset={100}
           nestedScrollEnabled
+          scrollEventThrottle={16}
+          onScroll={e => {
+            editorScrollSink.current?.(e.nativeEvent.contentOffset.y);
+          }}
           contentContainerStyle={styles.flexGrow}
         >
           <CodeInput
@@ -135,6 +141,7 @@ const SnippetEditor = React.forwardRef<SnippetEditorHandle, SnippetEditorProps>(
             setCode={setCode}
             highlightMode={highlightMode}
             error={error.code}
+            scrollSink={editorScrollSink}
           />
         </KeyboardAwareScrollView>
         <Dialog.Root visible={showNameModal} onDismiss={handleNameModalCancel}>
