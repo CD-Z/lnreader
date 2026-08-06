@@ -27,7 +27,7 @@ class NativeBackgroundTasksModule : Module() {
             reactContextRef = null
         }
 
-        AsyncFunction("enqueue") { type: String, payload: String, title: String, description: String, allowsDuplicates: Boolean ->
+        AsyncFunction("enqueue") { type: String, payload: String, title: String, description: String, allowsDuplicates: Boolean, queueName: String ->
             runBlocking(Dispatchers.IO) {
                 if (!allowsDuplicates) {
                     dao.getActiveByType(type)?.let { return@runBlocking it.id }
@@ -39,6 +39,7 @@ class NativeBackgroundTasksModule : Module() {
                     payload = payload,
                     title = title,
                     description = description,
+                    queueName = queueName,
                     state = BackgroundTaskState.QUEUED,
                     progress = null,
                     progressText = null,
@@ -106,6 +107,7 @@ class NativeBackgroundTasksModule : Module() {
                 if (TaskExecutionRegistry.isActive(taskId)) {
                     emitInterruption(taskId, "cancel")
                 }
+                BackgroundTaskScheduler.cancel(appContext.reactContext!!, taskId)
                 dao.updateCheckpoint(taskId, null, System.currentTimeMillis())
                 TaskNotificationFactory.dismiss(appContext.reactContext!!, taskId)
             }
@@ -130,10 +132,12 @@ class NativeBackgroundTasksModule : Module() {
             }
         }
 
-        AsyncFunction("complete") { taskId: String ->
+        AsyncFunction("complete") { taskId: String, completionText: String ->
             runBlocking(Dispatchers.IO) {
-                dao.updateCheckpoint(taskId, null, System.currentTimeMillis())
-                dao.finishRunning(taskId, BackgroundTaskState.SUCCEEDED, System.currentTimeMillis())
+                val now = System.currentTimeMillis()
+                dao.updateCheckpoint(taskId, null, now)
+                dao.updateProgress(taskId, null, completionText, now)
+                dao.finishRunning(taskId, BackgroundTaskState.SUCCEEDED, now)
                 TaskExecutionRegistry.complete(taskId, TaskExecutionResult.Success)
             }
         }
@@ -164,6 +168,20 @@ class NativeBackgroundTasksModule : Module() {
 
         AsyncFunction("cancelLibraryUpdates") {
             LibraryUpdateScheduler.cancel(appContext.reactContext!!)
+        }
+
+        AsyncFunction("scheduleAutomaticBackups") { intervalHours: Long, title: String, description: String, directoryUri: String ->
+            AutomaticBackupScheduler.schedule(
+                appContext.reactContext!!,
+                intervalHours,
+                title,
+                description,
+                directoryUri.ifEmpty { null },
+            )
+        }
+
+        AsyncFunction("cancelAutomaticBackups") {
+            AutomaticBackupScheduler.cancel(appContext.reactContext!!)
         }
     }
 

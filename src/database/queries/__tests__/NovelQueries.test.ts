@@ -12,8 +12,13 @@ import {
   insertTestCategory,
   clearAllTables,
 } from './testData';
-import { categorySchema, novelCategorySchema } from '@database/schema';
-import { eq, sql } from 'drizzle-orm';
+import {
+  categorySchema,
+  novelCategorySchema,
+  novelSchema,
+} from '@database/schema';
+import { eq } from 'drizzle-orm';
+import { BUILT_IN_CATEGORY_IDS } from '@database/constants';
 
 import {
   getAllNovels,
@@ -178,7 +183,7 @@ describe('NovelQueries', () => {
       expect(Boolean(novel?.inLibrary)).toBe(false);
     });
 
-    it('should assign default category when adding to library', async () => {
+    it('should fall back to the built-in default category by ID', async () => {
       const testDb = getTestDb();
       const novelId = await insertTestNovel(testDb, {
         inLibrary: false,
@@ -186,12 +191,16 @@ describe('NovelQueries', () => {
         pluginId: 'test-plugin',
       });
 
-      // Get default category (sort = 1)
-      const defaultCategory = await testDb.drizzleDb
-        .select()
-        .from(categorySchema)
-        .where(sql`${categorySchema.sort} = 1`)
-        .get();
+      await testDb.drizzleDb
+        .update(categorySchema)
+        .set({ sort: 0 })
+        .where(eq(categorySchema.id, BUILT_IN_CATEGORY_IDS.default))
+        .run();
+      await testDb.drizzleDb
+        .update(categorySchema)
+        .set({ sort: 1 })
+        .where(eq(categorySchema.id, BUILT_IN_CATEGORY_IDS.local))
+        .run();
 
       await switchNovelToLibraryQuery('/test/novel', 'test-plugin');
 
@@ -202,10 +211,17 @@ describe('NovelQueries', () => {
         .all();
 
       expect(associations.length).toBeGreaterThan(0);
-
       expect(
-        associations.some(a => a.categoryId === (defaultCategory?.id ?? -1)),
-      ).toBe(!!defaultCategory);
+        associations.some(
+          association =>
+            association.categoryId === BUILT_IN_CATEGORY_IDS.default,
+        ),
+      ).toBe(true);
+      expect(
+        associations.some(
+          association => association.categoryId === BUILT_IN_CATEGORY_IDS.local,
+        ),
+      ).toBe(false);
     });
 
     it('should assign the user-selected default category', async () => {
@@ -257,7 +273,10 @@ describe('NovelQueries', () => {
         .all();
 
       expect(
-        associations.some(association => association.categoryId === 1),
+        associations.some(
+          association =>
+            association.categoryId === BUILT_IN_CATEGORY_IDS.default,
+        ),
       ).toBe(true);
     });
   });
@@ -455,6 +474,30 @@ describe('NovelQueries', () => {
   });
 
   describe('updateNovelCategories', () => {
+    it('should add a novel to the library with only the selected categories', async () => {
+      const testDb = getTestDb();
+      const novelId = await insertTestNovel(testDb, { inLibrary: false });
+      const categoryId = await insertTestCategory(testDb, {
+        name: 'Selected Category',
+      });
+
+      await updateNovelCategories([novelId], [categoryId]);
+
+      const novel = await testDb.drizzleDb
+        .select()
+        .from(novelSchema)
+        .where(eq(novelSchema.id, novelId))
+        .get();
+      const associations = await testDb.drizzleDb
+        .select()
+        .from(novelCategorySchema)
+        .where(eq(novelCategorySchema.novelId, novelId))
+        .all();
+
+      expect(Boolean(novel?.inLibrary)).toBe(true);
+      expect(associations.map(item => item.categoryId)).toEqual([categoryId]);
+    });
+
     it('should update categories for multiple novels', async () => {
       const testDb = getTestDb();
       const novelId1 = await insertTestNovel(testDb, { inLibrary: true });

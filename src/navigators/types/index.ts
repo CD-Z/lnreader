@@ -83,8 +83,9 @@ export type SettingsStackParamList = {
   AdvancedSettings: undefined;
   LibrarySettings: undefined;
   RespositorySettings: { url?: string } | undefined;
-  CustomCode: undefined;
+CustomCode: undefined;
   CodeSnippets: { snippetIndex: number; isJS: boolean } | undefined;
+  GenreTaxonomy: undefined;
 };
 
 export type NovelScreenProps = StackScreenProps<
@@ -97,14 +98,14 @@ export type ChapterScreenProps = StackScreenProps<
 >;
 export type ReaderStackParamList = {
   Novel:
-    | {
-        name: string;
-        path: string;
-        pluginId: string;
-        cover: string | null;
-        isLocal?: boolean | null;
-      }
-    | Omit<NovelInfo, 'id'>;
+  | {
+    name: string;
+    path: string;
+    pluginId: string;
+    cover: string | null;
+    isLocal?: boolean | null;
+  }
+  | Omit<NovelInfo, 'id'>;
   Chapter: {
     novel: NovelInfo;
     chapter: ChapterInfo;
@@ -184,6 +185,10 @@ export type LibrarySettingsScreenProps = CompositeScreenProps<
   StackScreenProps<SettingsStackParamList, 'LibrarySettings'>,
   StackScreenProps<MoreStackParamList, 'SettingsStack'>
 >;
+export type GenreTaxonomyScreenProps = CompositeScreenProps<
+  StackScreenProps<SettingsStackParamList, 'GenreTaxonomy'>,
+  StackScreenProps<MoreStackParamList, 'SettingsStack'>
+>;
 
 export type RespositorySettingsScreenProps = CompositeScreenProps<
   StackScreenProps<SettingsStackParamList, 'RespositorySettings'>,
@@ -202,6 +207,6 @@ export type CodeSnippetsScreenProps = StackScreenProps<
 declare global {
   namespace ReactNavigation {
     // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-    interface RootParamList extends RootStackParamList {}
+    interface RootParamList extends RootStackParamList { }
   }
 }

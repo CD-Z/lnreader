@@ -20,7 +20,10 @@ export default function useDownload() {
   const downloadQueue = useMemo(
     () => queue?.filter(t => t.task?.name === 'DOWNLOAD_CHAPTER') || [],
     [queue],
-  ) as { task: DownloadChapterTask; meta: BackgroundTaskMetadata }[];
+  ) as (QueuedBackgroundTask & {
+    task: DownloadChapterTask;
+    meta: BackgroundTaskMetadata;
+  })[];
 
   const downloadingChapterIds = useMemo(
     () =>
@@ -48,6 +51,7 @@ export default function useDownload() {
       data: {
         novelName: novel.name,
         novelId: novel.id,
+        pluginId: novel.pluginId,
         chapters: [{ chapterId: chapter.id, chapterName: chapter.name }],
       },
     });
@@ -57,6 +61,7 @@ export default function useDownload() {
       data: {
         novelName: novel.name,
         novelId: novel.id,
+        pluginId: novel.pluginId,
         chapters: chapters.map(chapter => ({
           chapterId: chapter.id,
           chapterName: chapter.name,

@@ -4,7 +4,10 @@ import {
   allowsDuplicateTask,
   createBackgroundTaskMetadata,
   fromNativeTaskRecord,
+  getBackgroundTaskQueueName,
   getBackgroundTaskTitle,
+  getDownloadProgressKey,
+  willTaskWaitInQueue,
 } from '../taskDefinitions';
 
 jest.mock('@i18n/translations', () => ({
@@ -32,6 +35,7 @@ describe('background task definitions', () => {
       data: {
         novelName: 'Example Novel',
         novelId: 42,
+        pluginId: 'source-a',
         chapters: [{ chapterId: 42, chapterName: 'Chapter 7' }],
       },
     };
@@ -45,6 +49,65 @@ describe('background task definitions', () => {
       progress: undefined,
       progressText: 'Chapter 7',
     });
+  });
+
+  it('serializes downloads from one plugin but separates other plugin lanes', () => {
+    const createDownload = (pluginId: string): BackgroundTask => ({
+      name: 'DOWNLOAD_CHAPTER',
+      data: {
+        novelName: 'Example Novel',
+        novelId: 42,
+        pluginId,
+        chapters: [{ chapterId: 42, chapterName: 'Chapter 7' }],
+      },
+    });
+
+    expect(getBackgroundTaskQueueName(createDownload('source-a'))).toBe(
+      getBackgroundTaskQueueName(createDownload('source-a')),
+    );
+    expect(getBackgroundTaskQueueName(createDownload('source-a'))).not.toBe(
+      getBackgroundTaskQueueName(createDownload('source-b')),
+    );
+  });
+
+  it('uses independent lanes for different non-download task types', () => {
+    expect(getBackgroundTaskQueueName({ name: 'UPDATE_LIBRARY' })).not.toBe(
+      getBackgroundTaskQueueName({
+        name: 'LOCAL_RESTORE',
+        data: { sourceUri: 'file://backup.zip' },
+      }),
+    );
+  });
+
+  it('only reports queueing when a lane or the global limit blocks a task', () => {
+    const createDownload = (pluginId: string): BackgroundTask => ({
+      name: 'DOWNLOAD_CHAPTER',
+      data: {
+        novelName: pluginId,
+        pluginId,
+        chapters: [{ chapterId: 42, chapterName: 'Chapter 7' }],
+      },
+    });
+    const queuedDownload = (pluginId: string) => ({
+      id: pluginId,
+      task: createDownload(pluginId),
+      state: 'queued' as const,
+      meta: createBackgroundTaskMetadata(createDownload(pluginId), false),
+    });
+
+    expect(willTaskWaitInQueue(createDownload('source-a'), [])).toBe(false);
+    expect(
+      willTaskWaitInQueue(createDownload('source-a'), [
+        queuedDownload('source-a'),
+      ]),
+    ).toBe(true);
+    expect(
+      willTaskWaitInQueue(createDownload('source-d'), [
+        queuedDownload('source-a'),
+        queuedDownload('source-b'),
+        queuedDownload('source-c'),
+      ]),
+    ).toBe(true);
   });
 
   it('derives metadata for a multi-file EPUB import', () => {
@@ -90,5 +153,38 @@ describe('background task definitions', () => {
         progressText: 'Example Novel',
       },
     });
+  });
+
+  it('derives progress keys only for the requested novel downloads', () => {
+    const createDownload = (
+      id: string,
+      novelId: number,
+      progress?: number,
+    ) => ({
+      id,
+      task: {
+        name: 'DOWNLOAD_CHAPTER' as const,
+        data: {
+          novelName: `Novel ${novelId}`,
+          novelId,
+          chapters: [{ chapterId: novelId, chapterName: 'Chapter 1' }],
+        },
+      },
+      state: 'running' as const,
+      meta: {
+        name: `Novel ${novelId}`,
+        isRunning: true,
+        progress,
+        progressText: 'Chapter 1',
+      },
+    });
+    const tasks: (ReturnType<typeof createDownload> | BackgroundTask)[] = [
+      { name: 'UPDATE_LIBRARY' },
+      createDownload('first', 1, 0.5),
+      createDownload('second', 2),
+    ];
+
+    expect(getDownloadProgressKey(tasks, 1)).toBe('first:running:0.5');
+    expect(getDownloadProgressKey(tasks, 2)).toBe('second:running:pending');
   });
 });

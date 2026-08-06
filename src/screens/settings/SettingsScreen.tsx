@@ -103,6 +103,16 @@ const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
           }
           theme={theme}
         />
+        <List.Item
+          title={getString('genreStats.taxonomyTitle')}
+          icon="tag-multiple-outline"
+          onPress={() =>
+            navigation.navigate('SettingsStack', {
+              screen: 'GenreTaxonomy',
+            })
+          }
+          theme={theme}
+        />
       </ScrollView>
     </SafeAreaView>
   );
