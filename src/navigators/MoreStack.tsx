@@ -16,6 +16,7 @@ import RespositorySettings from '@screens/settings/SettingsRepositoryScreen/Sett
 import LibrarySettings from '@screens/settings/SettingsLibraryScreen/SettingsLibraryScreen';
 import StatsScreen from '@screens/StatsScreen/StatsScreen';
 import GenreTaxonomyScreen from '@screens/settings/SettingsTaxonomyScreen/SettingsTaxonomyScreen';
+import SkeletonDebugScreen from '@screens/dev/SkeletonDebugScreen';
 import { MoreStackParamList, SettingsStackParamList } from './types';
 import { useTheme } from '@hooks/persisted';
 
@@ -68,6 +69,11 @@ const MoreStack = () => {
       <Stack.Screen name="Downloads" component={Downloads} />
       <Stack.Screen name="Categories" component={CategoriesScreen} />
       <Stack.Screen name="Statistics" component={StatsScreen} />
+      <Stack.Screen
+        name="SkeletonDebug"
+        component={SkeletonDebugScreen}
+        options={{ animation: 'none' }}
+      />
     </Stack.Navigator>
   );
 };

@@ -1,151 +1,78 @@
-import { useEffect } from 'react';
+import { memo } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import Animated, {
-  cancelAnimation,
-  useAnimatedStyle,
-  useSharedValue,
-  withRepeat,
-  withTiming,
-} from 'react-native-reanimated';
 
 import { Row } from '@components/Common';
 import { ThemeColors } from '@theme/types';
-import useLoadingColors from '@utils/useLoadingColors';
+import { SkeletonBlock } from '@components/Skeleton/SkeletonBlock';
+import { SkeletonGroup } from '@components/Skeleton/SkeletonGroup';
+import { getLoadingColors } from '@utils/useLoadingColors';
 
-const AnimatedLinearGradient = Animated.createAnimatedComponent(LinearGradient);
+export const ChapterCountSkeleton = memo(
+  ({ theme }: { theme: ThemeColors }) => {
+    const [, skeletonColor] = getLoadingColors(theme);
 
-const useShimmer = (theme: ThemeColors) => {
-  const translateX = useSharedValue(-100);
-  const [highlightColor, backgroundColor, disableLoadingAnimations] =
-    useLoadingColors(theme);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [
-      {
-        translateX: (translateX.value + '%') as `${number}%`,
-      },
-    ],
-  }));
-
-  useEffect(() => {
-    cancelAnimation(translateX);
-    translateX.value = -100;
-    if (!disableLoadingAnimations) {
-      translateX.value = withRepeat(
-        withTiming(200, { duration: 1000 }),
-        -1,
-        false,
-      );
-    }
-    return () => cancelAnimation(translateX);
-  }, [disableLoadingAnimations, translateX]);
-
-  return {
-    animatedStyle,
-    highlightColor,
-    backgroundColor,
-    disableLoadingAnimations,
-  };
-};
-
-export const ChapterCountSkeleton = ({ theme }: { theme: ThemeColors }) => {
-  const shimmer = useShimmer(theme);
-
-  return (
-    <View
-      style={[
-        styles.chapterCountSkeleton,
-        { backgroundColor: shimmer.backgroundColor },
-      ]}
-    >
-      {!shimmer.disableLoadingAnimations ? (
-        <AnimatedLinearGradient
-          start={[0, 0]}
-          end={[1, 0]}
-          locations={[0, 0.3, 0.7, 1]}
-          style={[styles.chapterCountGradient, shimmer.animatedStyle]}
-          colors={[
-            'transparent',
-            shimmer.highlightColor,
-            shimmer.highlightColor,
-            'transparent',
-          ]}
+    return (
+      <SkeletonGroup>
+        <SkeletonBlock
+          width={120}
+          height={14}
+          borderRadius={4}
+          color={skeletonColor}
+          style={styles.chapterCountSkeleton}
         />
-      ) : null}
-    </View>
-  );
-};
+      </SkeletonGroup>
+    );
+  },
+);
 
-export const NovelDetailsSkeleton = ({ theme }: { theme: ThemeColors }) => {
-  const shimmer = useShimmer(theme);
-  const gradient = !shimmer.disableLoadingAnimations ? (
-    <AnimatedLinearGradient
-      start={[0, 0]}
-      end={[1, 0]}
-      locations={[0, 0.3, 0.7, 1]}
-      style={[styles.infoSkeletonGradient, shimmer.animatedStyle]}
-      colors={[
-        'transparent',
-        shimmer.highlightColor,
-        shimmer.highlightColor,
-        'transparent',
-      ]}
-    />
-  ) : null;
+const INFO_WIDTHS = [130, 180];
 
-  return (
-    <>
-      {[styles.w130, styles.w180].map((widthStyle, index) => (
-        <Row key={index} style={styles.infoRow}>
-          <View
-            style={[
-              styles.infoSkeletonBar,
-              widthStyle,
-              { backgroundColor: shimmer.backgroundColor },
-            ]}
-          >
-            {gradient}
-          </View>
-        </Row>
-      ))}
-    </>
-  );
-};
+export const NovelDetailsSkeleton = memo(
+  ({ theme }: { theme: ThemeColors }) => {
+    const [, skeletonColor] = getLoadingColors(theme);
 
-export const ButtonGroupSkeleton = ({ theme }: { theme: ThemeColors }) => {
-  const shimmer = useShimmer(theme);
-  const gradient = !shimmer.disableLoadingAnimations ? (
-    <AnimatedLinearGradient
-      start={[0, 0]}
-      end={[1, 0]}
-      locations={[0, 0.3, 0.7, 1]}
-      style={[styles.buttonSkeletonGradient, shimmer.animatedStyle]}
-      colors={[
-        'transparent',
-        shimmer.highlightColor,
-        shimmer.highlightColor,
-        'transparent',
-      ]}
-    />
-  ) : null;
+    return (
+      <SkeletonGroup>
+        {INFO_WIDTHS.map((width, index) => (
+          <Row key={index} style={styles.infoRow}>
+            <SkeletonBlock
+              width={width}
+              height={14}
+              borderRadius={4}
+              color={skeletonColor}
+              style={styles.infoSkeletonBar}
+            />
+          </Row>
+        ))}
+      </SkeletonGroup>
+    );
+  },
+);
+
+export const ButtonGroupSkeleton = memo(({ theme }: { theme: ThemeColors }) => {
+  const [, skeletonColor] = getLoadingColors(theme);
 
   return (
-    <View style={styles.buttonGroupSkeletonContainer}>
-      {[0, 1].map(index => (
-        <View
-          key={index}
-          style={[
-            styles.buttonSkeleton,
-            { backgroundColor: shimmer.backgroundColor },
-          ]}
-        >
-          {gradient}
-        </View>
-      ))}
-    </View>
+    <SkeletonGroup>
+      <View style={styles.buttonGroupSkeletonContainer}>
+        <SkeletonBlock
+          width="100%"
+          height={52}
+          borderRadius={8}
+          color={skeletonColor}
+          style={styles.buttonSkeleton}
+        />
+        <SkeletonBlock
+          width="100%"
+          height={52}
+          borderRadius={8}
+          color={skeletonColor}
+          style={styles.buttonSkeleton}
+        />
+      </View>
+    </SkeletonGroup>
   );
-};
+});
 
 const styles = StyleSheet.create({
   buttonGroupSkeletonContainer: {
@@ -155,45 +82,15 @@ const styles = StyleSheet.create({
     paddingTop: 8,
   },
   buttonSkeleton: {
-    borderRadius: 8,
     flex: 1,
-    height: 52,
-    overflow: 'hidden',
-  },
-  buttonSkeletonGradient: {
-    height: 60,
-    position: 'absolute',
-    width: '60%',
-  },
-  chapterCountGradient: {
-    height: 20,
-    position: 'absolute',
-    width: '60%',
   },
   chapterCountSkeleton: {
-    borderRadius: 4,
-    height: 14,
     marginHorizontal: 16,
-    overflow: 'hidden',
-    width: 120,
   },
   infoRow: {
     marginBottom: 8,
   },
   infoSkeletonBar: {
-    borderRadius: 4,
-    height: 14,
-    overflow: 'hidden',
-  },
-  infoSkeletonGradient: {
-    height: 20,
-    position: 'absolute',
-    width: '60%',
-  },
-  w130: {
-    width: 130,
-  },
-  w180: {
-    width: 180,
+    marginHorizontal: 16,
   },
 });

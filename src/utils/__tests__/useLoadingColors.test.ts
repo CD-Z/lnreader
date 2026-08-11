@@ -13,16 +13,16 @@ describe('getLoadingColors', () => {
     [
       'light',
       createTheme('rgb(254, 251, 255)', 'rgb(27, 27, 31)'),
-      ['#F0EEF2', '#F7F4F8'],
+      ['#D1CED2', '#E7E5E9'],
     ],
     [
       'dark',
       createTheme('rgb(27, 27, 31)', 'rgb(228, 226, 230)'),
-      ['#27272B', '#212125'],
+      ['#434347', '#2F2F33'],
     ],
-    ['pure black', createTheme('#000000', '#ffffff'), ['#0F0F0F', '#080808']],
+    ['pure black', createTheme('#000000', '#ffffff'), ['#333333', '#191919']],
   ])(
-    'creates subtle animated colors for the %s theme',
+    'creates clearly visible animated colors for the %s theme',
     (_, theme, expected) => {
       expect(getLoadingColors(theme)).toEqual(expected);
     },
@@ -32,14 +32,14 @@ describe('getLoadingColors', () => {
     [
       'light',
       createTheme('rgb(254, 251, 255)', 'rgb(27, 27, 31)'),
-      ['#F0EEF2', '#F3F0F4'],
+      ['#D1CED2', '#E3E0E4'],
     ],
     [
       'dark',
       createTheme('rgb(27, 27, 31)', 'rgb(228, 226, 230)'),
-      ['#27272B', '#252529'],
+      ['#434347', '#333337'],
     ],
-    ['pure black', createTheme('#000000', '#ffffff'), ['#0F0F0F', '#0D0D0D']],
+    ['pure black', createTheme('#000000', '#ffffff'), ['#333333', '#1F1F1F']],
   ])('increases static contrast for the %s theme', (_, theme, expected) => {
     expect(getLoadingColors(theme, true)).toEqual(expected);
   });

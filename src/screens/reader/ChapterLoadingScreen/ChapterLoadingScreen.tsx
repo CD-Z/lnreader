@@ -14,21 +14,17 @@ const ChapterLoadingScreen = () => {
   } = useChapterReaderSettings();
   const [skeletonColor, highlightColor] = useMemo(() => {
     const background = color(backgroundColor);
+    // hex() (not toString()) so the colors stay valid for SVG stops,
+    // which reject hsl()/hwb() formats
     if (!background.isDark()) {
-      return [
-        background.darken(0.04).toString(),
-        background.darken(0.08).toString(),
-      ];
+      return [background.darken(0.06).hex(), background.darken(0.1).hex()];
     }
     if (background.luminosity() !== 0) {
-      return [
-        background.lighten(0.1).toString(),
-        background.lighten(0.4).toString(),
-      ];
+      return [background.lighten(0.15).hex(), background.lighten(0.4).hex()];
     }
     return [
-      background.negate().darken(0.98).toString(),
-      background.negate().darken(0.92).toString(),
+      background.mix(color('#ffffff'), 0.08).hex(),
+      background.mix(color('#ffffff'), 0.14).hex(),
     ];
   }, [backgroundColor]);
 

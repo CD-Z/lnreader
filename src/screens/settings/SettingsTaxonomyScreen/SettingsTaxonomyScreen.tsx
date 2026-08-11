@@ -1,5 +1,12 @@
 import { useState } from 'react';
-import { FlatList, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  FlatList,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { IconButton, TextInput } from 'react-native-paper';
 
 import { Appbar, Dialog, List, SafeAreaView } from '@components';
@@ -25,10 +32,10 @@ const SettingsTaxonomyScreen = ({ navigation }: GenreTaxonomyScreenProps) => {
   const [childName, setChildName] = useState('');
 
   // Delete confirmation
-  const [deleteTarget, setDeleteTarget] = useState<
-    | { type: 'parent'; name: string }
-    | null
-  >(null);
+  const [deleteTarget, setDeleteTarget] = useState<{
+    type: 'parent';
+    name: string;
+  } | null>(null);
 
   const resetForm = () => {
     setParentName('');
@@ -36,9 +43,7 @@ const SettingsTaxonomyScreen = ({ navigation }: GenreTaxonomyScreenProps) => {
   };
 
   const openDialog = (
-    d:
-      | { type: 'addParent' }
-      | { type: 'editParent'; parentName: string },
+    d: { type: 'addParent' } | { type: 'editParent'; parentName: string },
   ) => {
     resetForm();
     if (d.type === 'editParent') setParentName(d.parentName);
@@ -48,11 +53,9 @@ const SettingsTaxonomyScreen = ({ navigation }: GenreTaxonomyScreenProps) => {
   const handleAddParent = () => {
     const name = parentName.trim();
     if (!name) return;
-    if (
-      taxonomy.some(
-        t => normalizeGenre(t.parent) === normalizeGenre(name),
-      )
-    ) return;
+    if (taxonomy.some(t => normalizeGenre(t.parent) === normalizeGenre(name))) {
+      return;
+    }
     setTaxonomy([...taxonomy, { parent: name, children: [] }]);
     // Stay in the same dialog, now in edit mode, so subgenres can be added
     // directly without reopening.
@@ -69,7 +72,9 @@ const SettingsTaxonomyScreen = ({ navigation }: GenreTaxonomyScreenProps) => {
           t.parent !== oldName &&
           normalizeGenre(t.parent) === normalizeGenre(name),
       )
-    ) return;
+    ) {
+      return;
+    }
     const updated = taxonomy.map(t =>
       t.parent === oldName ? { ...t, parent: name } : t,
     );
@@ -84,7 +89,9 @@ const SettingsTaxonomyScreen = ({ navigation }: GenreTaxonomyScreenProps) => {
     if (
       !node ||
       node.children.some(c => normalizeGenre(c) === normalizeGenre(name))
-    ) return;
+    ) {
+      return;
+    }
     const updated = taxonomy.map(t =>
       t.parent === dialog.parentName
         ? { ...t, children: [...t.children, name] }
@@ -188,10 +195,7 @@ const SettingsTaxonomyScreen = ({ navigation }: GenreTaxonomyScreenProps) => {
 
       {/* Add / Edit Parent Dialog */}
       {(dialog.type === 'addParent' || dialog.type === 'editParent') && (
-        <Dialog.Root
-          visible
-          onDismiss={() => setDialog({ type: 'none' })}
-        >
+        <Dialog.Root visible onDismiss={() => setDialog({ type: 'none' })}>
           <Dialog.Header>
             <Dialog.Title>
               {dialog.type === 'addParent'
@@ -209,9 +213,7 @@ const SettingsTaxonomyScreen = ({ navigation }: GenreTaxonomyScreenProps) => {
 
             {dialog.type === 'editParent' &&
               (() => {
-                const node = taxonomy.find(
-                  t => t.parent === dialog.parentName,
-                );
+                const node = taxonomy.find(t => t.parent === dialog.parentName);
                 if (!node) return null;
                 return (
                   <>
@@ -273,9 +275,7 @@ const SettingsTaxonomyScreen = ({ navigation }: GenreTaxonomyScreenProps) => {
             </Dialog.Action>
             <Dialog.Action
               onPress={
-                dialog.type === 'addParent'
-                  ? handleAddParent
-                  : handleEditParent
+                dialog.type === 'addParent' ? handleAddParent : handleEditParent
               }
             >
               {getString('common.ok')}
@@ -283,7 +283,6 @@ const SettingsTaxonomyScreen = ({ navigation }: GenreTaxonomyScreenProps) => {
           </Dialog.Actions>
         </Dialog.Root>
       )}
-
 
       {/* Delete confirmations */}
       {deleteTarget?.type === 'parent' && (

@@ -1,9 +1,10 @@
-import React, { memo } from 'react';
+import React, { memo, useMemo } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
-import { ThemeColors } from '@theme/types';
 
-import ShimmerPlaceholder from '@components/Skeleton/ShimmerPlaceholder';
-import useLoadingColors from '@utils/useLoadingColors';
+import { ThemeColors } from '@theme/types';
+import { SkeletonBlock } from '@components/Skeleton/SkeletonBlock';
+import { SkeletonGroup } from '@components/Skeleton/SkeletonGroup';
+import { getLoadingColors } from '@utils/useLoadingColors';
 
 interface Props {
   theme: ThemeColors;
@@ -18,49 +19,53 @@ const SKELETON_ITEMS = [
 ] as const;
 
 const MalLoading: React.FC<Props> = ({ theme }) => {
+  const [, skeletonColor] = getLoadingColors(theme);
   const { width } = useWindowDimensions();
-  const textWidth = Math.max(80, width - 140);
-  const [highlightColor, backgroundColor, disableLoadingAnimations] =
-    useLoadingColors(theme);
+  const textWidth = useMemo(() => Math.max(80, width - 140), [width]);
 
   return (
     <View style={styles.container}>
-      {SKELETON_ITEMS.map((item, index) => (
-        <View
-          key={`mal-skeleton-${index}`}
-          style={[styles.loadingContainer, { backgroundColor: theme.overlay3 }]}
-        >
-          <ShimmerPlaceholder
-            shimmerColors={[backgroundColor, highlightColor, backgroundColor]}
-            height={item.height}
-            width={100}
-            stopAutoRun={disableLoadingAnimations}
-          />
-          <View style={styles.loadingText}>
-            <ShimmerPlaceholder
-              style={styles.text}
-              shimmerColors={[backgroundColor, highlightColor, backgroundColor]}
-              height={16}
-              width={textWidth}
-              stopAutoRun={disableLoadingAnimations}
+      <SkeletonGroup>
+        {SKELETON_ITEMS.map((item, index) => (
+          <View
+            key={`mal-skeleton-${index}`}
+            style={[
+              styles.loadingContainer,
+              { backgroundColor: theme.overlay3 },
+            ]}
+          >
+            <SkeletonBlock
+              width={100}
+              height={item.height}
+              borderRadius={8}
+              color={skeletonColor}
             />
-            <ShimmerPlaceholder
-              style={styles.text}
-              shimmerColors={[backgroundColor, highlightColor, backgroundColor]}
-              height={16}
-              width={textWidth}
-              stopAutoRun={disableLoadingAnimations}
-            />
-            <ShimmerPlaceholder
-              style={styles.text}
-              shimmerColors={[backgroundColor, highlightColor, backgroundColor]}
-              height={16}
-              width={textWidth * item.lastLineRatio}
-              stopAutoRun={disableLoadingAnimations}
-            />
+            <View style={styles.loadingText}>
+              <SkeletonBlock
+                width={textWidth}
+                height={16}
+                borderRadius={8}
+                color={skeletonColor}
+                style={styles.text}
+              />
+              <SkeletonBlock
+                width={textWidth}
+                height={16}
+                borderRadius={8}
+                color={skeletonColor}
+                style={styles.text}
+              />
+              <SkeletonBlock
+                width={textWidth * item.lastLineRatio}
+                height={16}
+                borderRadius={8}
+                color={skeletonColor}
+                style={styles.text}
+              />
+            </View>
           </View>
-        </View>
-      ))}
+        ))}
+      </SkeletonGroup>
     </View>
   );
 };
@@ -76,7 +81,6 @@ const styles = StyleSheet.create({
   },
   loadingContainer: {
     borderRadius: 8,
-    boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)',
     flexDirection: 'row',
     margin: 10,
     overflow: 'hidden',
@@ -87,7 +91,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   text: {
-    borderRadius: 8,
     marginVertical: 5,
   },
 });

@@ -5,8 +5,9 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
-import { useAppSettings } from '@hooks/persisted/index';
-import ShimmerPlaceholder from '@components/Skeleton/ShimmerPlaceholder';
+
+import { SkeletonBlock } from '@components/Skeleton/SkeletonBlock';
+import { SkeletonGroup } from '@components/Skeleton/SkeletonGroup';
 
 interface Props {
   color?: string;
@@ -16,8 +17,8 @@ interface Props {
   highlightColor?: string;
   lineHeight: number;
   /**
-   * How many lines actually shimmer. Every shimmering line costs a gradient
-   * view plus an animation, and this placeholder is shown while the app is busy
+   * How many lines actually shimmer. Every shimmering line costs an SVG
+   * gradient view, and this placeholder is shown while the app is busy
    * loading, so the lines below the fold are rendered as plain bars.
    */
   maxAnimatedLines?: number;
@@ -29,7 +30,6 @@ const resolveDimension = (value: DimensionValue, available: number): number => {
   if (typeof value === 'number') {
     return value;
   }
-
   const parsed = Number.parseFloat(String(value));
   if (!Number.isFinite(parsed)) {
     return available;
@@ -48,7 +48,6 @@ const SkeletonLines = ({
   highlightColor = '#c5c5c5',
   maxAnimatedLines = 12,
 }: Props) => {
-  const { disableLoadingAnimations } = useAppSettings();
   const window = useWindowDimensions();
 
   const resolvedWidth = width
@@ -58,71 +57,60 @@ const SkeletonLines = ({
   const rowHeight = Math.max(textSize, textSize * lineHeight);
   const lineCount = Math.max(1, Math.floor((resolvedHeight - 10) / rowHeight));
   const lines = useMemo(() => Array.from({ length: lineCount }), [lineCount]);
+
   const styles = useMemo(
     () =>
-      createStyleSheet(
-        containerWidth,
-        containerHeight,
-        containerMargin,
-        rowHeight - textSize,
-      ),
-    [containerHeight, containerMargin, containerWidth, rowHeight, textSize],
+      StyleSheet.create({
+        container: {
+          backgroundColor: 'transparent',
+          height: containerHeight,
+          margin: containerMargin,
+          position: 'relative',
+          width: containerWidth,
+        },
+      }),
+    [containerHeight, containerMargin, containerWidth],
   );
 
   return (
     <View style={styles.container}>
-      {lines.map((_, index) => {
-        const lineWidth =
-          index % 5 === 4 ? resolvedWidth * 0.68 : resolvedWidth;
+      <SkeletonGroup highlightColor={highlightColor}>
+        {lines.map((_, index) => {
+          const lineWidth =
+            index % 5 === 4 ? resolvedWidth * 0.68 : resolvedWidth;
 
-        if (disableLoadingAnimations || index >= maxAnimatedLines) {
-          return (
-            <View
-              key={`reader-line-skeleton-${index}`}
-              style={[
-                styles.line,
-                {
+          if (index >= maxAnimatedLines) {
+            return (
+              <View
+                key={`reader-line-skeleton-${index}`}
+                accessible={false}
+                style={{
                   backgroundColor: color,
+                  borderRadius: 8,
                   height: textSize,
+                  marginBottom: Math.max(0, rowHeight - textSize),
                   width: lineWidth,
-                },
-              ]}
+                }}
+              />
+            );
+          }
+
+          return (
+            <SkeletonBlock
+              key={`reader-line-skeleton-${index}`}
+              width={lineWidth}
+              height={textSize}
+              borderRadius={8}
+              color={color}
+              style={{
+                marginBottom: Math.max(0, rowHeight - textSize),
+              }}
             />
           );
-        }
-
-        return (
-          <ShimmerPlaceholder
-            key={`reader-line-skeleton-${index}`}
-            style={styles.line}
-            shimmerColors={[color, highlightColor, color]}
-            width={lineWidth}
-            height={textSize}
-          />
-        );
-      })}
+        })}
+      </SkeletonGroup>
     </View>
   );
 };
-
-const createStyleSheet = (
-  containerWidth: DimensionValue,
-  containerHeight: DimensionValue,
-  containerMargin: DimensionValue,
-  lineSpacing: number,
-) =>
-  StyleSheet.create({
-    container: {
-      backgroundColor: 'transparent',
-      height: containerHeight,
-      margin: containerMargin,
-      position: 'relative',
-      width: containerWidth,
-    },
-    line: {
-      borderRadius: 8,
-      marginBottom: Math.max(0, lineSpacing),
-    },
-  });
 
 export default memo(SkeletonLines);

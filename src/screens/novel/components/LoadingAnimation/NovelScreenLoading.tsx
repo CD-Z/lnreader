@@ -1,204 +1,190 @@
-import React, { createContext, memo, useContext, useMemo } from 'react';
-import {
-  View,
-  StyleSheet,
-  StyleProp,
-  useWindowDimensions,
-  ViewStyle,
-} from 'react-native';
+import React, { memo, useMemo } from 'react';
+import { View, StyleSheet, useWindowDimensions } from 'react-native';
+
 import { ThemeColors } from '@theme/types';
-import useLoadingColors from '@utils/useLoadingColors';
-import ShimmerPlaceholder from '@components/Skeleton/ShimmerPlaceholder';
+import { SkeletonBlock } from '@components/Skeleton/SkeletonBlock';
+import { SkeletonGroup } from '@components/Skeleton/SkeletonGroup';
+import { getLoadingColors } from '@utils/useLoadingColors';
 
-interface Props {
-  theme: ThemeColors;
-}
-
-interface SkeletonContextValue {
-  backgroundColor: string;
-  disableLoadingAnimations: boolean;
+interface SkeletonProps {
+  color: string;
   fullWidth: number;
-  highlightColor: string;
 }
 
-const SkeletonContext = createContext<SkeletonContextValue | null>(null);
-
-const useSkeletonContext = () => {
-  const value = useContext(SkeletonContext);
-  if (!value) {
-    throw new Error('Loading skeleton must be rendered inside SkeletonContext');
-  }
-  return value;
-};
-
-const DESCRIPTION_LINES = Array.from({ length: 2 });
+const DESCRIPTION_LINES = [0, 1];
 const CHIP_WIDTHS = [64, 88, 52, 72];
-const STAT_ITEMS = Array.from({ length: 3 });
-const CHAPTER_ITEMS = Array.from({ length: 7 });
+const STAT_ITEMS = [0, 1, 2];
+const CHAPTER_ITEMS = [0, 1, 2, 3, 4, 5, 6];
 
-export const LoadingShimmer = memo(
-  ({
-    style,
-    height,
-    width,
-    visible = true,
-  }: {
-    style?: StyleProp<ViewStyle>;
-    height: number;
-    width: number | string;
-    visible?: boolean;
-  }) => {
-    const { backgroundColor, disableLoadingAnimations, highlightColor } =
-      useSkeletonContext();
-    if (!visible) {
-      return null;
-    }
-
-    return (
-      <ShimmerPlaceholder
-        style={style}
-        shimmerColors={[backgroundColor, highlightColor, backgroundColor]}
-        height={height}
-        width={width}
-        stopAutoRun={disableLoadingAnimations}
-      />
-    );
-  },
-);
-
-const NovelTop = memo(() => {
-  const { fullWidth } = useSkeletonContext();
+const NovelTop = memo(({ color, fullWidth }: SkeletonProps) => {
   const textWidth = Math.max(80, fullWidth - 116);
   return (
     <View style={styles.headerContainer}>
-      <LoadingShimmer style={styles.picture} height={150} width={100} />
+      <SkeletonBlock
+        width={100}
+        height={150}
+        borderRadius={8}
+        color={color}
+        style={styles.picture}
+      />
       <View style={styles.headerText}>
-        <LoadingShimmer style={styles.text} height={25} width={textWidth} />
-        <LoadingShimmer style={styles.text} height={20} width={textWidth} />
-        <LoadingShimmer style={styles.text} height={20} width={textWidth} />
+        <SkeletonBlock
+          width={textWidth}
+          height={25}
+          borderRadius={8}
+          color={color}
+          style={styles.text}
+        />
+        <SkeletonBlock
+          width={textWidth}
+          height={20}
+          borderRadius={8}
+          color={color}
+          style={styles.text}
+        />
+        <SkeletonBlock
+          width={textWidth}
+          height={20}
+          borderRadius={8}
+          color={color}
+          style={styles.text}
+        />
       </View>
     </View>
   );
 });
 
-export const LoadingDescription = memo(() => {
-  const { fullWidth } = useSkeletonContext();
-  return (
-    <View style={styles.novelInformationText}>
-      {DESCRIPTION_LINES.map((_, index) => (
-        <LoadingShimmer
-          key={`description-skeleton-${index}`}
-          style={styles.text}
-          height={16}
-          width={fullWidth}
-        />
-      ))}
-    </View>
-  );
-});
-
-export const LoadingChips = memo(() => (
-  <View style={styles.novelInformationChips}>
-    {CHIP_WIDTHS.map((width, index) => (
-      <LoadingShimmer
-        key={`chip-skeleton-${index}`}
-        style={styles.chip}
-        height={32}
-        width={width}
+const LoadingDescription = memo(({ color, fullWidth }: SkeletonProps) => (
+  <View style={styles.novelInformationText}>
+    {DESCRIPTION_LINES.map((_, index) => (
+      <SkeletonBlock
+        key={`description-skeleton-${index}`}
+        width={fullWidth}
+        height={16}
+        borderRadius={8}
+        color={color}
+        style={styles.text}
       />
     ))}
   </View>
 ));
 
-const NovelInformation = memo(() => (
-  <View style={styles.metadataContainer}>
-    <View style={styles.statsContainer}>
-      {STAT_ITEMS.map((_, index) => (
-        <LoadingShimmer
-          key={`stat-skeleton-${index}`}
-          style={styles.icon}
-          height={56}
-          width={90}
-        />
-      ))}
-    </View>
-    <LoadingDescription />
-    <LoadingChips />
+const LoadingChips = memo(({ color }: Omit<SkeletonProps, 'fullWidth'>) => (
+  <View style={styles.novelInformationChips}>
+    {CHIP_WIDTHS.map((width, index) => (
+      <SkeletonBlock
+        key={`chip-skeleton-${index}`}
+        width={width}
+        height={32}
+        borderRadius={8}
+        color={color}
+        style={styles.chip}
+      />
+    ))}
   </View>
 ));
 
-export const LoadingChapterItem = memo(() => {
-  const { fullWidth } = useSkeletonContext();
+const NovelInformation = memo(({ color, fullWidth }: SkeletonProps) => (
+  <View style={styles.metadataContainer}>
+    <View style={styles.statsContainer}>
+      {STAT_ITEMS.map((_, index) => (
+        <SkeletonBlock
+          key={`stat-skeleton-${index}`}
+          width={90}
+          height={56}
+          borderRadius={30}
+          color={color}
+          style={styles.icon}
+        />
+      ))}
+    </View>
+    <LoadingDescription color={color} fullWidth={fullWidth} />
+    <LoadingChips color={color} />
+  </View>
+));
+
+const LoadingChapterItem = memo(({ color, fullWidth }: SkeletonProps) => {
   const textWidth = Math.max(80, fullWidth - 50);
   return (
     <View style={styles.chapter}>
       <View>
-        <LoadingShimmer style={styles.text} height={20} width={textWidth} />
-        <LoadingShimmer style={styles.text} height={16} width={textWidth} />
+        <SkeletonBlock
+          width={textWidth}
+          height={20}
+          borderRadius={8}
+          color={color}
+          style={styles.text}
+        />
+        <SkeletonBlock
+          width={textWidth}
+          height={16}
+          borderRadius={8}
+          color={color}
+          style={styles.text}
+        />
       </View>
-      <LoadingShimmer
-        style={styles.loadingChapterItem}
-        height={30}
+      <SkeletonBlock
         width={30}
-      />
-    </View>
-  );
-});
-
-const Chapters = memo(() => {
-  const { fullWidth } = useSkeletonContext();
-  return (
-    <View>
-      <LoadingShimmer
-        style={[styles.text, styles.chapters]}
         height={30}
-        width={fullWidth}
+        borderRadius={20}
+        color={color}
+        style={styles.loadingChapterItem}
       />
-      {CHAPTER_ITEMS.map((_, index) => (
-        <LoadingChapterItem key={`chapter-skeleton-${index}`} />
-      ))}
     </View>
   );
 });
 
-const NovelScreenLoading: React.FC<Props> = ({ theme }) => {
+const Chapters = memo(({ color, fullWidth }: SkeletonProps) => (
+  <View>
+    <SkeletonBlock
+      width={fullWidth}
+      height={30}
+      borderRadius={8}
+      color={color}
+      style={[styles.text, styles.chapters]}
+    />
+    {CHAPTER_ITEMS.map((_, index) => (
+      <LoadingChapterItem
+        key={`chapter-skeleton-${index}`}
+        color={color}
+        fullWidth={fullWidth}
+      />
+    ))}
+  </View>
+));
+
+const NovelScreenLoading: React.FC<{ theme: ThemeColors }> = ({ theme }) => {
+  const [, skeletonColor] = getLoadingColors(theme);
   const { width } = useWindowDimensions();
-  const [highlightColor, backgroundColor, disableLoadingAnimations] =
-    useLoadingColors(theme);
-  const contextValue = useMemo(
-    () => ({
-      backgroundColor,
-      disableLoadingAnimations,
-      fullWidth: Math.max(160, width - 32),
-      highlightColor,
-    }),
-    [backgroundColor, disableLoadingAnimations, highlightColor, width],
+  const fullWidth = useMemo(() => Math.max(160, width - 32), [width]);
+
+  const sharedProps = useMemo(
+    () => ({ color: skeletonColor, fullWidth }),
+    [skeletonColor, fullWidth],
   );
 
   return (
-    <SkeletonContext.Provider value={contextValue}>
-      <View style={styles.container}>
-        <NovelTop />
-        <NovelInformation />
-        <Chapters />
-      </View>
-    </SkeletonContext.Provider>
+    <View style={styles.container}>
+      <SkeletonGroup>
+        <NovelTop {...sharedProps} />
+        <NovelInformation {...sharedProps} />
+        <Chapters {...sharedProps} />
+      </SkeletonGroup>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  loadingChapterItem: { borderRadius: 20, alignSelf: 'center', marginLeft: 20 },
-  chapters: { marginBottom: 5, marginHorizontal: 16 },
   chapter: {
     flexDirection: 'row',
     marginHorizontal: 16,
     paddingVertical: 8,
   },
-  chapterContainer: {
+  chapters: {
+    marginBottom: 5,
     marginHorizontal: 16,
   },
   chip: {
-    borderRadius: 8,
     marginLeft: 8,
   },
   container: {
@@ -220,6 +206,10 @@ const styles = StyleSheet.create({
   },
   icon: {
     borderRadius: 30,
+  },
+  loadingChapterItem: {
+    alignSelf: 'center',
+    marginLeft: 20,
   },
   metadataContainer: {
     marginVertical: 4,

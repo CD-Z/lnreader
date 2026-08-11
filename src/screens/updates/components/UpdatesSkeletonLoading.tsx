@@ -1,67 +1,68 @@
-import React, { memo } from 'react';
+import React, { memo, useMemo } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
-import { ThemeColors } from '@theme/types';
-import useLoadingColors from '@utils/useLoadingColors';
 import Animated, { FadeIn } from 'react-native-reanimated';
-import ShimmerPlaceholder from '@components/Skeleton/ShimmerPlaceholder';
 
-const SKELETON_ITEMS = Array.from({ length: 8 });
+import { ThemeColors } from '@theme/types';
+import { SkeletonBlock } from '@components/Skeleton/SkeletonBlock';
+import { SkeletonGroup } from '@components/Skeleton/SkeletonGroup';
+import { getLoadingColors } from '@utils/useLoadingColors';
+import { useAppSettings } from '@hooks/persisted';
+
+const SKELETON_ITEMS = [0, 1, 2, 3, 4, 5, 6, 7];
 
 interface Props {
   theme: ThemeColors;
 }
 
 const UpdatesSkeletonLoading: React.FC<Props> = ({ theme }) => {
+  const [, skeletonColor] = getLoadingColors(theme);
   const { width } = useWindowDimensions();
-  const textWidth = Math.max(80, width - 120);
-  const [highlightColor, backgroundColor, disableLoadingAnimations] =
-    useLoadingColors(theme);
-
-  const renderLoadingChapter = (_: unknown, index: number) => {
-    return (
-      <View style={styles.chapterCtn} key={`updates-skeleton-${index}`}>
-        <ShimmerPlaceholder
-          style={styles.picture}
-          shimmerColors={[backgroundColor, highlightColor, backgroundColor]}
-          height={42}
-          width={42}
-          stopAutoRun={disableLoadingAnimations}
-        />
-        <View style={styles.textCtn}>
-          <ShimmerPlaceholder
-            style={styles.textTop}
-            shimmerColors={[backgroundColor, highlightColor, backgroundColor]}
-            height={16}
-            width={textWidth}
-            stopAutoRun={disableLoadingAnimations}
-          />
-          <ShimmerPlaceholder
-            style={styles.textBottom}
-            shimmerColors={[backgroundColor, highlightColor, backgroundColor]}
-            height={12}
-            width={textWidth}
-            stopAutoRun={disableLoadingAnimations}
-          />
-        </View>
-        <View style={styles.buttonCtn}>
-          <ShimmerPlaceholder
-            style={styles.button}
-            shimmerColors={[backgroundColor, highlightColor, backgroundColor]}
-            height={25}
-            width={25}
-            stopAutoRun={disableLoadingAnimations}
-          />
-        </View>
-      </View>
-    );
-  };
+  const textWidth = useMemo(() => Math.max(80, width - 120), [width]);
+  const { disableLoadingAnimations } = useAppSettings();
 
   return (
     <Animated.View
       entering={disableLoadingAnimations ? undefined : FadeIn.duration(500)}
       style={styles.contentCtn}
     >
-      {SKELETON_ITEMS.map(renderLoadingChapter)}
+      <SkeletonGroup>
+        {SKELETON_ITEMS.map(i => (
+          <View key={`updates-skeleton-${i}`} style={styles.chapterCtn}>
+            <SkeletonBlock
+              width={42}
+              height={42}
+              borderRadius={4}
+              color={skeletonColor}
+              style={styles.picture}
+            />
+            <View style={styles.textCtn}>
+              <SkeletonBlock
+                width={textWidth}
+                height={16}
+                borderRadius={6}
+                color={skeletonColor}
+                style={styles.textTop}
+              />
+              <SkeletonBlock
+                width={textWidth}
+                height={12}
+                borderRadius={6}
+                color={skeletonColor}
+                style={styles.textBottom}
+              />
+            </View>
+            <View style={styles.buttonCtn}>
+              <SkeletonBlock
+                width={25}
+                height={25}
+                borderRadius={12.5}
+                color={skeletonColor}
+                style={styles.button}
+              />
+            </View>
+          </View>
+        ))}
+      </SkeletonGroup>
     </Animated.View>
   );
 };
@@ -95,14 +96,14 @@ const styles = StyleSheet.create({
     marginBottom: 5,
     marginTop: 2,
   },
+  textCtn: {
+    flex: 1,
+    overflow: 'hidden',
+  },
   textTop: {
     borderRadius: 6,
     marginBottom: 2,
     marginTop: 5,
-  },
-  textCtn: {
-    flex: 1,
-    overflow: 'hidden',
   },
 });
 

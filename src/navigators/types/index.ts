@@ -71,6 +71,7 @@ export type MoreStackParamList = {
   Downloads: undefined;
   Categories: undefined;
   Statistics: undefined;
+  SkeletonDebug: undefined;
 };
 
 export type SettingsStackParamList = {

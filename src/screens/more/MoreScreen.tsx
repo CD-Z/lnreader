@@ -191,6 +191,21 @@ const MoreScreen = ({ navigation }: MoreStackScreenProps) => {
             }
             theme={theme}
           />
+          {__DEV__ ? (
+            <>
+              <List.Divider theme={theme} />
+              <List.Item
+                title="Skeleton Debug"
+                icon="eye-outline"
+                onPress={() =>
+                  navigation.navigate('MoreStack', {
+                    screen: 'SkeletonDebug',
+                  })
+                }
+                theme={theme}
+              />
+            </>
+          ) : null}
         </List.Section>
       </ScrollView>
     </SafeAreaView>

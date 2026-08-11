@@ -91,9 +91,7 @@ jest.mock(
 );
 
 const renderScreen = () =>
-  render(
-    <SettingsTaxonomyScreen navigation={{} as any} route={{} as any} />,
-  );
+  render(<SettingsTaxonomyScreen navigation={{} as any} route={{} as any} />);
 
 describe('SettingsTaxonomyScreen', () => {
   beforeEach(() => {

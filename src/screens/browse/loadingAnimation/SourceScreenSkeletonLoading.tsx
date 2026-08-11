@@ -1,8 +1,10 @@
 import React, { memo, useMemo } from 'react';
 import { View, StyleSheet, useWindowDimensions } from 'react-native';
+
 import { ThemeColors } from '@theme/types';
-import useLoadingColors from '@utils/useLoadingColors';
-import LoadingNovel from '@screens/browse/loadingAnimation/LoadingNovel';
+import { getLoadingColors } from '@utils/useLoadingColors';
+import { SkeletonGroup } from '@components/Skeleton/SkeletonGroup';
+import LoadingNovel from './LoadingNovel';
 import { useLibrarySettings } from '@hooks/persisted';
 import { DisplayModes } from '@screens/library/constants/constants';
 import { useDeviceOrientation } from '@hooks';
@@ -16,8 +18,7 @@ const SourceScreenSkeletonLoading: React.FC<Props> = ({
   theme,
   completeRow,
 }) => {
-  const [highlightColor, backgroundColor, disableLoadingAnimations] =
-    useLoadingColors(theme);
+  const [, skeletonColor] = getLoadingColors(theme);
 
   const { displayMode = DisplayModes.Comfortable, novelsPerRow = 3 } =
     useLibrarySettings();
@@ -40,52 +41,63 @@ const SourceScreenSkeletonLoading: React.FC<Props> = ({
     return [width * (4 / 3), width];
   }, [numColumns, window.width]);
 
-  const renderLoadingNovel = (item: number) => {
-    return (
-      <View
-        key={'sourceLoading' + item}
-        style={[styles.item, { flex: 1 / numColumns }]}
-      >
-        <LoadingNovel
-          availableWidth={window.width}
-          backgroundColor={backgroundColor}
-          disableLoadingAnimations={disableLoadingAnimations}
-          highlightColor={highlightColor}
-          pictureHeight={pictureHeight}
-          pictureWidth={pictureWidth}
-          displayMode={displayMode}
-        />
-      </View>
-    );
-  };
-  const renderLoading = (item: number) => {
-    const offset = Math.pow(10, item);
-    const items: number[] = [1 * offset];
-    if (displayMode !== DisplayModes.List) {
-      for (let i = 2; i <= numColumns; i++) {
-        items.push(i * offset);
-      }
-    }
-    return (
-      <View key={'sourceSkeletonRow' + item} style={styles.row}>
-        {items.map(renderLoadingNovel)}
-      </View>
-    );
-  };
-  let items: number[] = [];
+  const renderLoadingNovel = (item: number) => (
+    <View
+      key={'sourceLoading' + item}
+      style={[styles.item, { flex: 1 / numColumns }]}
+    >
+      <LoadingNovel
+        availableWidth={window.width}
+        color={skeletonColor}
+        pictureHeight={pictureHeight}
+        pictureWidth={pictureWidth}
+        displayMode={displayMode}
+      />
+    </View>
+  );
+
   if (completeRow === 1) {
-    return renderLoadingNovel(completeRow);
+    return <SkeletonGroup>{renderLoadingNovel(completeRow)}</SkeletonGroup>;
   }
 
   if (displayMode === DisplayModes.List) {
-    items = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-  } else {
-    for (let i = 1; i * pictureHeight < window.height - 100; i++) {
-      items.push(i);
-    }
+    const items = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+    return (
+      <View style={styles.container}>
+        <SkeletonGroup>
+          {items.map(item => (
+            <View key={'sourceSkeletonRow' + item} style={styles.row}>
+              {renderLoadingNovel(item)}
+            </View>
+          ))}
+        </SkeletonGroup>
+      </View>
+    );
   }
 
-  return <View style={styles.container}>{items.map(renderLoading)}</View>;
+  const rowCount = Math.max(
+    1,
+    Math.floor((window.height - 100) / pictureHeight),
+  );
+
+  return (
+    <View style={styles.container}>
+      <SkeletonGroup>
+        {Array.from({ length: rowCount }, (_, item) => {
+          const offset = Math.pow(10, item);
+          const items: number[] = [1 * offset];
+          for (let i = 2; i <= numColumns; i++) {
+            items.push(i * offset);
+          }
+          return (
+            <View key={'sourceSkeletonRow' + item} style={styles.row}>
+              {items.map(renderLoadingNovel)}
+            </View>
+          );
+        })}
+      </SkeletonGroup>
+    </View>
+  );
 };
 
 const styles = StyleSheet.create({

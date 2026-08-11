@@ -1,8 +1,10 @@
-import React, { memo } from 'react';
+import React, { memo, useMemo } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
+
 import { ThemeColors } from '@theme/types';
-import useLoadingColors from '@utils/useLoadingColors';
-import ShimmerPlaceholder from '@components/Skeleton/ShimmerPlaceholder';
+import { SkeletonBlock } from '@components/Skeleton/SkeletonBlock';
+import { SkeletonGroup } from '@components/Skeleton/SkeletonGroup';
+import { getLoadingColors } from '@utils/useLoadingColors';
 
 const SKELETON_ITEMS = [
   { dateWidth: 72 },
@@ -17,63 +19,61 @@ interface Props {
 }
 
 const HistorySkeletonLoading: React.FC<Props> = ({ theme }) => {
+  const [, skeletonColor] = getLoadingColors(theme);
   const { width } = useWindowDimensions();
-  const textWidth = Math.max(80, width - 144);
-  const [highlightColor, backgroundColor, disableLoadingAnimations] =
-    useLoadingColors(theme);
+  const textWidth = useMemo(() => Math.max(80, width - 144), [width]);
 
-  const renderLoadingChapter = (
-    { dateWidth }: (typeof SKELETON_ITEMS)[number],
-    index: number,
-  ) => (
-    <View key={`historyLoading${index}`}>
-      {dateWidth ? (
-        <ShimmerPlaceholder
-          style={styles.date}
-          shimmerColors={[backgroundColor, highlightColor, backgroundColor]}
-          height={19.3}
-          width={dateWidth}
-          stopAutoRun={disableLoadingAnimations}
-        />
-      ) : null}
-      <View style={styles.chapterCtn}>
-        <ShimmerPlaceholder
-          style={styles.picture}
-          shimmerColors={[backgroundColor, highlightColor, backgroundColor]}
-          height={80}
-          width={56}
-          stopAutoRun={disableLoadingAnimations}
-        />
-        <View style={styles.textCtn}>
-          <ShimmerPlaceholder
-            style={styles.text}
-            shimmerColors={[backgroundColor, highlightColor, backgroundColor]}
-            height={16}
-            width={textWidth}
-            stopAutoRun={disableLoadingAnimations}
-          />
-          <ShimmerPlaceholder
-            style={styles.text}
-            shimmerColors={[backgroundColor, highlightColor, backgroundColor]}
-            height={12}
-            width={textWidth}
-            stopAutoRun={disableLoadingAnimations}
-          />
+  return (
+    <SkeletonGroup>
+      {SKELETON_ITEMS.map(({ dateWidth }, index) => (
+        <View key={`historyLoading${index}`}>
+          {dateWidth ? (
+            <SkeletonBlock
+              width={dateWidth}
+              height={19.3}
+              borderRadius={6}
+              color={skeletonColor}
+              style={styles.date}
+            />
+          ) : null}
+          <View style={styles.chapterCtn}>
+            <SkeletonBlock
+              width={56}
+              height={80}
+              borderRadius={4}
+              color={skeletonColor}
+              style={styles.picture}
+            />
+            <View style={styles.textCtn}>
+              <SkeletonBlock
+                width={textWidth}
+                height={16}
+                borderRadius={6}
+                color={skeletonColor}
+                style={styles.text}
+              />
+              <SkeletonBlock
+                width={textWidth}
+                height={12}
+                borderRadius={6}
+                color={skeletonColor}
+                style={styles.text}
+              />
+            </View>
+            <View style={styles.buttonCtn}>
+              <SkeletonBlock
+                width={24}
+                height={24}
+                borderRadius={12.5}
+                color={skeletonColor}
+                style={styles.button}
+              />
+            </View>
+          </View>
         </View>
-        <View style={styles.buttonCtn}>
-          <ShimmerPlaceholder
-            style={styles.button}
-            shimmerColors={[backgroundColor, highlightColor, backgroundColor]}
-            height={24}
-            width={24}
-            stopAutoRun={disableLoadingAnimations}
-          />
-        </View>
-      </View>
-    </View>
+      ))}
+    </SkeletonGroup>
   );
-
-  return <View>{SKELETON_ITEMS.map(renderLoadingChapter)}</View>;
 };
 
 const styles = StyleSheet.create({
@@ -90,9 +90,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'row',
     marginVertical: 8,
-  },
-  contentCtn: {
-    paddingVertical: 8,
   },
   date: {
     borderRadius: 6,

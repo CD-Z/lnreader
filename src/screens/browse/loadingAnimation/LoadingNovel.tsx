@@ -1,63 +1,61 @@
-import React, { memo, useMemo } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { memo } from 'react';
+import { StyleSheet, View } from 'react-native';
+
 import { DisplayModes } from '@screens/library/constants/constants';
-import ShimmerPlaceholder from '@components/Skeleton/ShimmerPlaceholder';
+import { SkeletonBlock } from '@components/Skeleton/SkeletonBlock';
 
 interface Props {
   availableWidth: number;
-  backgroundColor: string;
-  disableLoadingAnimations: boolean;
-  highlightColor: string;
+  color: string;
   pictureHeight: number;
   pictureWidth: number;
   displayMode: DisplayModes;
 }
 
-const LoadingNovel: React.FC<Props> = ({
+const LoadingNovel = ({
   availableWidth,
-  backgroundColor,
-  disableLoadingAnimations,
-  highlightColor,
+  color,
   pictureHeight,
   pictureWidth,
   displayMode,
-}) => {
+}: Props) => {
   const showTitle =
     displayMode !== DisplayModes.CoverOnly &&
     displayMode !== DisplayModes.Compact;
-  const loadingContainerStyle = useMemo(
-    () => ({
-      height: pictureHeight + (showTitle ? 54.6 : 9.6),
-      width: pictureWidth + 9.6,
-    }),
-    [pictureHeight, pictureWidth, showTitle],
-  );
 
   if (displayMode !== DisplayModes.List) {
     return (
-      <View style={[styles.loadingContainer, loadingContainerStyle]}>
-        <ShimmerPlaceholder
-          style={styles.picture}
-          shimmerColors={[backgroundColor, highlightColor, backgroundColor]}
-          height={pictureHeight}
+      <View
+        style={[
+          styles.loadingContainer,
+          {
+            height: pictureHeight + (showTitle ? 54.6 : 9.6),
+            width: pictureWidth + 9.6,
+          },
+        ]}
+      >
+        <SkeletonBlock
           width={pictureWidth}
-          stopAutoRun={disableLoadingAnimations}
+          height={pictureHeight}
+          borderRadius={4}
+          color={color}
+          style={styles.picture}
         />
         {showTitle ? (
           <>
-            <ShimmerPlaceholder
-              style={styles.text}
-              shimmerColors={[backgroundColor, highlightColor, backgroundColor]}
-              height={16}
+            <SkeletonBlock
               width={pictureWidth}
-              stopAutoRun={disableLoadingAnimations}
-            />
-            <ShimmerPlaceholder
-              style={styles.text}
-              shimmerColors={[backgroundColor, highlightColor, backgroundColor]}
               height={16}
+              borderRadius={8}
+              color={color}
+              style={styles.text}
+            />
+            <SkeletonBlock
               width={pictureWidth * 0.68}
-              stopAutoRun={disableLoadingAnimations}
+              height={16}
+              borderRadius={8}
+              color={color}
+              style={styles.text}
             />
           </>
         ) : null}
@@ -67,28 +65,29 @@ const LoadingNovel: React.FC<Props> = ({
 
   const chapterNumberWidth = 40;
   const textWidth = Math.max(80, availableWidth - chapterNumberWidth - 88);
+
   return (
     <View style={styles.listLoadingContainer}>
-      <ShimmerPlaceholder
-        style={styles.picture}
-        shimmerColors={[backgroundColor, highlightColor, backgroundColor]}
-        height={40}
+      <SkeletonBlock
         width={40}
-        stopAutoRun={disableLoadingAnimations}
-      />
-      <ShimmerPlaceholder
-        style={styles.listText}
-        shimmerColors={[backgroundColor, highlightColor, backgroundColor]}
-        height={18}
-        width={textWidth}
-        stopAutoRun={disableLoadingAnimations}
-      />
-      <ShimmerPlaceholder
+        height={40}
+        borderRadius={4}
+        color={color}
         style={styles.picture}
-        shimmerColors={[backgroundColor, highlightColor, backgroundColor]}
-        height={20}
+      />
+      <SkeletonBlock
+        width={textWidth}
+        height={18}
+        borderRadius={4}
+        color={color}
+        style={styles.listText}
+      />
+      <SkeletonBlock
         width={chapterNumberWidth}
-        stopAutoRun={disableLoadingAnimations}
+        height={20}
+        borderRadius={4}
+        color={color}
+        style={styles.picture}
       />
     </View>
   );
