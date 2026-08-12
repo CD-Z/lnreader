@@ -1,9 +1,9 @@
 import React, { memo } from 'react';
-import { StyleSheet, useWindowDimensions, View } from 'react-native';
+import { StyleSheet, useWindowDimensions } from 'react-native';
 
 import { ThemeColors } from '@theme/types';
 import { SkeletonBlock } from '@components/Skeleton/SkeletonBlock';
-import { SkeletonGroup } from '@components/Skeleton/SkeletonGroup';
+import { SkeletonSection } from '@components/Skeleton/SkeletonSection';
 import { getLoadingColors } from '@utils/useLoadingColors';
 
 interface Props {
@@ -15,25 +15,27 @@ interface Props {
 const SKELETON_ITEMS = [0, 1, 2, 3, 4, 5];
 
 const CategorySkeletonLoading: React.FC<Props> = ({ height, width, theme }) => {
-  const [, skeletonColor] = getLoadingColors(theme);
+  const [highlightColor, skeletonColor] = getLoadingColors(theme);
   const window = useWindowDimensions();
   const cardWidth = Math.min(width, window.width - 32);
 
   return (
-    <View style={styles.contentCtn}>
-      <SkeletonGroup>
-        {SKELETON_ITEMS.map(i => (
-          <SkeletonBlock
-            key={`category-skeleton-${i}`}
-            width={cardWidth}
-            height={height}
-            borderRadius={12}
-            color={skeletonColor}
-            style={styles.categoryCard}
-          />
-        ))}
-      </SkeletonGroup>
-    </View>
+    <SkeletonSection
+      baseColor={skeletonColor}
+      highlightColor={highlightColor}
+      style={styles.contentCtn}
+    >
+      {SKELETON_ITEMS.map(i => (
+        <SkeletonBlock
+          key={`category-skeleton-${i}`}
+          width={cardWidth}
+          height={height}
+          borderRadius={12}
+          color={skeletonColor}
+          style={styles.categoryCard}
+        />
+      ))}
+    </SkeletonSection>
   );
 };
 

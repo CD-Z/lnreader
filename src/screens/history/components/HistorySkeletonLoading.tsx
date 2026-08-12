@@ -3,7 +3,7 @@ import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { ThemeColors } from '@theme/types';
 import { SkeletonBlock } from '@components/Skeleton/SkeletonBlock';
-import { SkeletonGroup } from '@components/Skeleton/SkeletonGroup';
+import { SkeletonSection } from '@components/Skeleton/SkeletonSection';
 import { getLoadingColors } from '@utils/useLoadingColors';
 
 const SKELETON_ITEMS = [
@@ -19,12 +19,12 @@ interface Props {
 }
 
 const HistorySkeletonLoading: React.FC<Props> = ({ theme }) => {
-  const [, skeletonColor] = getLoadingColors(theme);
+  const [highlightColor, skeletonColor] = getLoadingColors(theme);
   const { width } = useWindowDimensions();
   const textWidth = useMemo(() => Math.max(80, width - 144), [width]);
 
   return (
-    <SkeletonGroup>
+    <SkeletonSection baseColor={skeletonColor} highlightColor={highlightColor}>
       {SKELETON_ITEMS.map(({ dateWidth }, index) => (
         <View key={`historyLoading${index}`}>
           {dateWidth ? (
@@ -72,7 +72,7 @@ const HistorySkeletonLoading: React.FC<Props> = ({ theme }) => {
           </View>
         </View>
       ))}
-    </SkeletonGroup>
+    </SkeletonSection>
   );
 };
 

@@ -4,7 +4,7 @@ import Animated, { FadeIn } from 'react-native-reanimated';
 
 import { ThemeColors } from '@theme/types';
 import { SkeletonBlock } from '@components/Skeleton/SkeletonBlock';
-import { SkeletonGroup } from '@components/Skeleton/SkeletonGroup';
+import { SkeletonSection } from '@components/Skeleton/SkeletonSection';
 import { getLoadingColors } from '@utils/useLoadingColors';
 import { useAppSettings } from '@hooks/persisted';
 
@@ -15,7 +15,7 @@ interface Props {
 }
 
 const UpdatesSkeletonLoading: React.FC<Props> = ({ theme }) => {
-  const [, skeletonColor] = getLoadingColors(theme);
+  const [highlightColor, skeletonColor] = getLoadingColors(theme);
   const { width } = useWindowDimensions();
   const textWidth = useMemo(() => Math.max(80, width - 120), [width]);
   const { disableLoadingAnimations } = useAppSettings();
@@ -25,7 +25,10 @@ const UpdatesSkeletonLoading: React.FC<Props> = ({ theme }) => {
       entering={disableLoadingAnimations ? undefined : FadeIn.duration(500)}
       style={styles.contentCtn}
     >
-      <SkeletonGroup>
+      <SkeletonSection
+        baseColor={skeletonColor}
+        highlightColor={highlightColor}
+      >
         {SKELETON_ITEMS.map(i => (
           <View key={`updates-skeleton-${i}`} style={styles.chapterCtn}>
             <SkeletonBlock
@@ -62,7 +65,7 @@ const UpdatesSkeletonLoading: React.FC<Props> = ({ theme }) => {
             </View>
           </View>
         ))}
-      </SkeletonGroup>
+      </SkeletonSection>
     </Animated.View>
   );
 };

@@ -4,15 +4,18 @@ import { StyleSheet, View } from 'react-native';
 import { Row } from '@components/Common';
 import { ThemeColors } from '@theme/types';
 import { SkeletonBlock } from '@components/Skeleton/SkeletonBlock';
-import { SkeletonGroup } from '@components/Skeleton/SkeletonGroup';
+import { SkeletonSection } from '@components/Skeleton/SkeletonSection';
 import { getLoadingColors } from '@utils/useLoadingColors';
 
 export const ChapterCountSkeleton = memo(
   ({ theme }: { theme: ThemeColors }) => {
-    const [, skeletonColor] = getLoadingColors(theme);
+    const [highlightColor, skeletonColor] = getLoadingColors(theme);
 
     return (
-      <SkeletonGroup>
+      <SkeletonSection
+        baseColor={skeletonColor}
+        highlightColor={highlightColor}
+      >
         <SkeletonBlock
           width={120}
           height={14}
@@ -20,7 +23,7 @@ export const ChapterCountSkeleton = memo(
           color={skeletonColor}
           style={styles.chapterCountSkeleton}
         />
-      </SkeletonGroup>
+      </SkeletonSection>
     );
   },
 );
@@ -29,10 +32,13 @@ const INFO_WIDTHS = [130, 180];
 
 export const NovelDetailsSkeleton = memo(
   ({ theme }: { theme: ThemeColors }) => {
-    const [, skeletonColor] = getLoadingColors(theme);
+    const [highlightColor, skeletonColor] = getLoadingColors(theme);
 
     return (
-      <SkeletonGroup>
+      <SkeletonSection
+        baseColor={skeletonColor}
+        highlightColor={highlightColor}
+      >
         {INFO_WIDTHS.map((width, index) => (
           <Row key={index} style={styles.infoRow}>
             <SkeletonBlock
@@ -44,16 +50,16 @@ export const NovelDetailsSkeleton = memo(
             />
           </Row>
         ))}
-      </SkeletonGroup>
+      </SkeletonSection>
     );
   },
 );
 
 export const ButtonGroupSkeleton = memo(({ theme }: { theme: ThemeColors }) => {
-  const [, skeletonColor] = getLoadingColors(theme);
+  const [highlightColor, skeletonColor] = getLoadingColors(theme);
 
   return (
-    <SkeletonGroup>
+    <SkeletonSection baseColor={skeletonColor} highlightColor={highlightColor}>
       <View style={styles.buttonGroupSkeletonContainer}>
         <SkeletonBlock
           width="100%"
@@ -70,7 +76,7 @@ export const ButtonGroupSkeleton = memo(({ theme }: { theme: ThemeColors }) => {
           style={styles.buttonSkeleton}
         />
       </View>
-    </SkeletonGroup>
+    </SkeletonSection>
   );
 });
 

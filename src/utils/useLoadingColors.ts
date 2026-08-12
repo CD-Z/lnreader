@@ -13,6 +13,7 @@ export const getLoadingColors = (
 ) => {
   const surfaceColor = color(theme.surface);
   const foregroundColor = color(theme.onSurface);
+  const primaryColor = color(theme.primary);
   const backgroundStrength = disableLoadingAnimations
     ? STATIC_BASE_STRENGTH
     : BASE_STRENGTH;
@@ -21,7 +22,7 @@ export const getLoadingColors = (
     .mix(foregroundColor, backgroundStrength)
     .hex();
   const highlightColor = surfaceColor
-    .mix(foregroundColor, HIGHLIGHT_STRENGTH)
+    .mix(primaryColor, HIGHLIGHT_STRENGTH)
     .hex();
 
   return [highlightColor, backgroundColor] as const;

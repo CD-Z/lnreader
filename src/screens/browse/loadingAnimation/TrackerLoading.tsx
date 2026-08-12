@@ -3,7 +3,7 @@ import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { ThemeColors } from '@theme/types';
 import { SkeletonBlock } from '@components/Skeleton/SkeletonBlock';
-import { SkeletonGroup } from '@components/Skeleton/SkeletonGroup';
+import { SkeletonSection } from '@components/Skeleton/SkeletonSection';
 import { getLoadingColors } from '@utils/useLoadingColors';
 
 interface Props {
@@ -19,54 +19,53 @@ const SKELETON_ITEMS = [
 ] as const;
 
 const TrackerLoading: React.FC<Props> = ({ theme }) => {
-  const [, skeletonColor] = getLoadingColors(theme);
+  const [highlightColor, skeletonColor] = getLoadingColors(theme);
   const { width } = useWindowDimensions();
   const textWidth = useMemo(() => Math.max(80, width - 140), [width]);
 
   return (
-    <View style={styles.container}>
-      <SkeletonGroup>
-        {SKELETON_ITEMS.map((item, index) => (
-          <View
-            key={`tracker-skeleton-${index}`}
-            style={[
-              styles.loadingContainer,
-              { backgroundColor: theme.overlay3 },
-            ]}
-          >
+    <SkeletonSection
+      baseColor={skeletonColor}
+      highlightColor={highlightColor}
+      style={styles.container}
+    >
+      {SKELETON_ITEMS.map((item, index) => (
+        <View
+          key={`tracker-skeleton-${index}`}
+          style={[styles.loadingContainer, { backgroundColor: theme.overlay3 }]}
+        >
+          <SkeletonBlock
+            width={100}
+            height={item.height}
+            borderRadius={8}
+            color={skeletonColor}
+          />
+          <View style={styles.loadingText}>
             <SkeletonBlock
-              width={100}
-              height={item.height}
+              width={textWidth}
+              height={16}
               borderRadius={8}
               color={skeletonColor}
+              style={styles.text}
             />
-            <View style={styles.loadingText}>
-              <SkeletonBlock
-                width={textWidth}
-                height={16}
-                borderRadius={8}
-                color={skeletonColor}
-                style={styles.text}
-              />
-              <SkeletonBlock
-                width={textWidth}
-                height={16}
-                borderRadius={8}
-                color={skeletonColor}
-                style={styles.text}
-              />
-              <SkeletonBlock
-                width={textWidth * item.lastLineRatio}
-                height={16}
-                borderRadius={8}
-                color={skeletonColor}
-                style={styles.text}
-              />
-            </View>
+            <SkeletonBlock
+              width={textWidth}
+              height={16}
+              borderRadius={8}
+              color={skeletonColor}
+              style={styles.text}
+            />
+            <SkeletonBlock
+              width={textWidth * item.lastLineRatio}
+              height={16}
+              borderRadius={8}
+              color={skeletonColor}
+              style={styles.text}
+            />
           </View>
-        ))}
-      </SkeletonGroup>
-    </View>
+        </View>
+      ))}
+    </SkeletonSection>
   );
 };
 

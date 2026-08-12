@@ -6,9 +6,6 @@ import {
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
-import { Shimmer } from 'react-native-fast-shimmer';
-
-import { useSkeletonEnabled } from './SkeletonGroup';
 
 type SkeletonBlockProps = {
   width: DimensionValue;
@@ -19,10 +16,9 @@ type SkeletonBlockProps = {
 };
 
 /**
- * A shimmering placeholder block. Renders the base skeleton color and a
- * gradient sweep that is driven by the nearest SkeletonGroup provider, so
- * every block on screen shares one animation. Renders as a static block
- * when loading animations are disabled.
+ * A static skeleton shape. Used as the mask inside a SkeletonSection, so it
+ * must stay lightweight and carry an opaque background (the mask reads the
+ * shape's alpha).
  */
 export const SkeletonBlock = memo(
   ({
@@ -31,27 +27,21 @@ export const SkeletonBlock = memo(
     borderRadius = 8,
     color = '#E2E5E9',
     style,
-  }: SkeletonBlockProps) => {
-    const enabled = useSkeletonEnabled();
-
-    return (
-      <View
-        accessible={false}
-        style={[
-          styles.block,
-          {
-            width,
-            height,
-            borderRadius,
-            backgroundColor: color,
-          },
-          style,
-        ]}
-      >
-        {enabled ? <Shimmer /> : null}
-      </View>
-    );
-  },
+  }: SkeletonBlockProps) => (
+    <View
+      accessible={false}
+      style={[
+        styles.block,
+        {
+          width,
+          height,
+          borderRadius,
+          backgroundColor: color,
+        },
+        style,
+      ]}
+    />
+  ),
 );
 
 const styles = StyleSheet.create({

@@ -3,7 +3,7 @@ import { View, StyleSheet, useWindowDimensions } from 'react-native';
 
 import { ThemeColors } from '@theme/types';
 import { SkeletonBlock } from '@components/Skeleton/SkeletonBlock';
-import { SkeletonGroup } from '@components/Skeleton/SkeletonGroup';
+import { SkeletonSection } from '@components/Skeleton/SkeletonSection';
 import { getLoadingColors } from '@utils/useLoadingColors';
 
 interface SkeletonProps {
@@ -154,7 +154,7 @@ const Chapters = memo(({ color, fullWidth }: SkeletonProps) => (
 ));
 
 const NovelScreenLoading: React.FC<{ theme: ThemeColors }> = ({ theme }) => {
-  const [, skeletonColor] = getLoadingColors(theme);
+  const [highlightColor, skeletonColor] = getLoadingColors(theme);
   const { width } = useWindowDimensions();
   const fullWidth = useMemo(() => Math.max(160, width - 32), [width]);
 
@@ -164,13 +164,15 @@ const NovelScreenLoading: React.FC<{ theme: ThemeColors }> = ({ theme }) => {
   );
 
   return (
-    <View style={styles.container}>
-      <SkeletonGroup>
-        <NovelTop {...sharedProps} />
-        <NovelInformation {...sharedProps} />
-        <Chapters {...sharedProps} />
-      </SkeletonGroup>
-    </View>
+    <SkeletonSection
+      baseColor={skeletonColor}
+      highlightColor={highlightColor}
+      style={styles.container}
+    >
+      <NovelTop {...sharedProps} />
+      <NovelInformation {...sharedProps} />
+      <Chapters {...sharedProps} />
+    </SkeletonSection>
   );
 };
 

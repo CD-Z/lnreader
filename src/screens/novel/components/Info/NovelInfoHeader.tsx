@@ -176,7 +176,6 @@ const NovelInfoHeader = ({
     () => ({ color: theme.rippleColor }),
     [theme.rippleColor],
   );
-
   return (
     <>
       <CoverImage

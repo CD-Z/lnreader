@@ -2,14 +2,14 @@ import React, { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { SkeletonBlock } from '@components/Skeleton/SkeletonBlock';
-import { SkeletonGroup } from '@components/Skeleton/SkeletonGroup';
+import { SkeletonSection } from '@components/Skeleton/SkeletonSection';
 import { useTheme } from '@hooks/persisted';
 import { getLoadingColors } from '@utils/useLoadingColors';
 
 function useSharedSkeleton() {
   const theme = useTheme();
-  const [, skeletonColor] = getLoadingColors(theme);
-  return { skeletonColor };
+  const [highlightColor, skeletonColor] = getLoadingColors(theme);
+  return { highlightColor, skeletonColor };
 }
 
 const ChapterSkeleton = React.memo(function ChapterSkeletonItem({
@@ -58,9 +58,9 @@ const ChapterSkeleton = React.memo(function ChapterSkeletonItem({
 });
 
 export function VerticalBarSkeleton() {
-  const { skeletonColor } = useSharedSkeleton();
+  const { highlightColor, skeletonColor } = useSharedSkeleton();
   return (
-    <SkeletonGroup>
+    <SkeletonSection baseColor={skeletonColor} highlightColor={highlightColor}>
       <View style={styles.verticalBar}>
         <SkeletonBlock
           width="100%"
@@ -69,15 +69,15 @@ export function VerticalBarSkeleton() {
           color={skeletonColor}
         />
       </View>
-    </SkeletonGroup>
+    </SkeletonSection>
   );
 }
 
 export function NovelMetaSkeleton() {
-  const { skeletonColor } = useSharedSkeleton();
+  const { highlightColor, skeletonColor } = useSharedSkeleton();
 
   return (
-    <SkeletonGroup>
+    <SkeletonSection baseColor={skeletonColor} highlightColor={highlightColor}>
       <View style={[styles.novelInformationText, styles.h62]}>
         <View style={[styles.flex, styles.h20]}>
           <SkeletonBlock
@@ -108,20 +108,20 @@ export function NovelMetaSkeleton() {
           </View>
         </View>
       </View>
-    </SkeletonGroup>
+    </SkeletonSection>
   );
 }
 
 export const ChapterListSkeleton = ({ img }: { img?: boolean }) => {
-  const { skeletonColor } = useSharedSkeleton();
+  const { highlightColor, skeletonColor } = useSharedSkeleton();
   const items = useMemo(() => [0, 1, 2, 3, 4, 5, 6], []);
 
   return (
-    <SkeletonGroup>
+    <SkeletonSection baseColor={skeletonColor} highlightColor={highlightColor}>
       {items.map(i => (
         <ChapterSkeleton key={i} color={skeletonColor} img={img} />
       ))}
-    </SkeletonGroup>
+    </SkeletonSection>
   );
 };
 

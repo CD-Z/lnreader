@@ -7,7 +7,7 @@ import {
 } from 'react-native';
 
 import { SkeletonBlock } from '@components/Skeleton/SkeletonBlock';
-import { SkeletonGroup } from '@components/Skeleton/SkeletonGroup';
+import { SkeletonSection } from '@components/Skeleton/SkeletonSection';
 
 interface Props {
   color?: string;
@@ -16,12 +16,6 @@ interface Props {
   containerWidth: DimensionValue;
   highlightColor?: string;
   lineHeight: number;
-  /**
-   * How many lines actually shimmer. Every shimmering line costs an SVG
-   * gradient view, and this placeholder is shown while the app is busy
-   * loading, so the lines below the fold are rendered as plain bars.
-   */
-  maxAnimatedLines?: number;
   textSize: number;
   width?: DimensionValue;
 }
@@ -46,7 +40,6 @@ const SkeletonLines = ({
   containerMargin = 0,
   color = '#ebebeb',
   highlightColor = '#c5c5c5',
-  maxAnimatedLines = 12,
 }: Props) => {
   const window = useWindowDimensions();
 
@@ -74,26 +67,14 @@ const SkeletonLines = ({
 
   return (
     <View style={styles.container}>
-      <SkeletonGroup highlightColor={highlightColor}>
+      <SkeletonSection
+        baseColor={color}
+        highlightColor={highlightColor}
+        style={stylesSection}
+      >
         {lines.map((_, index) => {
           const lineWidth =
             index % 5 === 4 ? resolvedWidth * 0.68 : resolvedWidth;
-
-          if (index >= maxAnimatedLines) {
-            return (
-              <View
-                key={`reader-line-skeleton-${index}`}
-                accessible={false}
-                style={{
-                  backgroundColor: color,
-                  borderRadius: 8,
-                  height: textSize,
-                  marginBottom: Math.max(0, rowHeight - textSize),
-                  width: lineWidth,
-                }}
-              />
-            );
-          }
 
           return (
             <SkeletonBlock
@@ -108,9 +89,11 @@ const SkeletonLines = ({
             />
           );
         })}
-      </SkeletonGroup>
+      </SkeletonSection>
     </View>
   );
 };
+
+const stylesSection = { flex: 1 };
 
 export default memo(SkeletonLines);

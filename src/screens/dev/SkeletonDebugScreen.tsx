@@ -4,7 +4,7 @@ import { LegendList } from '@legendapp/list/react-native';
 
 import { Appbar, SafeAreaView } from '@components';
 import { SkeletonBlock } from '@components/Skeleton/SkeletonBlock';
-import { SkeletonGroup } from '@components/Skeleton/SkeletonGroup';
+import { SkeletonSection } from '@components/Skeleton/SkeletonSection';
 import { useTheme, useAppSettings } from '@hooks/persisted';
 import { getLoadingColors } from '@utils/useLoadingColors';
 import Switch from '@components/Switch/Switch';
@@ -67,7 +67,7 @@ const Section = memo(
 
 const SkeletonColorSwatch = memo(() => {
   const theme = useTheme();
-  const [, skeletonColor] = getLoadingColors(theme);
+  const [highlightColor, skeletonColor] = getLoadingColors(theme);
   const { disableLoadingAnimations } = useAppSettings();
 
   return (
@@ -76,14 +76,17 @@ const SkeletonColorSwatch = memo(() => {
         disableLoadingAnimations ? 'disabled' : 'enabled'
       })`}
     >
-      <SkeletonGroup>
+      <SkeletonSection
+        baseColor={skeletonColor}
+        highlightColor={highlightColor}
+      >
         <SkeletonBlock
           width="100%"
           height={40}
           borderRadius={8}
           color={skeletonColor}
         />
-      </SkeletonGroup>
+      </SkeletonSection>
     </Section>
   );
 });
@@ -236,7 +239,6 @@ const SkeletonDebugScreen = ({ navigation }: Props) => {
     ],
     [theme, width],
   );
-  return null;
 
   return (
     <SafeAreaView excludeTop>
