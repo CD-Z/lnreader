@@ -16,11 +16,13 @@ import { MaskedView } from '@expo/ui/community/masked-view';
 import Animated, {
   cancelAnimation,
   Easing,
+  ReduceMotion,
   useAnimatedStyle,
   useSharedValue,
   withRepeat,
   withTiming,
 } from 'react-native-reanimated';
+import { useAppSettings } from '@hooks/persisted';
 
 const SWEEP_DURATION = 1800;
 
@@ -42,6 +44,8 @@ export function SkeletonSection({
   style,
   disableAnimation = false,
 }: SkeletonSectionProps) {
+  const { disableLoadingAnimations } = useAppSettings();
+
   const [layout, setLayout] = useState<LayoutRectangle | null>(null);
   const progress = useSharedValue(0);
 
@@ -65,7 +69,7 @@ export function SkeletonSection({
   useEffect(() => {
     cancelAnimation(progress);
 
-    if (!loading || disableAnimation) {
+    if (!loading || disableAnimation || disableLoadingAnimations) {
       progress.value = 0;
       return;
     }
@@ -74,6 +78,7 @@ export function SkeletonSection({
       withTiming(1, {
         duration: SWEEP_DURATION,
         easing: Easing.linear,
+        reduceMotion: ReduceMotion.System,
       }),
       -1,
       false,
@@ -83,19 +88,30 @@ export function SkeletonSection({
       cancelAnimation(progress);
       progress.value = 0;
     };
-  }, [disableAnimation, loading, progress]);
+  }, [disableAnimation, disableLoadingAnimations, loading, progress]);
 
   const animatedStyle = useAnimatedStyle(() => {
     const width = layout?.width ?? 0;
+    const height = layout?.height ?? 0;
 
     return {
       transform: [
         {
           translateX: -width + progress.value * width * 2,
         },
+        {
+          translateY: -height + progress.value * height * 2,
+        },
       ],
     };
   });
+
+  const gradientBackground = [
+    'linear-gradient(90deg,',
+    `${baseColor} 25%,`,
+    `${highlightColor} 50%,`,
+    `${baseColor} 75%)`,
+  ].join(' ');
 
   return (
     <View style={[styles.container, style]} onLayout={handleLayout}>
@@ -113,34 +129,29 @@ export function SkeletonSection({
           ]}
           maskElement={maskElement}
         >
-          <View
+          <Animated.View
             style={[
-              StyleSheet.absoluteFill,
+              styles.sweepContainer,
               {
                 backgroundColor: baseColor,
               },
+              animatedStyle,
             ]}
-          />
-
-          {!disableAnimation ? (
-            <Animated.View
-              style={[
-                styles.highlightTrack,
-                {
-                  height: layout.height,
-                  width: layout.width * 3,
-                  backgroundColor: baseColor,
-                  experimental_backgroundImage: [
-                    'linear-gradient(90deg,',
-                    `${baseColor} 25%,`,
-                    `${highlightColor} 50%,`,
-                    `${baseColor} 75%)`,
-                  ].join(' '),
-                },
-                animatedStyle,
-              ]}
+          >
+            <View
+              style={{
+                width: layout.width,
+                height: layout.height * 2,
+                transform: [
+                  { rotate: '45deg' },
+                  { translateX: layout.width / 2 },
+                  { translateY: layout.height / 2 },
+                ],
+                transformOrigin: 'bottom left',
+                experimental_backgroundImage: gradientBackground,
+              }}
             />
-          ) : null}
+          </Animated.View>
         </MaskedView>
       ) : null}
     </View>
@@ -151,14 +162,17 @@ const styles = StyleSheet.create({
   container: {
     position: 'relative',
   },
-  highlightTrack: {
-    left: 0,
-    position: 'absolute',
-    top: 0,
-  },
   overlay: {
     left: 0,
     position: 'absolute',
     top: 0,
+  },
+
+  sweepContainer: {
+    height: '300%',
+    left: '-100%',
+    position: 'absolute',
+    top: '-100%',
+    width: '300%',
   },
 });
