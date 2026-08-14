@@ -161,19 +161,20 @@ const Novel = ({ route, navigation }: NovelScreenProps) => {
           )}
         </Portal>
         <SafeAreaView excludeTop>
-          <Suspense fallback={<NovelScreenLoading theme={theme} />}>
-            <NovelScreenList
-              headerOpacity={headerOpacity}
-              listRef={chapterListRef}
-              navigation={navigation}
-              routeBaseNovel={route.params}
-              selected={selected}
-              setSelected={setSelected}
-              deleteDownloadSnackbar={deleteDownloadsSnackbar}
-              onRefresh={onRefresh}
-              updating={updating}
-            />
-          </Suspense>
+          <NovelScreenLoading theme={theme} />
+          {/*<Suspense fallback={}>*/}
+          <NovelScreenList
+            headerOpacity={headerOpacity}
+            listRef={chapterListRef}
+            navigation={navigation}
+            routeBaseNovel={route.params}
+            selected={selected}
+            setSelected={setSelected}
+            deleteDownloadSnackbar={deleteDownloadsSnackbar}
+            onRefresh={onRefresh}
+            updating={updating}
+          />
+          {/*</Suspense>*/}
         </SafeAreaView>
 
         {novel && setCategoriesModalVisible ? (

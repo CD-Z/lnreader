@@ -1,10 +1,11 @@
-import React, { memo, useMemo } from 'react';
+import React, { memo, useEffect, useMemo } from 'react';
 import { View, StyleSheet, useWindowDimensions } from 'react-native';
 
 import { ThemeColors } from '@theme/types';
 import { SkeletonBlock } from '@components/Skeleton/SkeletonBlock';
 import { SkeletonSection } from '@components/Skeleton/SkeletonSection';
 import { getLoadingColors } from '@utils/useLoadingColors';
+import { measure } from 'react-native-reanimated';
 
 interface SkeletonProps {
   color: string;
@@ -158,11 +159,14 @@ const NovelScreenLoading: React.FC<{ theme: ThemeColors }> = ({ theme }) => {
   const { width } = useWindowDimensions();
   const fullWidth = useMemo(() => Math.max(160, width - 32), [width]);
 
+  const testref = React.useRef<View>(null);
   const sharedProps = useMemo(
     () => ({ color: skeletonColor, fullWidth }),
     [skeletonColor, fullWidth],
   );
-
+  useEffect(() => {
+    console.log(measure(testref.current));
+  });
   return (
     <SkeletonSection
       baseColor={skeletonColor}
@@ -170,6 +174,10 @@ const NovelScreenLoading: React.FC<{ theme: ThemeColors }> = ({ theme }) => {
       style={styles.container}
     >
       <NovelTop {...sharedProps} />
+      <View
+        ref={testref}
+        style={{ height: 40, width: 40, left: 40, backgroundColor: 'green' }}
+      />
       <NovelInformation {...sharedProps} />
       <Chapters {...sharedProps} />
     </SkeletonSection>

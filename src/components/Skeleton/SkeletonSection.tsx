@@ -1,14 +1,12 @@
-import { useEffect, useState, type PropsWithChildren } from 'react';
+import { useEffect, type PropsWithChildren } from 'react';
 import {
   StyleSheet,
   useWindowDimensions,
   View,
-  type LayoutChangeEvent,
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
 import { MaskedView } from '@expo/ui/community/masked-view';
-import LinearGradient from 'react-native-linear-gradient';
 import Animated, {
   Easing,
   ReduceMotion,
@@ -30,6 +28,7 @@ type SkeletonSectionProps = PropsWithChildren<{
   baseColor: string;
   highlightColor: string;
   style?: StyleProp<ViewStyle>;
+  loading?: boolean;
 }>;
 
 /**
@@ -43,13 +42,12 @@ export function SkeletonSection({
   baseColor,
   highlightColor,
   style = { flex: 1 },
+  loading = true,
 }: SkeletonSectionProps) {
   const { width, height } = useWindowDimensions();
   const { disableLoadingAnimations } = useAppSettings();
   const translateX = useSharedValue(-width);
   const translateY = useSharedValue(-height);
-  // The mask fills the section, so its measured height sizes the section
-  const [contentHeight, setContentHeight] = useState(0);
 
   useEffect(() => {
     if (disableLoadingAnimations) {
@@ -81,55 +79,48 @@ export function SkeletonSection({
     ],
   }));
 
-  const handleMeasure = (event: LayoutChangeEvent) => {
-    const { height } = event.nativeEvent.layout;
-    if (height > 0 && height !== contentHeight) {
-      setContentHeight(height);
-    }
-  };
-
   return (
     <View style={style}>
-      <View
-        onLayout={handleMeasure}
-        pointerEvents="none"
-        style={styles.measure}
-      >
-        {children}
-      </View>
-
       <MaskedView
         style={{ height, width }}
         maskElement={
-          <Animated.View
-            style={[
-              {
-                position: 'absolute',
-                top: '-100%',
-                left: '-100%',
-                width: '300%',
-                height: '300%',
-              },
-              animatedStyle,
-              {
-                backgroundColor: semiTransparent,
-              },
-            ]}
-          >
-            <View
-              style={{
-                width: width,
-                height: 2 * height,
-                transform: [
-                  { rotate: '45deg' },
-                  { translateX: width / 2 },
-                  { translateY: height / 2 },
-                ],
-                transformOrigin: 'bottom left',
-                experimental_backgroundImage: gradientBackground,
-              }}
-            />
-          </Animated.View>
+          <>
+            {!loading ? (
+              <View
+                style={[StyleSheet.absoluteFill, { backgroundColor: 'black' }]}
+              />
+            ) : (
+              <Animated.View
+                style={[
+                  {
+                    position: 'absolute',
+                    top: '-100%',
+                    left: '-100%',
+                    width: '300%',
+                    height: '300%',
+                  },
+                  animatedStyle,
+                  {
+                    backgroundColor: semiTransparent,
+                  },
+                ]}
+              >
+                <View
+                  style={{
+                    width: width,
+                    height: 2 * height,
+                    transform: [
+                      { rotate: '45deg' },
+                      { translateX: width / 2 },
+                      { translateY: height / 2 },
+                    ],
+                    transformOrigin: 'bottom left',
+                    experimental_backgroundImage: gradientBackground,
+                  }}
+                />
+              </Animated.View>
+            )}
+          </>
         }
       >
         {children}
