@@ -161,7 +161,7 @@ const NovelScreenButtonGroup: React.FC<NovelScreenButtonGroupProps> = ({
 
 export default memo(NovelScreenButtonGroup);
 
-const styles = StyleSheet.create({
+export const styles = StyleSheet.create({
   button: {
     alignItems: 'center',
     justifyContent: 'center',

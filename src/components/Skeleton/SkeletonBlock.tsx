@@ -9,7 +9,7 @@ import {
 
 type SkeletonBlockProps = {
   width: DimensionValue;
-  height: number;
+  height: DimensionValue;
   borderRadius?: number;
   color?: string;
   style?: StyleProp<ViewStyle>;

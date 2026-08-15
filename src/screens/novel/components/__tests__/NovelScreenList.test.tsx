@@ -145,8 +145,18 @@ jest.mock('react-native-paper', () => {
   };
 });
 
-jest.mock('@components/Skeleton/Skeleton', () => ({
-  ChapterListSkeleton: () => null,
+jest.mock('@components/Skeleton/SkeletonSection', () => {
+  const React = require('react');
+  return {
+    SkeletonSection: ({ children }: { children: React.ReactNode }) =>
+      React.createElement(React.Fragment, null, children),
+  };
+});
+
+jest.mock('../LoadingAnimation/NovelScreenMask', () => () => null);
+
+jest.mock('@utils/useLoadingColors', () => ({
+  getLoadingColors: () => ['#eee', '#ddd'],
 }));
 
 jest.mock('@database/queries/NovelQueries', () => ({

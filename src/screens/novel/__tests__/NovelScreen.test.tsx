@@ -198,13 +198,6 @@ jest.mock('../components/DownloadCustomChapterModal', () => {
     );
 });
 
-jest.mock('../components/LoadingAnimation/NovelScreenLoading', () => {
-  const React = require('react');
-  const { Text } = require('react-native');
-  return () =>
-    React.createElement(Text, { testID: 'novel-screen-loading' }, 'loading');
-});
-
 const baseNovel = {
   id: 7,
   path: '/novels/test',

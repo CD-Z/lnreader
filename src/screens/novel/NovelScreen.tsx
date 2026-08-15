@@ -1,4 +1,4 @@
-import { Suspense, useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { StyleSheet, View, StatusBar, Text } from 'react-native';
 import Animated, {
   SlideInUp,
@@ -13,7 +13,6 @@ import { Actionbar } from '../../components/Actionbar/Actionbar';
 import EditInfoModal from './components/EditInfoModal';
 import DownloadCustomChapterModal from './components/DownloadCustomChapterModal';
 import { useBoolean } from '@hooks';
-import NovelScreenLoading from './components/LoadingAnimation/NovelScreenLoading';
 import { NovelScreenProps } from '@navigators/types';
 import { getString } from '@i18n/translations';
 import NovelAppbar from './components/NovelAppbar';
@@ -161,8 +160,6 @@ const Novel = ({ route, navigation }: NovelScreenProps) => {
           )}
         </Portal>
         <SafeAreaView excludeTop>
-          <NovelScreenLoading theme={theme} />
-          {/*<Suspense fallback={}>*/}
           <NovelScreenList
             headerOpacity={headerOpacity}
             listRef={chapterListRef}
@@ -174,7 +171,6 @@ const Novel = ({ route, navigation }: NovelScreenProps) => {
             onRefresh={onRefresh}
             updating={updating}
           />
-          {/*</Suspense>*/}
         </SafeAreaView>
 
         {novel && setCategoriesModalVisible ? (

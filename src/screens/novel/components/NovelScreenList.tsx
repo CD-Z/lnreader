@@ -22,7 +22,9 @@ import TrackSheet from './Tracker/TrackSheet';
 import NovelBottomSheet from './NovelBottomSheet';
 import PageNavigationBottomSheet from './PageNavigationBottomSheet';
 import * as Haptics from 'expo-haptics';
-import { ChapterListSkeleton } from '@components/Skeleton/Skeleton';
+import { SkeletonSection } from '@components/Skeleton/SkeletonSection';
+import { getLoadingColors } from '@utils/useLoadingColors';
+import NovelScreenMask from './LoadingAnimation/NovelScreenMask';
 import { BottomSheetModalMethods } from '@gorhom/bottom-sheet/lib/typescript/types';
 import { LegendListRef } from '@legendapp/list/react-native';
 import { AnimatedLegendList } from '@legendapp/list/reanimated';
@@ -102,7 +104,17 @@ const NovelScreenList = ({
   const { filter, showChapterTitles = false } = novelSettings;
 
   const theme = useTheme();
+  const [highlightColor, skeletonColor] = getLoadingColors(theme);
   const { top: topInset, bottom: bottomInset } = useSafeAreaInsets();
+
+  const headerLoading = loading && novel.id === 'NO_ID';
+  const metaLoading = loading && (!novel.genres || !novel.summary);
+  const chaptersLoading = fetching && chapters.length === 0;
+  const skeletonLoading = headerLoading || metaLoading || chaptersLoading;
+  const showReadButton = !useFabForContinueReading;
+
+  const numberOfButtons =
+    2 + (novel.inLibrary && !novel.isLocal ? 1 : 0) + (novel.isLocal ? -1 : 0);
 
   const {
     downloadQueue,
@@ -313,18 +325,12 @@ const NovelScreenList = ({
     );
   }, [hasMultiplePages, pages, pageIndex, openPage, openPageNavDrawer, theme]);
 
-  const listEmptyComponent = useMemo(
-    () => (fetching ? <ChapterListSkeleton /> : null),
-    [fetching],
-  );
-
   const listHeader = useMemo(
     () => (
       <>
         <NovelInfoHeader
           hasDownloadedChapters={hasDownloadedChapters}
           deleteDownloadSnackbar={deleteDownloadSnackbar}
-          fetching={fetching}
           filter={filter}
           firstUnreadChapter={firstUnreadChapter}
           isLoading={loading}
@@ -344,7 +350,6 @@ const NovelScreenList = ({
     [
       hasDownloadedChapters,
       deleteDownloadSnackbar,
-      fetching,
       filter,
       firstUnreadChapter,
       loading,
@@ -412,23 +417,40 @@ const NovelScreenList = ({
 
   return (
     <>
-      <AnimatedLegendList
-        ref={listRef}
-        estimatedItemSize={64}
-        data={chapters}
-        recycleItems
-        ListEmptyComponent={listEmptyComponent}
-        renderItem={renderChapter}
-        keyExtractor={chapterKeyExtractor}
-        extraData={listExtraData}
-        contentContainerStyle={styles.contentContainer}
-        refreshControl={refreshControlElement}
-        onEndReached={getNextChapterBatch}
-        onEndReachedThreshold={6}
-        sharedValues={listSharedValues}
-        //drawDistance={1000}
-        ListHeaderComponent={listHeader}
-      />
+      <SkeletonSection
+        baseColor={skeletonColor}
+        highlightColor={highlightColor}
+        loading={skeletonLoading}
+        style={styles.skeletonContainer}
+        maskElement={
+          <NovelScreenMask
+            color={skeletonColor}
+            loadingHeader={headerLoading}
+            loadingMeta={metaLoading}
+            loadingChapters={chaptersLoading}
+            showGenres={!!novel.genres}
+            showReadButton={showReadButton}
+            numOfButtons={numberOfButtons}
+          />
+        }
+      >
+        <AnimatedLegendList
+          ref={listRef}
+          estimatedItemSize={64}
+          data={chapters}
+          recycleItems
+          renderItem={renderChapter}
+          keyExtractor={chapterKeyExtractor}
+          extraData={listExtraData}
+          contentContainerStyle={styles.contentContainer}
+          refreshControl={refreshControlElement}
+          onEndReached={getNextChapterBatch}
+          onEndReachedThreshold={6}
+          sharedValues={listSharedValues}
+          //drawDistance={1000}
+          ListHeaderComponent={listHeader}
+        />
+      </SkeletonSection>
       {novel.id !== 'NO_ID' ? (
         <>
           <NovelBottomSheet
@@ -467,6 +489,7 @@ const NovelScreenList = ({
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  skeletonContainer: { flexGrow: 1, marginBottom: 8, overflow: 'hidden' },
   contentContainer: { paddingBottom: 100 },
   rowBack: {
     alignItems: 'center',

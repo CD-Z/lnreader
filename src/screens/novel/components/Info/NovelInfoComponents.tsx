@@ -305,7 +305,7 @@ export {
   NovelGenres,
 };
 
-const styles = StyleSheet.create({
+export const styles = StyleSheet.create({
   flex1: {
     flex: 1,
   },

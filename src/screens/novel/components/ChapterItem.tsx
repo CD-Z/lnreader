@@ -209,7 +209,7 @@ const ChapterItem: React.FC<ChapterItemProps> = ({
 
 export default memo(ChapterItem);
 
-const styles = StyleSheet.create({
+export const styles = StyleSheet.create({
   chapterCardContainer: {
     alignItems: 'center',
     flexDirection: 'row',

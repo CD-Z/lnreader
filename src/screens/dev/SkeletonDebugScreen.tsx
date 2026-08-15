@@ -13,21 +13,16 @@ import SourceScreenSkeletonLoading from '@screens/browse/loadingAnimation/Source
 import GlobalSearchSkeletonLoading from '@screens/browse/loadingAnimation/GlobalSearchSkeletonLoading';
 import MalLoading from '@screens/browse/loadingAnimation/MalLoading';
 import TrackerLoading from '@screens/browse/loadingAnimation/TrackerLoading';
-import NovelScreenLoading from '@screens/novel/components/LoadingAnimation/NovelScreenLoading';
 import CategorySkeletonLoading from '@screens/Categories/components/CategorySkeletonLoading';
 import HistorySkeletonLoading from '@screens/history/components/HistorySkeletonLoading';
 import UpdatesSkeletonLoading from '@screens/updates/components/UpdatesSkeletonLoading';
 import ChapterLoadingScreen from '@screens/reader/ChapterLoadingScreen/ChapterLoadingScreen';
-import {
-  ChapterListSkeleton,
-  NovelMetaSkeleton,
-  VerticalBarSkeleton,
-} from '@components/Skeleton/Skeleton';
-import {
-  ButtonGroupSkeleton,
-  ChapterCountSkeleton,
-  NovelDetailsSkeleton,
-} from '@screens/novel/components/Info/NovelInfoSkeletons';
+import NovelScreenMask, {
+  NovelButtonGroupMask,
+  NovelChaptersMask,
+  NovelHeaderMask,
+  NovelMetaMask,
+} from '@screens/novel/components/LoadingAnimation/NovelScreenMask';
 
 type Props = {
   navigation: {
@@ -79,14 +74,17 @@ const SkeletonColorSwatch = memo(() => {
       <SkeletonSection
         baseColor={skeletonColor}
         highlightColor={highlightColor}
-      >
-        <SkeletonBlock
-          width="100%"
-          height={40}
-          borderRadius={8}
-          color={skeletonColor}
-        />
-      </SkeletonSection>
+        loading
+        style={styles.maskBox40}
+        maskElement={
+          <SkeletonBlock
+            width="100%"
+            height={40}
+            borderRadius={8}
+            color={skeletonColor}
+          />
+        }
+      />
     </Section>
   );
 });
@@ -98,6 +96,7 @@ type SkeletonRow = {
 
 const SkeletonDebugScreen = ({ navigation }: Props) => {
   const theme = useTheme();
+  const [debugHighlight, debugSkeleton] = getLoadingColors(theme);
   const { width } = useWindowDimensions();
   const { disableLoadingAnimations, setAppSettings } = useAppSettings();
 
@@ -126,48 +125,44 @@ const SkeletonDebugScreen = ({ navigation }: Props) => {
       {
         id: 'novel-screen',
         render: () => (
-          <Section label="Novel screen (details + chapters)">
-            <NovelScreenLoading theme={theme} />
+          <Section label="Novel screen (full mask)">
+            <SkeletonSection
+              baseColor={debugSkeleton}
+              highlightColor={debugHighlight}
+              loading
+              style={styles.maskBoxFull}
+              maskElement={
+                <NovelScreenMask
+                  color={debugSkeleton}
+                  loadingHeader
+                  loadingMeta
+                  loadingChapters
+                  showGenres
+                  showReadButton
+                />
+              }
+            />
           </Section>
         ),
       },
       {
-        id: 'chapter-list',
+        id: 'novel-header',
         render: () => (
-          <Section label="Chapter list (with covers)">
-            <ChapterListSkeleton img />
-          </Section>
-        ),
-      },
-      {
-        id: 'novel-meta',
-        render: () => (
-          <Section label="Novel meta (summary + genres)">
-            <NovelMetaSkeleton />
-          </Section>
-        ),
-      },
-      {
-        id: 'vertical-bar',
-        render: () => (
-          <Section label="Vertical bar">
-            <VerticalBarSkeleton />
-          </Section>
-        ),
-      },
-      {
-        id: 'chapter-count',
-        render: () => (
-          <Section label="Chapter count">
-            <ChapterCountSkeleton theme={theme} />
-          </Section>
-        ),
-      },
-      {
-        id: 'novel-details',
-        render: () => (
-          <Section label="Novel details (author/status)">
-            <NovelDetailsSkeleton theme={theme} />
+          <Section label="Novel header (cover + details)">
+            <SkeletonSection
+              baseColor={debugSkeleton}
+              highlightColor={debugHighlight}
+              loading
+              style={styles.maskBoxHeader}
+              maskElement={
+                <NovelHeaderMask
+                  color={debugSkeleton}
+                  active
+                  showCoverSkeleton
+                  showTitleSkeleton
+                />
+              }
+            />
           </Section>
         ),
       },
@@ -175,7 +170,54 @@ const SkeletonDebugScreen = ({ navigation }: Props) => {
         id: 'button-group',
         render: () => (
           <Section label="Button group (read/migrate/webview)">
-            <ButtonGroupSkeleton theme={theme} />
+            <SkeletonSection
+              baseColor={debugSkeleton}
+              highlightColor={debugHighlight}
+              loading
+              style={styles.maskBoxButtons}
+              maskElement={
+                <NovelButtonGroupMask
+                  color={debugSkeleton}
+                  active
+                  numOfButtons={2}
+                />
+              }
+            />
+          </Section>
+        ),
+      },
+      {
+        id: 'novel-meta',
+        render: () => (
+          <Section label="Novel meta (summary + genres)">
+            <SkeletonSection
+              baseColor={debugSkeleton}
+              highlightColor={debugHighlight}
+              loading
+              style={styles.maskBoxMeta}
+              maskElement={
+                <NovelMetaMask
+                  color={debugSkeleton}
+                  active
+                  showGenres
+                  showReadButton
+                />
+              }
+            />
+          </Section>
+        ),
+      },
+      {
+        id: 'chapter-list',
+        render: () => (
+          <Section label="Chapter list (with covers)">
+            <SkeletonSection
+              baseColor={debugSkeleton}
+              highlightColor={debugHighlight}
+              loading
+              style={styles.maskBoxChapters}
+              maskElement={<NovelChaptersMask color={debugSkeleton} />}
+            />
           </Section>
         ),
       },
@@ -237,7 +279,7 @@ const SkeletonDebugScreen = ({ navigation }: Props) => {
         ),
       },
     ],
-    [theme, width],
+    [theme, width, debugHighlight, debugSkeleton],
   );
 
   return (
@@ -287,6 +329,12 @@ const styles = StyleSheet.create({
   list: {
     flex: 1,
   },
+  maskBox40: { height: 40 },
+  maskBoxButtons: { height: 60 },
+  maskBoxChapters: { height: 448 },
+  maskBoxFull: { height: 1100 },
+  maskBoxHeader: { height: 268 },
+  maskBoxMeta: { height: 248 },
   readerBox: {
     height: 300,
     overflow: 'hidden',

@@ -33,23 +33,13 @@ import { translateNovelStatus } from '@utils/translateEnum';
 import { getMMKVObject } from '@utils/mmkv/mmkv';
 import { AVAILABLE_PLUGINS } from '@hooks/persisted/usePlugins';
 
-import {
-  NovelMetaSkeleton,
-  VerticalBarSkeleton,
-} from '@components/Skeleton/Skeleton';
 import { ChapterFilterKey } from '@database/constants';
 import { useNovelAction } from '@screens/novel/NovelContext';
 import { useNavigation } from '@react-navigation/native';
-import {
-  ButtonGroupSkeleton,
-  ChapterCountSkeleton,
-  NovelDetailsSkeleton,
-} from './NovelInfoSkeletons';
 
 interface NovelInfoHeaderProps {
   hasDownloadedChapters: boolean;
   deleteDownloadSnackbar?: UseBooleanReturnType;
-  fetching: boolean;
   filter?: ChapterFilterKey[];
   firstUnreadChapter?: ChapterInfo;
   isLoading: boolean;
@@ -86,7 +76,6 @@ const showNotAvailable = () => {
 const NovelInfoHeader = ({
   hasDownloadedChapters,
   deleteDownloadSnackbar,
-  fetching,
   filter = [],
   firstUnreadChapter,
   isLoading = false,
@@ -202,8 +191,15 @@ const NovelInfoHeader = ({
                 {novel.name}
               </NovelTitle>
             </Row>
-            {isLoading && novel.id === 'NO_ID' ? (
-              <NovelDetailsSkeleton theme={theme} />
+            {isLoading ? (
+              <>
+                <Row style={styles.infoRow}>
+                  <NovelInfo theme={theme}>{'\u00A0'}</NovelInfo>
+                </Row>
+                <Row style={styles.infoRow}>
+                  <NovelInfo theme={theme}>{'\u00A0'}</NovelInfo>
+                </Row>
+              </>
             ) : (
               <>
                 {novel.id !== 'NO_ID' && novel.author ? (
@@ -228,89 +224,70 @@ const NovelInfoHeader = ({
                     <NovelInfo theme={theme}>{novel.artist}</NovelInfo>
                   </Row>
                 ) : null}
-                <Row style={styles.infoRow}>
-                  <MaterialCommunityIcons
-                    name={getStatusIcon(novelStatus)}
-                    size={14}
-                    color={theme.onSurfaceVariant}
-                    style={styles.marginRight}
-                  />
-                  <NovelInfo theme={theme}>
-                    {(novelStatus
-                      ? translateNovelStatus(novelStatus)
-                      : getString('novelScreen.unknownStatus')) +
-                      ' • ' +
-                      pluginName}
-                  </NovelInfo>
-                </Row>
               </>
             )}
+            <Row style={[styles.infoRow, { opacity: isLoading ? 0 : 1 }]}>
+              <MaterialCommunityIcons
+                name={getStatusIcon(novelStatus)}
+                size={14}
+                color={theme.onSurfaceVariant}
+                style={styles.marginRight}
+              />
+              <NovelInfo theme={theme}>
+                {(novelStatus
+                  ? translateNovelStatus(novelStatus)
+                  : getString('novelScreen.unknownStatus')) +
+                  ' • ' +
+                  pluginName}
+              </NovelInfo>
+            </Row>
           </View>
         </NovelInfoContainer>
       </CoverImage>
       <>
-        {isLoading && novel.id === 'NO_ID' ? (
-          <ButtonGroupSkeleton theme={theme} />
-        ) : (
-          <NovelScreenButtonGroup
-            novel={novel}
-            handleFollowNovel={handleFollowNovel}
-            handleTrackerSheet={handleTrackerSheet}
-            theme={theme}
-          />
-        )}
-        {isLoading && (!novel.genres || !novel.summary) ? (
-          <NovelMetaSkeleton />
-        ) : (
-          <>
-            <NovelSummary
-              summary={novel.summary || getString('novelScreen.noSummary')}
-              isExpanded={!novel.inLibrary}
-              theme={theme}
-            />
-            {novel.genres ? (
-              <NovelGenres theme={theme} genres={novel.genres} />
-            ) : null}
-          </>
-        )}
+        <NovelScreenButtonGroup
+          novel={novel}
+          handleFollowNovel={handleFollowNovel}
+          handleTrackerSheet={handleTrackerSheet}
+          theme={theme}
+        />
+        <NovelSummary
+          summary={novel.summary || getString('novelScreen.noSummary')}
+          isExpanded={!novel.inLibrary}
+          theme={theme}
+          style={{ opacity: isLoading ? 0 : 1 }}
+        />
+        {novel.genres ? (
+          <NovelGenres theme={theme} genres={novel.genres} />
+        ) : null}
         <ReadButton
           navigateToChapter={navigateToChapter}
           firstUnreadChapter={firstUnreadChapter}
           lastRead={lastRead}
         />
-        {isLoading && (!novel.genres || !novel.summary) ? (
-          <VerticalBarSkeleton />
-        ) : (
-          <View style={styles.bottomsheetContainer}>
-            <Pressable
-              style={styles.bottomsheet}
+        <View
+          style={[styles.bottomsheetContainer, { opacity: isLoading ? 0 : 1 }]}
+        >
+          <Pressable
+            style={styles.bottomsheet}
+            onPress={handleOpenBottomSheet}
+            android_ripple={ripple}
+          >
+            <View style={styles.flex}>
+              <Text style={[{ color: theme.onSurface }, styles.chapters]}>
+                {`${totalChapters ?? 0} ${getString('novelScreen.chapters')}`}
+              </Text>
+            </View>
+            <IconButton
+              icon="filter-variant"
+              iconColor={
+                filter.length > 0 ? filterColor(theme.isDark) : theme.onSurface
+              }
+              size={24}
               onPress={handleOpenBottomSheet}
-              android_ripple={ripple}
-            >
-              <View style={styles.flex}>
-                {fetching && totalChapters === undefined ? (
-                  <ChapterCountSkeleton theme={theme} />
-                ) : (
-                  <Text style={[{ color: theme.onSurface }, styles.chapters]}>
-                    {`${totalChapters ?? 0} ${getString(
-                      'novelScreen.chapters',
-                    )}`}
-                  </Text>
-                )}
-              </View>
-              <IconButton
-                icon="filter-variant"
-                iconColor={
-                  filter.length > 0
-                    ? filterColor(theme.isDark)
-                    : theme.onSurface
-                }
-                size={24}
-                onPress={handleOpenBottomSheet}
-              />
-            </Pressable>
-          </View>
-        )}
+            />
+          </Pressable>
+        </View>
       </>
     </>
   );
@@ -318,7 +295,7 @@ const NovelInfoHeader = ({
 
 export default memo(NovelInfoHeader);
 
-const styles = StyleSheet.create({
+export const styles = StyleSheet.create({
   bottomsheet: {
     alignItems: 'center',
     flexDirection: 'row',

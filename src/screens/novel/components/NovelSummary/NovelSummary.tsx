@@ -1,6 +1,6 @@
 import { getString } from '@i18n/translations';
 import React, { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View, ViewStyle } from 'react-native';
 import MaterialCommunityIcons from '@react-native-vector-icons/material-design-icons';
 
 import { ThemeColors } from '@theme/types';
@@ -9,12 +9,14 @@ interface NovelSummaryProps {
   summary: string;
   isExpanded: boolean;
   theme: ThemeColors;
+  style?: ViewStyle;
 }
 
 const NovelSummary: React.FC<NovelSummaryProps> = ({
   summary,
   isExpanded,
   theme,
+  style,
 }) => {
   const textColor = theme.onSurfaceVariant;
 
@@ -34,6 +36,7 @@ const NovelSummary: React.FC<NovelSummaryProps> = ({
       style={[
         styles.summaryContainer,
         { paddingBottom: containerBottomPadding },
+        style,
       ]}
       onPress={toggleExpanded}
     >
@@ -68,7 +71,7 @@ const NovelSummary: React.FC<NovelSummaryProps> = ({
 
 export default NovelSummary;
 
-const styles = StyleSheet.create({
+export const styles = StyleSheet.create({
   icon: {
     borderRadius: 50,
   },
