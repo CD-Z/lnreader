@@ -8,6 +8,8 @@ import { getString } from '@i18n/translations';
 
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 
+import { buildEditorTheme } from './editorTheme';
+
 type CodeInputProps = {
   language: 'css' | 'js';
   code: string;
@@ -86,12 +88,15 @@ const EDITOR_HTML = `<!DOCTYPE html>
       html,
       body,
       #editor {
+        position: fixed;
+        inset: 0;
         width: 100%;
         height: 100%;
         margin: 0;
         padding: 0;
         overflow: hidden;
-        background: #1e1e1e;
+        overscroll-behavior: none;
+        background: transparent;
       }
 
       * {
@@ -110,6 +115,17 @@ const EDITOR_HTML = `<!DOCTYPE html>
         var api = CM6.createEditor(
           document.getElementById('editor'),
         );
+
+        var editorEl = document.getElementById('editor');
+        function syncEditorHeight() {
+          var vv = window.visualViewport;
+          editorEl.style.height = (vv ? vv.height : window.innerHeight) + 'px';
+        }
+        if (window.visualViewport) {
+          window.visualViewport.addEventListener('resize', syncEditorHeight);
+          window.visualViewport.addEventListener('scroll', syncEditorHeight);
+        }
+        syncEditorHeight();
 
         function handleNativeMessage(event) {
           try {
@@ -180,17 +196,7 @@ const CodeInput = ({
 
   const wrapper = React.useMemo(() => getWrapper(language), [language]);
 
-  const editorTheme = React.useMemo(
-    () => ({
-      background: theme.background,
-      foreground: theme.onBackground,
-      gutterBackground: theme.background,
-      gutterForeground: theme.onBackground,
-      selection: theme.isDark ? '#3c4b64' : '#add6ff',
-      dark: theme.isDark,
-    }),
-    [theme.background, theme.isDark, theme.onBackground],
-  );
+  const editorTheme = React.useMemo(() => buildEditorTheme(theme), [theme]);
 
   const postMessage = React.useCallback((message: EditorMessage) => {
     webViewRef.current?.postMessage(JSON.stringify(message));
@@ -354,7 +360,7 @@ const CodeInput = ({
           html: EDITOR_HTML,
           baseUrl: `https://lnreader-editor.local/`,
         }}
-        style={[styles.webView]}
+        style={[styles.webView, { backgroundColor: theme.background }]}
         containerStyle={styles.webViewContainer}
         originWhitelist={['*']}
         javaScriptEnabled

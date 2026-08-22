@@ -19,6 +19,17 @@ type EditorTheme = {
   gutterBackground?: string;
   gutterForeground?: string;
   selection?: string;
+  activeLine?: string;
+  activeLineGutter?: string;
+  keyword: string;
+  string: string;
+  number: string;
+  function: string;
+  type: string;
+  comment: string;
+  variable: string;
+  punctuation: string;
+  invalid: string;
   dark: boolean;
 };
 
@@ -68,80 +79,50 @@ function themeExtension(theme: EditorTheme): Extension {
   const gutterForeground = theme.gutterForeground ?? theme.foreground;
   const selection = theme.selection ?? (theme.dark ? '#3c4b64' : '#add6ff');
 
-  const highlighting = theme.dark
-    ? HighlightStyle.define([
-        {
-          tag: [tags.keyword, tags.controlKeyword, tags.operatorKeyword],
-          color: '#ff79c6',
-        },
-        {
-          tag: [tags.name, tags.variableName, tags.propertyName],
-          color: '#f8f8f2',
-        },
-        {
-          tag: [
-            tags.function(tags.variableName),
-            tags.function(tags.propertyName),
-          ],
-          color: '#50fa7b',
-        },
-        {
-          tag: [tags.string, tags.special(tags.string)],
-          color: '#f1fa8c',
-        },
-        {
-          tag: [tags.number, tags.bool, tags.null, tags.atom],
-          color: '#bd93f9',
-        },
-        {
-          tag: [tags.comment, tags.lineComment, tags.blockComment],
-          color: '#6272a4',
-          fontStyle: 'italic',
-        },
-        {
-          tag: [tags.typeName, tags.className, tags.namespace],
-          color: '#8be9fd',
-        },
-        {
-          tag: [tags.punctuation, tags.bracket],
-          color: '#f8f8f2',
-        },
-        {
-          tag: tags.invalid,
-          color: '#ff5555',
-        },
-      ])
-    : HighlightStyle.define([
-        {
-          tag: [tags.keyword, tags.controlKeyword],
-          color: '#7f0055',
-          fontWeight: 'bold',
-        },
-        {
-          tag: [tags.string, tags.special(tags.string)],
-          color: '#2a7b2e',
-        },
-        {
-          tag: [tags.number, tags.bool, tags.null],
-          color: '#7b3fb3',
-        },
-        {
-          tag: [tags.comment, tags.lineComment, tags.blockComment],
-          color: '#6a737d',
-          fontStyle: 'italic',
-        },
-        {
-          tag: [
-            tags.function(tags.variableName),
-            tags.function(tags.propertyName),
-          ],
-          color: '#005cc5',
-        },
-        {
-          tag: tags.invalid,
-          color: '#d73a49',
-        },
-      ]);
+  const highlighting = HighlightStyle.define([
+    {
+      tag: [
+        tags.keyword,
+        tags.controlKeyword,
+        tags.operatorKeyword,
+        tags.moduleKeyword,
+      ],
+      color: theme.keyword ?? '#7f0055',
+    },
+    {
+      tag: [tags.string, tags.special(tags.string)],
+      color: theme.string ?? '#2a7b2e',
+    },
+    {
+      tag: [tags.number, tags.bool, tags.null, tags.atom],
+      color: theme.number ?? '#7b3fb3',
+    },
+    {
+      tag: [tags.function(tags.variableName), tags.function(tags.propertyName)],
+      color: theme.function ?? '#005cc5',
+    },
+    {
+      tag: [tags.typeName, tags.className, tags.namespace],
+      color: theme.type ?? '#6f42c1',
+    },
+    {
+      tag: [tags.comment, tags.lineComment, tags.blockComment],
+      color: theme.comment ?? '#6a737d',
+      fontStyle: 'italic',
+    },
+    {
+      tag: [tags.name, tags.variableName, tags.propertyName],
+      color: theme.variable ?? '#24292e',
+    },
+    {
+      tag: [tags.punctuation, tags.bracket],
+      color: theme.punctuation ?? '#24292e',
+    },
+    {
+      tag: tags.invalid,
+      color: theme.invalid ?? '#d73a49',
+    },
+  ]);
 
   return [
     EditorView.theme(
@@ -176,10 +157,10 @@ function themeExtension(theme: EditorTheme): Extension {
           borderRight: 'none',
         },
         '.cm-activeLine': {
-          backgroundColor: theme.dark ? '#ffffff0a' : '#00000008',
+          backgroundColor: theme.activeLine ?? '#00000008',
         },
         '.cm-activeLineGutter': {
-          backgroundColor: theme.dark ? '#ffffff10' : '#0000000d',
+          backgroundColor: theme.activeLineGutter ?? '#0000000d',
         },
       },
       {
@@ -224,6 +205,7 @@ export function createEditor(parent: HTMLElement) {
       doc: '',
       extensions: [
         basicSetup,
+        EditorView.lineWrapping,
         keymap.of([]),
         editBoundaryFilter,
         languageCompartment.of(javascript()),
@@ -231,6 +213,15 @@ export function createEditor(parent: HTMLElement) {
           themeExtension({
             background: '#1e1e1e',
             foreground: '#f8f8f2',
+            keyword: '#ff79c6',
+            string: '#f1fa8c',
+            number: '#bd93f9',
+            function: '#50fa7b',
+            type: '#8be9fd',
+            comment: '#6272a4',
+            variable: '#f8f8f2',
+            punctuation: '#f8f8f2',
+            invalid: '#ff5555',
             dark: true,
           }),
         ),
