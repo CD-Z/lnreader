@@ -73,7 +73,6 @@ const CodeRoute = ({
   const keyboardHeight = useKeyboardHeight();
 
   const scrollViewRef = React.useRef<ScrollView>(null);
-  const editorScrollSink = React.useRef<((y: number) => void) | null>(null);
 
   const maxHeightScrollView = useAnimatedStyle(() => {
     return {
@@ -136,9 +135,6 @@ const CodeRoute = ({
       ref={scrollViewRef}
       style={[styles.container, maxHeightScrollView]}
       scrollEventThrottle={16}
-      onScroll={e => {
-        editorScrollSink.current?.(e.nativeEvent.contentOffset.y);
-      }}
     >
       <Row verticalSpacing={8}>
         <Text theme={colors} style={styles.text}>
@@ -173,7 +169,6 @@ const CodeRoute = ({
         code={code}
         setCode={setCode}
         error={error.code}
-        scrollSink={editorScrollSink}
       />
 
       <Row verticalSpacing={8}>

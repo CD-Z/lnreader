@@ -1,16 +1,13 @@
 import { getString } from '@i18n/translations';
 import React from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet } from 'react-native';
 import CodeInput from './Components/CodeInput';
 import { showToast } from '@utils/showToast';
 import { useChapterReaderSettings, useTheme } from '@hooks/persisted';
 import { TextInput as PaperTextInput } from 'react-native-paper';
 
 import { useNavigation } from '@react-navigation/native';
-import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
-import { Dialog, IconButtonV2 } from '@components';
-import type { HighlightMode } from './Components/SimpleCodeEditor';
-import { useMMKVString } from 'react-native-mmkv';
+import { Dialog } from '@components';
 export type SnippetEditorHandle = {
   save: () => void;
   setCode: (val: string) => void;
@@ -38,18 +35,10 @@ const SnippetEditor = React.forwardRef<SnippetEditorHandle, SnippetEditorProps>(
 
     const [code, setCode] = React.useState<string>(snippet?.code ?? '');
     const [error, setError] = React.useState({ code: false });
-    const [highlightMode = 'combined', setHighlightMode] = useMMKVString(
-      `snippetEditorHighlightMode`,
-    ) as [
-      HighlightMode,
-      (value: HighlightMode | ((prev: HighlightMode) => HighlightMode)) => void,
-    ];
 
     const [snippetName, setSnippetName] = React.useState('');
 
     const [showNameModal, setShowNameModal] = React.useState(false);
-
-    const editorScrollSink = React.useRef<((y: number) => void) | null>(null);
 
     const save = React.useCallback(() => {
       setError({ code: false });
@@ -109,49 +98,12 @@ const SnippetEditor = React.forwardRef<SnippetEditorHandle, SnippetEditorProps>(
 
     return (
       <>
-        <View style={styles.toolbar}>
-          <IconButtonV2
-            name="code-braces"
-            color={
-              highlightMode === 'off'
-                ? theme.outline
-                : highlightMode === 'on'
-                ? theme.primary
-                : theme.secondary
-            }
-            size={24}
-            theme={theme}
-            onPress={() =>
-              setHighlightMode((prev: HighlightMode) =>
-                prev === 'off'
-                  ? 'combined'
-                  : prev === 'combined'
-                  ? 'on'
-                  : 'off',
-              )
-            }
-            style={{ position: 'absolute', end: 8, top: 8, zIndex: 2 }}
-          />
-        </View>
-        <KeyboardAwareScrollView
-          style={styles.scrollContainer}
-          bottomOffset={100}
-          nestedScrollEnabled
-          scrollEventThrottle={16}
-          onScroll={e => {
-            editorScrollSink.current?.(e.nativeEvent.contentOffset.y);
-          }}
-          contentContainerStyle={styles.flexGrow}
-        >
-          <CodeInput
-            language={language}
-            code={code}
-            setCode={setCode}
-            highlightMode={highlightMode}
-            error={error.code}
-            scrollSink={editorScrollSink}
-          />
-        </KeyboardAwareScrollView>
+        <CodeInput
+          language={language}
+          code={code}
+          setCode={setCode}
+          error={error.code}
+        />
         <Dialog.Root visible={showNameModal} onDismiss={handleNameModalCancel}>
           <Dialog.Header>
             <Dialog.Title>{getString('common.name')}</Dialog.Title>
@@ -188,21 +140,5 @@ const SnippetEditor = React.forwardRef<SnippetEditorHandle, SnippetEditorProps>(
 export default React.memo(SnippetEditor);
 
 const styles = StyleSheet.create({
-  flexGrow: { flexGrow: 1 },
   mb16: { marginBottom: 16 },
-  toolbar: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  scrollContainer: {
-    paddingHorizontal: 2,
-  },
-  scrollContent: {},
-  button: {
-    marginHorizontal: 8,
-    flexBasis: '40%',
-    flex: 1,
-  },
 });

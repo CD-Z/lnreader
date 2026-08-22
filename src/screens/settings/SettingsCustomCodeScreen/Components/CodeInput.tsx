@@ -1,33 +1,49 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text } from 'react-native';
+import Animated from 'react-native-reanimated';
+import { WebView, type WebViewMessageEvent } from 'react-native-webview';
+
 import { useTheme } from '@hooks/persisted';
 import { getString } from '@i18n/translations';
-import {
-  SimpleCodeEditor,
-  MemoizedHighlightedCode,
-  HighlightMode,
-  ScrollSink,
-  useStableLineModels,
-  FONT_SIZE,
-  LINE_HEIGHT,
-} from './SimpleCodeEditor';
-import Animated from 'react-native-reanimated';
 
-const MIN_LINES = 16;
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 
 type CodeInputProps = {
   language: 'css' | 'js';
   code: string;
   setCode: (code: string) => void;
-  highlightMode?: HighlightMode;
   error?: boolean;
   onFocus?: () => void;
   onBlur?: () => void;
-  scrollSink?: ScrollSink;
+};
+
+type NativeEditorMessage =
+  | {
+      type: 'READY';
+    }
+  | {
+      type: 'CODE_CHANGE';
+      value: string;
+    }
+  | {
+      type: 'FOCUS';
+    }
+  | {
+      type: 'BLUR';
+    }
+  | {
+      type: 'EDITOR_ERROR';
+      value: string;
+    };
+
+type EditorMessage = {
+  type: string;
+  value?: unknown;
 };
 
 const START_JS_CODE = `const qs = (s) => document.querySelector(s);
 let html = qs("#LNReader-chapter").innerHTML;`;
+
 const START_CSS_CODE = `:root {
   --StatusBar-currentHeight: number px;
   --readerSettings-theme: color;
@@ -51,170 +67,332 @@ const START_CSS_CODE = `:root {
   --theme-outline: color;
   --theme-rippleColor: color;
 }`;
+
 const END_JS_CODE = 'qs("#LNReader-chapter").innerHTML = html;';
+
+const assetsUriPrefix = __DEV__
+  ? 'http://localhost:8081/assets'
+  : 'file:///android_asset';
+
+const EDITOR_HTML = `<!DOCTYPE html>
+<html>
+  <head>
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0,
+        maximum-scale=1.0, user-scalable=no"
+    />
+    <style>
+      html,
+      body,
+      #editor {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        background: #1e1e1e;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+    </style>
+    <script
+      src="${assetsUriPrefix}/editor/codemirror.js"
+    ></script>
+  </head>
+  <body>
+    <div id="editor"></div>
+
+    <script>
+      (function () {
+        var api = CM6.createEditor(
+          document.getElementById('editor'),
+        );
+
+        function handleNativeMessage(event) {
+          try {
+            api.handleMessage(JSON.parse(event.data));
+          } catch (error) {
+            window.ReactNativeWebView.postMessage(
+              JSON.stringify({
+                type: 'EDITOR_ERROR',
+                value:
+                  error instanceof Error
+                    ? error.message
+                    : String(error),
+              }),
+            );
+          }
+        }
+
+        document.addEventListener(
+          'message',
+          handleNativeMessage,
+        );
+        window.addEventListener(
+          'message',
+          handleNativeMessage,
+        );
+
+        window.ReactNativeWebView.postMessage(
+          JSON.stringify({
+            type: 'READY',
+          }),
+        );
+      })();
+    </script>
+  </body>
+</html>`;
+
+function getWrapper(language: 'css' | 'js'): {
+  prefix: string;
+  suffix: string;
+} {
+  if (language === 'js') {
+    return {
+      prefix: `${START_JS_CODE}\n`,
+      suffix: `\n${END_JS_CODE}`,
+    };
+  }
+
+  return {
+    prefix: `${START_CSS_CODE}\n`,
+    suffix: '',
+  };
+}
 
 const CodeInput = ({
   language,
   code,
   setCode,
-  highlightMode,
   onFocus,
   onBlur,
-  scrollSink,
+  error: externalError,
 }: CodeInputProps) => {
   const theme = useTheme();
+  const webViewRef = React.useRef<WebView<object>>(null);
+  const readyRef = React.useRef(false);
+  const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const codeFieldStyle = React.useMemo(
+  const [syntaxError, setSyntaxError] = React.useState<string>();
+
+  const wrapper = React.useMemo(() => getWrapper(language), [language]);
+
+  const editorTheme = React.useMemo(
     () => ({
-      color: theme.onBackground,
-      backgroundColor: theme.background,
+      background: theme.background,
+      foreground: theme.onBackground,
+      gutterBackground: theme.background,
+      gutterForeground: theme.onBackground,
+      selection: theme.isDark ? '#3c4b64' : '#add6ff',
+      dark: theme.isDark,
     }),
-    [theme],
+    [theme.background, theme.isDark, theme.onBackground],
   );
 
-  const startValue = language === 'js' ? START_JS_CODE : START_CSS_CODE;
+  const postMessage = React.useCallback((message: EditorMessage) => {
+    webViewRef.current?.postMessage(JSON.stringify(message));
+  }, []);
 
-  const lines = useStableLineModels(code);
-  const startLines = useStableLineModels(startValue);
-  const debounce = React.useRef<NodeJS.Timeout | null>(null);
-  const [error, setError] = React.useState<string | undefined>(undefined);
+  const analyzeCode = React.useCallback(
+    (value: string) => {
+      if (language !== 'js') {
+        setSyntaxError(undefined);
+        return;
+      }
 
-  function setAndAnalyzeCode(val: string) {
-    if (language === 'js') {
-      debounce.current && clearTimeout(debounce.current);
-      debounce.current = setTimeout(() => analyzeCode(val), 500);
+      try {
+        new Function(value);
+        setSyntaxError(undefined);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+
+        setSyntaxError(message);
+      }
+    },
+    [language],
+  );
+
+  const setAndAnalyzeCode = React.useCallback(
+    (value: string) => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+
+      if (language === 'js') {
+        debounceRef.current = setTimeout(() => {
+          analyzeCode(value);
+        }, 500);
+      }
+
+      setCode(value);
+    },
+    [analyzeCode, language, setCode],
+  );
+
+  const initializeEditor = React.useCallback(() => {
+    postMessage({
+      type: 'INITIALIZE',
+      value: {
+        language,
+        prefix: wrapper.prefix,
+        suffix: wrapper.suffix,
+        code,
+        placeholder: getString('customCodeSettings.yourCodeHere'),
+        theme: editorTheme,
+      },
+    });
+  }, [
+    code,
+    editorTheme,
+    language,
+    postMessage,
+    wrapper.prefix,
+    wrapper.suffix,
+  ]);
+
+  const handleMessage = React.useCallback(
+    (event: WebViewMessageEvent) => {
+      let message: NativeEditorMessage;
+
+      try {
+        message = JSON.parse(event.nativeEvent.data) as NativeEditorMessage;
+      } catch {
+        return;
+      }
+
+      switch (message.type) {
+        case 'READY':
+          readyRef.current = true;
+          initializeEditor();
+          break;
+
+        case 'CODE_CHANGE':
+          setAndAnalyzeCode(message.value);
+          break;
+
+        case 'FOCUS':
+          onFocus?.();
+          break;
+
+        case 'BLUR':
+          onBlur?.();
+          break;
+
+        case 'EDITOR_ERROR':
+          setSyntaxError(message.value);
+          break;
+      }
+    },
+    [initializeEditor, onBlur, onFocus, setAndAnalyzeCode],
+  );
+
+  React.useEffect(() => {
+    if (!readyRef.current) {
+      return;
     }
-    setCode(val);
-  }
-  function analyzeCode(val: string) {
-    try {
-      new Function(val);
-      setError(undefined);
-    } catch (e: unknown) {
-      setError(
-        (e as Error).message.replace(
-          /^(\d+)/,
-          (_, i) => Number(i) + startLines.length + '',
-        ),
-      );
+
+    postMessage({
+      type: 'SET_CODE',
+      value: code,
+    });
+  }, [code, postMessage]);
+
+  React.useEffect(() => {
+    if (!readyRef.current) {
+      return;
     }
-  }
+
+    postMessage({
+      type: 'SET_THEME',
+      value: editorTheme,
+    });
+  }, [editorTheme, postMessage]);
+
+  React.useEffect(() => {
+    return () => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+    };
+  }, [analyzeCode, code]);
+
+  const displayedError =
+    syntaxError ?? (externalError ? 'Invalid code' : undefined);
 
   return (
-    <View style={[styles.container]}>
+    <KeyboardAvoidingView behavior="height" style={styles.container}>
       <Animated.View
         style={[
           styles.error,
           {
             backgroundColor: theme.errorContainer,
-            maxHeight: error ? 35 : 0,
-            padding: error ? 8 : 0,
-            transitionProperty: ['maxHeight', 'padding'],
-            transitionDuration: '150ms',
+            maxHeight: displayedError ? 35 : 0,
+            padding: displayedError ? 8 : 0,
           },
         ]}
       >
         <Text
           numberOfLines={1}
-          style={[styles.errorText, { color: theme.onErrorContainer }]}
+          style={[
+            styles.errorText,
+            {
+              color: theme.onErrorContainer,
+            },
+          ]}
         >
-          {error}
+          {displayedError}
         </Text>
       </Animated.View>
 
-      <MemoizedHighlightedCode
-        style={[
-          codeFieldStyle,
-          styles.fontStyle,
-          styles.fakeTextInput,
-          styles.topField,
-        ]}
-        isDark={theme.isDark}
-        mode={language}
-        lines={startLines}
+      <WebView
+        key={language}
+        ref={webViewRef}
+        source={{
+          html: EDITOR_HTML,
+          baseUrl: `https://lnreader-editor.local/`,
+        }}
+        style={[styles.webView]}
+        containerStyle={styles.webViewContainer}
+        originWhitelist={['*']}
+        javaScriptEnabled
+        domStorageEnabled={false}
+        allowFileAccess
+        allowFileAccessFromFileURLs
+        mixedContentMode="always"
+        keyboardDisplayRequiresUserAction={false}
+        hideKeyboardAccessoryView
+        overScrollMode="never"
+        onLoadStart={() => {
+          readyRef.current = false;
+        }}
+        onMessage={handleMessage}
       />
-      <SimpleCodeEditor
-        placeholder={getString('customCodeSettings.yourCodeHere')}
-        value={code}
-        mode={language}
-        highlightMode={highlightMode}
-        onChangeText={setAndAnalyzeCode}
-        onFocus={onFocus}
-        onBlur={onBlur}
-        placeholderTextColor={'grey'}
-        lines={lines}
-        startLine={startLines.length}
-        isDark={theme.isDark}
-        style={[codeFieldStyle, styles.fontStyle, styles.codeField]}
-        scrollSink={scrollSink}
-      />
-      {language !== 'js' ? null : (
-        <MemoizedHighlightedCode
-          startLine={lines.length + startLines.length}
-          style={[styles.fakeTextInput, styles.bottomField, codeFieldStyle]}
-          mode={language}
-          isDark={theme.isDark}
-          value={END_JS_CODE}
-        />
-      )}
-    </View>
+    </KeyboardAvoidingView>
   );
 };
+
 export default CodeInput;
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    position: 'relative',
+  },
   error: {
     width: '100%',
-    padding: 8,
     marginBottom: 8,
-    backgroundColor: 'red',
+    overflow: 'hidden',
   },
   errorText: {
     textAlign: 'center',
   },
-  container: {
+  webViewContainer: {
+    flexShrink: 1,
+  },
+  webView: {
     flex: 1,
-    paddingBottom: 8,
-  },
-  rowContainer: {
-    paddingVertical: 8,
-    alignItems: 'flex-start',
-  },
-  codeContainer: {
-    flex: 1,
-  },
-  lines: {
-    paddingRight: 4,
-    paddingTop: 0,
-    textAlign: 'right',
-    minWidth: 32,
-  },
-  fontStyle: {
-    fontSize: FONT_SIZE,
-    lineHeight: LINE_HEIGHT,
-    fontFamily: 'monospace',
-    margin: 0,
-    marginBottom: 0,
-    marginTop: 0,
-    padding: 0,
-    paddingBottom: 0,
-    paddingTop: 0,
-  },
-  fakeTextInput: {
-    opacity: 0.6,
-  },
-  topField: {
-    flex: 1,
-  },
-  codeField: {
-    verticalAlign: 'top',
-    paddingTop: 0,
-    flex: 1,
-    minHeight: LINE_HEIGHT * MIN_LINES,
-  },
-  bottomField: {
-    flex: 1,
-    borderTopLeftRadius: 0,
-    borderTopRightRadius: 0,
   },
 });

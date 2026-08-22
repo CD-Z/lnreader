@@ -155,6 +155,7 @@ const CodeSnippetsScreen: React.FC<CodeSnippetsScreenProps> = ({
         collapsable={false}
         lazy
         navigationState={{ index, routes }}
+        swipeEnabled={false}
         renderScene={renderScene}
         renderTabBar={renderTabBar}
         onIndexChange={i => {
