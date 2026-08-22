@@ -52,6 +52,10 @@ type NativeMessage =
       value: EditorTheme;
     }
   | {
+      type: 'KEYBOARD_HEIGHT';
+      value: number;
+    }
+  | {
       type: 'INITIALIZE';
       value: InitializeOptions;
     }
@@ -281,10 +285,39 @@ export function createEditor(parent: HTMLElement) {
     });
   }
 
+  let keyboardInset = 0;
+
   function scrollSelectionIntoView(): void {
-    view.dispatch({
-      effects: EditorView.scrollIntoView(view.state.selection.main.head),
-    });
+    const scroller = view.scrollDOM;
+    const head = view.state.selection.main.head;
+    const coords = view.coordsAtPos(head);
+
+    if (!coords) {
+      return;
+    }
+
+    const margin = 8;
+    const top = coords.top;
+    const bottomLimit = scroller.clientHeight - keyboardInset;
+
+    let target = scroller.scrollTop;
+
+    if (top < margin) {
+      target = scroller.scrollTop + (top - margin);
+    } else if (top > bottomLimit - margin) {
+      target = scroller.scrollTop + (top - (bottomLimit - margin));
+    }
+
+    target = Math.max(
+      0,
+      Math.min(target, scroller.scrollHeight - scroller.clientHeight),
+    );
+    scroller.scrollTop = target;
+  }
+
+  function handleKeyboardHeight(height: number): void {
+    keyboardInset = Math.max(0, height);
+    scrollSelectionIntoView();
   }
 
   function initialize(options: InitializeOptions): void {
@@ -326,6 +359,10 @@ export function createEditor(parent: HTMLElement) {
 
       case 'SET_THEME':
         setTheme(message.value);
+        break;
+
+      case 'KEYBOARD_HEIGHT':
+        handleKeyboardHeight(message.value);
         break;
 
       case 'FOCUS':

@@ -1,12 +1,17 @@
 import React from 'react';
-import { StyleSheet, Text } from 'react-native';
-import Animated from 'react-native-reanimated';
+import { StyleSheet, Text, View } from 'react-native';
+import Animated, { runOnJS } from 'react-native-reanimated';
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 
 import { useTheme } from '@hooks/persisted';
 import { getString } from '@i18n/translations';
 
-import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
+import {
+  AndroidSoftInputModes,
+  KeyboardController,
+  useGenericKeyboardHandler,
+  useReanimatedKeyboardAnimation,
+} from 'react-native-keyboard-controller';
 
 import { buildEditorTheme } from './editorTheme';
 
@@ -123,26 +128,11 @@ const EDITOR_HTML = `<!DOCTYPE html>
         );
 
         var editorEl = document.getElementById('editor');
-        var heightTimer = null;
-        function applyEditorHeight() {
+        function syncEditorHeight() {
           var vv = window.visualViewport;
-          var h = (vv ? vv.height : window.innerHeight) + 'px';
-          if (editorEl.style.height !== h) {
-            editorEl.style.height = h;
-            api.scrollSelectionIntoView();
-          }
+          editorEl.style.height = (vv ? vv.height : window.innerHeight) + 'px';
         }
-        function scheduleEditorHeight() {
-          if (heightTimer) {
-            clearTimeout(heightTimer);
-          }
-          heightTimer = setTimeout(applyEditorHeight, 150);
-        }
-        if (window.visualViewport) {
-          window.visualViewport.addEventListener('resize', scheduleEditorHeight);
-          window.visualViewport.addEventListener('scroll', scheduleEditorHeight);
-        }
-        applyEditorHeight();
+        syncEditorHeight();
 
         function handleNativeMessage(event) {
           try {
@@ -217,6 +207,48 @@ const CodeInput = ({
 
   const postMessage = React.useCallback((message: EditorMessage) => {
     webViewRef.current?.postMessage(JSON.stringify(message));
+  }, []);
+
+  const sendKeyboardHeight = React.useCallback(
+    (height: number) => {
+      if (!readyRef.current || height <= 0) {
+        return;
+      }
+
+      postMessage({
+        type: 'KEYBOARD_HEIGHT',
+        value: Math.round(height),
+      });
+    },
+    [postMessage],
+  );
+
+  // Reanimated keyboard tracking (UI thread); the generic handler below
+  // delivers the height on the JS thread as the reliable message path.
+  useReanimatedKeyboardAnimation();
+
+  useGenericKeyboardHandler(
+    {
+      onMove: event => {
+        'worklet';
+        runOnJS(sendKeyboardHeight)(event.height);
+      },
+      onEnd: event => {
+        'worklet';
+        runOnJS(sendKeyboardHeight)(event.height);
+      },
+    },
+    [sendKeyboardHeight],
+  );
+
+  React.useEffect(() => {
+    // Keep the WebView full-size; caret visibility is handled by scrolling
+    // the editor content above the keyboard instead of resizing.
+    KeyboardController.setInputMode(
+      AndroidSoftInputModes.SOFT_INPUT_ADJUST_NOTHING,
+    );
+
+    return () => KeyboardController.setDefaultMode();
   }, []);
 
   const analyzeCode = React.useCallback(
@@ -346,7 +378,7 @@ const CodeInput = ({
     syntaxError ?? (externalError ? 'Invalid code' : undefined);
 
   return (
-    <KeyboardAvoidingView behavior="height" style={styles.container}>
+    <View style={styles.container}>
       <Animated.View
         style={[
           styles.error,
@@ -393,7 +425,7 @@ const CodeInput = ({
         }}
         onMessage={handleMessage}
       />
-    </KeyboardAvoidingView>
+    </View>
   );
 };
 
