@@ -1,6 +1,9 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import Animated, { useAnimatedStyle } from 'react-native-reanimated';
+import Animated, {
+  useAnimatedStyle,
+  withTiming,
+} from 'react-native-reanimated';
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 
 import { useTheme } from '@hooks/persisted';
@@ -235,7 +238,7 @@ const CodeInput = ({
   }, []);
 
   const webViewStyle = useAnimatedStyle(() => ({
-    paddingBottom: -keyboardHeight.value,
+    paddingBottom: withTiming(-keyboardHeight.value, { duration: 220 }),
   }));
 
   const analyzeCode = React.useCallback(
