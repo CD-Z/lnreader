@@ -86,8 +86,7 @@ const EDITOR_HTML = `<!DOCTYPE html>
     />
     <style>
       html,
-      body,
-      #editor {
+      body {
         position: fixed;
         inset: 0;
         width: 100%;
@@ -97,6 +96,13 @@ const EDITOR_HTML = `<!DOCTYPE html>
         overflow: hidden;
         overscroll-behavior: none;
         background: transparent;
+      }
+
+      #editor {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
       }
 
       * {
@@ -117,15 +123,26 @@ const EDITOR_HTML = `<!DOCTYPE html>
         );
 
         var editorEl = document.getElementById('editor');
-        function syncEditorHeight() {
+        var heightTimer = null;
+        function applyEditorHeight() {
           var vv = window.visualViewport;
-          editorEl.style.height = (vv ? vv.height : window.innerHeight) + 'px';
+          var h = (vv ? vv.height : window.innerHeight) + 'px';
+          if (editorEl.style.height !== h) {
+            editorEl.style.height = h;
+            api.scrollSelectionIntoView();
+          }
+        }
+        function scheduleEditorHeight() {
+          if (heightTimer) {
+            clearTimeout(heightTimer);
+          }
+          heightTimer = setTimeout(applyEditorHeight, 150);
         }
         if (window.visualViewport) {
-          window.visualViewport.addEventListener('resize', syncEditorHeight);
-          window.visualViewport.addEventListener('scroll', syncEditorHeight);
+          window.visualViewport.addEventListener('resize', scheduleEditorHeight);
+          window.visualViewport.addEventListener('scroll', scheduleEditorHeight);
         }
-        syncEditorHeight();
+        applyEditorHeight();
 
         function handleNativeMessage(event) {
           try {
@@ -323,7 +340,7 @@ const CodeInput = ({
         clearTimeout(debounceRef.current);
       }
     };
-  }, [analyzeCode, code]);
+  }, []);
 
   const displayedError =
     syntaxError ?? (externalError ? 'Invalid code' : undefined);

@@ -281,6 +281,12 @@ export function createEditor(parent: HTMLElement) {
     });
   }
 
+  function scrollSelectionIntoView(): void {
+    view.dispatch({
+      effects: EditorView.scrollIntoView(view.state.selection.main.head),
+    });
+  }
+
   function initialize(options: InitializeOptions): void {
     prefix = options.prefix;
     suffix = options.suffix;
@@ -330,6 +336,7 @@ export function createEditor(parent: HTMLElement) {
 
   return {
     handleMessage,
+    scrollSelectionIntoView,
     destroy: () => view.destroy(),
   };
 }
