@@ -52,6 +52,9 @@ type NativeMessage =
       value: EditorTheme;
     }
   | {
+      type: 'SCROLL_INTO_VIEW';
+    }
+  | {
       type: 'INITIALIZE';
       value: InitializeOptions;
     }
@@ -326,6 +329,10 @@ export function createEditor(parent: HTMLElement) {
 
       case 'SET_THEME':
         setTheme(message.value);
+        break;
+
+      case 'SCROLL_INTO_VIEW':
+        scrollSelectionIntoView();
         break;
 
       case 'FOCUS':

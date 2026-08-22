@@ -1,6 +1,12 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import Animated, { useAnimatedStyle } from 'react-native-reanimated';
+import Animated, {
+  runOnJS,
+  useAnimatedReaction,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 
 import { useTheme } from '@hooks/persisted';
@@ -127,17 +133,9 @@ const EDITOR_HTML = `<!DOCTYPE html>
         );
 
         var editorEl = document.getElementById('editor');
-        var scrollPending = false;
         function syncEditorHeight() {
           var vv = window.visualViewport;
           editorEl.style.height = (vv ? vv.height : window.innerHeight) + 'px';
-          if (!scrollPending) {
-            scrollPending = true;
-            requestAnimationFrame(function () {
-              scrollPending = false;
-              api.scrollSelectionIntoView();
-            });
-          }
         }
         if (window.visualViewport) {
           window.visualViewport.addEventListener('resize', syncEditorHeight);
@@ -219,6 +217,12 @@ const CodeInput = ({
     webViewRef.current?.postMessage(JSON.stringify(message));
   }, []);
 
+  const scrollWebViewIntoView = React.useCallback(() => {
+    if (readyRef.current) {
+      postMessage({ type: 'SCROLL_INTO_VIEW' });
+    }
+  }, [postMessage]);
+
   const {
     reanimated: { height: keyboardHeight },
   } = useKeyboardContext();
@@ -234,8 +238,61 @@ const CodeInput = ({
     return () => KeyboardController.setDefaultMode();
   }, []);
 
+  // On API 30+ the keyboard height arrives in one jump when the keyboard
+  // opens (no per-frame insets events), while closing reports every frame.
+  // Ease only the opening jump, calibrated by how long the last close
+  // animation ran, so both directions track at any animator scale. The
+  // caret scrolls into view once the easing settles, not per resize frame.
+  const paddingHeight = useSharedValue(0);
+  const openDuration = useSharedValue(250);
+  const closeStartedAt = useSharedValue(0);
+
+  useAnimatedReaction(
+    () => keyboardHeight.value,
+    (height, previous) => {
+      if (height === previous) {
+        return;
+      }
+
+      // keyboardHeight is negative while the keyboard is visible
+      const keyboardNow = Math.abs(height);
+      const keyboardBefore = Math.abs(previous ?? 0);
+      const isOpening = keyboardBefore === 0 && keyboardNow > 0;
+      const isClosing = keyboardBefore > 0 && keyboardNow === 0;
+      const isMidClose = keyboardBefore > 0 && keyboardNow > 0;
+      if (isOpening) {
+        closeStartedAt.value = 0;
+        paddingHeight.value = withTiming(
+          keyboardNow,
+          { duration: openDuration.value },
+          finished => {
+            if (finished) {
+              runOnJS(scrollWebViewIntoView)();
+            }
+          },
+        );
+      } else if (isMidClose) {
+        if (!closeStartedAt.value) {
+          closeStartedAt.value = performance.now();
+        }
+        paddingHeight.value = keyboardNow;
+      } else if (isClosing) {
+        if (closeStartedAt.value) {
+          const measured = performance.now() - closeStartedAt.value;
+          if (measured > 60) {
+            openDuration.value = measured;
+          }
+          closeStartedAt.value = 0;
+        }
+        paddingHeight.value = 0;
+      } else {
+        paddingHeight.value = keyboardNow;
+      }
+    },
+  );
+
   const webViewStyle = useAnimatedStyle(() => ({
-    paddingBottom: -keyboardHeight.value,
+    paddingBottom: paddingHeight.value,
   }));
 
   const analyzeCode = React.useCallback(
