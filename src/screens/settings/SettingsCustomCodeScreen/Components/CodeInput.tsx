@@ -1,16 +1,10 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import Animated, { useAnimatedStyle } from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 
 import { useTheme } from '@hooks/persisted';
 import { getString } from '@i18n/translations';
-
-import {
-  AndroidSoftInputModes,
-  KeyboardController,
-  useKeyboardContext,
-} from 'react-native-keyboard-controller';
 
 import { buildEditorTheme } from './editorTheme';
 
@@ -127,17 +121,16 @@ const EDITOR_HTML = `<!DOCTYPE html>
         );
 
         var editorEl = document.getElementById('editor');
-        var scrollPending = false;
+        var scrollTimer = null;
         function syncEditorHeight() {
           var vv = window.visualViewport;
           editorEl.style.height = (vv ? vv.height : window.innerHeight) + 'px';
-          if (!scrollPending) {
-            scrollPending = true;
-            requestAnimationFrame(function () {
-              scrollPending = false;
-              api.scrollSelectionIntoView();
-            });
+          if (scrollTimer) {
+            clearTimeout(scrollTimer);
           }
+          scrollTimer = setTimeout(function () {
+            api.scrollSelectionIntoView();
+          }, 80);
         }
         if (window.visualViewport) {
           window.visualViewport.addEventListener('resize', syncEditorHeight);
@@ -218,25 +211,6 @@ const CodeInput = ({
   const postMessage = React.useCallback((message: EditorMessage) => {
     webViewRef.current?.postMessage(JSON.stringify(message));
   }, []);
-
-  const {
-    reanimated: { height: keyboardHeight },
-  } = useKeyboardContext();
-
-  React.useEffect(() => {
-    // The window stays full-size; the animated padding below shrinks the
-    // WebView to the visible area, so the layout viewport never exceeds
-    // the screen and the editor cannot be panned out of view.
-    KeyboardController.setInputMode(
-      AndroidSoftInputModes.SOFT_INPUT_ADJUST_NOTHING,
-    );
-
-    return () => KeyboardController.setDefaultMode();
-  }, []);
-
-  const webViewStyle = useAnimatedStyle(() => ({
-    paddingBottom: -keyboardHeight.value,
-  }));
 
   const analyzeCode = React.useCallback(
     (value: string) => {
@@ -389,30 +363,29 @@ const CodeInput = ({
         </Text>
       </Animated.View>
 
-      <Animated.View style={[styles.webViewContainer, webViewStyle]}>
-        <WebView
-          key={language}
-          ref={webViewRef}
-          source={{
-            html: EDITOR_HTML,
-            baseUrl: `https://lnreader-editor.local/`,
-          }}
-          style={[styles.webView, { backgroundColor: theme.background }]}
-          originWhitelist={['*']}
-          javaScriptEnabled
-          domStorageEnabled={false}
-          allowFileAccess
-          allowFileAccessFromFileURLs
-          mixedContentMode="always"
-          keyboardDisplayRequiresUserAction={false}
-          hideKeyboardAccessoryView
-          overScrollMode="never"
-          onLoadStart={() => {
-            readyRef.current = false;
-          }}
-          onMessage={handleMessage}
-        />
-      </Animated.View>
+      <WebView
+        key={language}
+        ref={webViewRef}
+        source={{
+          html: EDITOR_HTML,
+          baseUrl: `https://lnreader-editor.local/`,
+        }}
+        style={[styles.webView, { backgroundColor: theme.background }]}
+        containerStyle={styles.webViewContainer}
+        originWhitelist={['*']}
+        javaScriptEnabled
+        domStorageEnabled={false}
+        allowFileAccess
+        allowFileAccessFromFileURLs
+        mixedContentMode="always"
+        keyboardDisplayRequiresUserAction={false}
+        hideKeyboardAccessoryView
+        overScrollMode="never"
+        onLoadStart={() => {
+          readyRef.current = false;
+        }}
+        onMessage={handleMessage}
+      />
     </View>
   );
 };
@@ -433,7 +406,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   webViewContainer: {
-    flex: 1,
+    flexShrink: 1,
   },
   webView: {
     flex: 1,
