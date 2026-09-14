@@ -1,12 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import Animated, {
-  runOnJS,
-  useAnimatedReaction,
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
-} from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 
 import { useTheme } from '@hooks/persisted';
@@ -15,8 +10,9 @@ import { getString } from '@i18n/translations';
 import {
   AndroidSoftInputModes,
   KeyboardController,
-  useKeyboardContext,
+  useGenericKeyboardHandler,
 } from 'react-native-keyboard-controller';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { buildEditorTheme } from './editorTheme';
 
@@ -31,26 +27,27 @@ type CodeInputProps = {
 
 type NativeEditorMessage =
   | {
-      type: 'READY';
-    }
+    type: 'READY';
+  }
   | {
-      type: 'CODE_CHANGE';
-      value: string;
-    }
+    type: 'CODE_CHANGE';
+    value: string;
+  }
   | {
-      type: 'FOCUS';
-    }
+    type: 'FOCUS';
+  }
   | {
-      type: 'BLUR';
-    }
+    type: 'BLUR';
+  }
   | {
-      type: 'EDITOR_ERROR';
-      value: string;
-    };
+    type: 'EDITOR_ERROR';
+    value: string;
+  };
 
 type EditorMessage = {
   type: string;
   value?: unknown;
+  duration?: number;
 };
 
 const START_JS_CODE = `const qs = (s) => document.querySelector(s);
@@ -108,11 +105,20 @@ const EDITOR_HTML = `<!DOCTYPE html>
         background: transparent;
       }
 
+      body {
+        display: flex;
+        flex-direction: column;
+      }
+
       #editor {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
+        flex: 1 1 auto;
+        min-height: 0;
+        width: 100%;
+      }
+
+      #keyboard-spacer {
+        flex: 0 0 auto;
+        height: 0px;
       }
 
       * {
@@ -125,6 +131,7 @@ const EDITOR_HTML = `<!DOCTYPE html>
   </head>
   <body>
     <div id="editor"></div>
+    <div id="keyboard-spacer"></div>
 
     <script>
       (function () {
@@ -202,6 +209,7 @@ const CodeInput = ({
   onBlur,
   error: externalError,
 }: CodeInputProps) => {
+  const insets = useSafeAreaInsets();
   const theme = useTheme();
   const webViewRef = React.useRef<WebView<object>>(null);
   const readyRef = React.useRef(false);
@@ -217,83 +225,74 @@ const CodeInput = ({
     webViewRef.current?.postMessage(JSON.stringify(message));
   }, []);
 
-  const scrollWebViewIntoView = React.useCallback(() => {
-    if (readyRef.current) {
-      postMessage({ type: 'SCROLL_INTO_VIEW' });
-    }
-  }, [postMessage]);
+  const keyboard = React.useRef({
+    closeStartedAt: 0,
+    closeDuration: 220,
+  });
 
-  const {
-    reanimated: { height: keyboardHeight },
-  } = useKeyboardContext();
+  const sendKeyboardHeight = React.useCallback(
+    (height: number, duration?: number) => {
+      if (!readyRef.current) {
+        return;
+      }
+      postMessage({
+        type: 'KEYBOARD_HEIGHT',
+        // The IME frame spans the bottom inset (nav bar), which would show
+        // through as a blank strip; target the top edge of the keys only.
+        value: Math.round(Math.max(0, height - insets.bottom)),
+        duration,
+      });
+    },
+    [insets.bottom, postMessage],
+  );
+
+  useGenericKeyboardHandler(
+    {
+      onStart: event => {
+        'worklet';
+        if (event.height > 0) {
+          // Destination height at animation start: the page matches its
+          // spacer transition to the measured close duration so both rise
+          // together at any animator scale.
+          scheduleOnRN(
+            sendKeyboardHeight,
+            event.height,
+            keyboard.current.closeDuration,
+          );
+        } else {
+          keyboard.current.closeStartedAt = performance.now();
+        }
+      },
+      onMove: event => {
+        'worklet';
+        scheduleOnRN(sendKeyboardHeight, event.height);
+      },
+      onEnd: event => {
+        'worklet';
+        const startedAt = keyboard.current.closeStartedAt;
+        if (event.height === 0 && startedAt > 0) {
+          keyboard.current.closeStartedAt = 0;
+          const measured = performance.now() - startedAt;
+          if (measured > 80 && measured < 5000) {
+            keyboard.current.closeDuration = measured;
+          }
+        }
+        scheduleOnRN(sendKeyboardHeight, event.height);
+      },
+    },
+    [sendKeyboardHeight],
+  );
 
   React.useEffect(() => {
-    // The window stays full-size; the animated padding below shrinks the
-    // WebView to the visible area, so the layout viewport never exceeds
-    // the screen and the editor cannot be panned out of view.
+    // The window stays full-size so the WebView's layout viewport always
+    // equals the screen and the editor cannot pan; the keyboard overlays it
+    // and the page-side spacer compensates.
     KeyboardController.setInputMode(
       AndroidSoftInputModes.SOFT_INPUT_ADJUST_NOTHING,
     );
 
     return () => KeyboardController.setDefaultMode();
   }, []);
-
-  // On API 30+ the keyboard height arrives in one jump when the keyboard
-  // opens (no per-frame insets events), while closing reports every frame.
-  // Ease only the opening jump, calibrated by how long the last close
-  // animation ran, so both directions track at any animator scale. The
-  // caret scrolls into view once the easing settles, not per resize frame.
-  const paddingHeight = useSharedValue(0);
-  const openDuration = useSharedValue(250);
-  const closeStartedAt = useSharedValue(0);
-
-  useAnimatedReaction(
-    () => keyboardHeight.value,
-    (height, previous) => {
-      if (height === previous) {
-        return;
-      }
-
-      // keyboardHeight is negative while the keyboard is visible
-      const keyboardNow = Math.abs(height);
-      const keyboardBefore = Math.abs(previous ?? 0);
-      const isOpening = keyboardBefore === 0 && keyboardNow > 0;
-      const isClosing = keyboardBefore > 0 && keyboardNow === 0;
-      const isMidClose = keyboardBefore > 0 && keyboardNow > 0;
-      if (isOpening) {
-        closeStartedAt.value = 0;
-        paddingHeight.value = withTiming(
-          keyboardNow,
-          { duration: openDuration.value },
-          finished => {
-            if (finished) {
-              runOnJS(scrollWebViewIntoView)();
-            }
-          },
-        );
-      } else if (isMidClose) {
-        if (!closeStartedAt.value) {
-          closeStartedAt.value = performance.now();
-        }
-        paddingHeight.value = keyboardNow;
-      } else if (isClosing) {
-        if (closeStartedAt.value) {
-          const measured = performance.now() - closeStartedAt.value;
-          if (measured > 60) {
-            openDuration.value = measured;
-          }
-          closeStartedAt.value = 0;
-        }
-        paddingHeight.value = 0;
-      } else {
-        paddingHeight.value = keyboardNow;
-      }
-    },
-  );
-
-  const webViewStyle = useAnimatedStyle(() => ({
-    paddingBottom: paddingHeight.value,
-  }));
 
   const analyzeCode = React.useCallback(
     (value: string) => {
@@ -446,30 +445,32 @@ const CodeInput = ({
         </Text>
       </Animated.View>
 
-      <Animated.View style={[styles.webViewContainer, webViewStyle]}>
-        <WebView
-          key={language}
-          ref={webViewRef}
-          source={{
-            html: EDITOR_HTML,
-            baseUrl: `https://lnreader-editor.local/`,
-          }}
-          style={[styles.webView, { backgroundColor: theme.background }]}
-          originWhitelist={['*']}
-          javaScriptEnabled
-          domStorageEnabled={false}
-          allowFileAccess
-          allowFileAccessFromFileURLs
-          mixedContentMode="always"
-          keyboardDisplayRequiresUserAction={false}
-          hideKeyboardAccessoryView
-          overScrollMode="never"
-          onLoadStart={() => {
-            readyRef.current = false;
-          }}
-          onMessage={handleMessage}
-        />
-      </Animated.View>
+      <WebView
+        key={language}
+        ref={webViewRef}
+        source={{
+          html: EDITOR_HTML,
+          baseUrl: `https://lnreader-editor.local/`,
+        }}
+        style={[
+          styles.webViewContainer,
+          styles.webView,
+          { backgroundColor: theme.background },
+        ]}
+        originWhitelist={['*']}
+        javaScriptEnabled
+        domStorageEnabled={false}
+        allowFileAccess
+        allowFileAccessFromFileURLs
+        mixedContentMode="always"
+        keyboardDisplayRequiresUserAction={false}
+        hideKeyboardAccessoryView
+        overScrollMode="never"
+        onLoadStart={() => {
+          readyRef.current = false;
+        }}
+        onMessage={handleMessage}
+      />
     </View>
   );
 };
@@ -490,7 +491,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   webViewContainer: {
-    flex: 1,
+    flexShrink: 1,
   },
   webView: {
     flex: 1,

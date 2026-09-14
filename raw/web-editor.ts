@@ -44,23 +44,26 @@ type InitializeOptions = {
 
 type NativeMessage =
   | {
-      type: 'SET_CODE';
-      value: string;
-    }
+    type: 'SET_CODE';
+    value: string;
+  }
   | {
-      type: 'SET_THEME';
-      value: EditorTheme;
-    }
+    type: 'SET_THEME';
+    value: EditorTheme;
+  }
   | {
-      type: 'SCROLL_INTO_VIEW';
-    }
+    type: 'KEYBOARD_HEIGHT';
+    value: number;
+    /** Animation duration hint for open jumps; omit while tracking. */
+    duration?: number;
+  }
   | {
-      type: 'INITIALIZE';
-      value: InitializeOptions;
-    }
+    type: 'INITIALIZE';
+    value: InitializeOptions;
+  }
   | {
-      type: 'FOCUS';
-    };
+    type: 'FOCUS';
+  };
 
 const externalUpdate = Annotation.define<boolean>();
 
@@ -284,10 +287,83 @@ export function createEditor(parent: HTMLElement) {
     });
   }
 
+  let spacerEl: HTMLElement | null = null;
+
   function scrollSelectionIntoView(): void {
-    view.dispatch({
-      effects: EditorView.scrollIntoView(view.state.selection.main.head),
-    });
+    const scroller = view.scrollDOM;
+    const head = view.state.selection.main.head;
+    const coords = view.coordsAtPos(head);
+    if (!coords) {
+      return;
+    }
+    const margin = 8;
+    const top = coords.top;
+    const bottomLimit = scroller.clientHeight;
+    let target = scroller.scrollTop;
+    if (top < margin) {
+      target = scroller.scrollTop + (top - margin);
+    } else if (top > bottomLimit - margin) {
+      target = scroller.scrollTop + (top - (bottomLimit - margin));
+    }
+    target = Math.max(
+      0,
+      Math.min(target, scroller.scrollHeight - scroller.clientHeight),
+    );
+    scroller.scrollTop = target;
+  }
+
+  let settleRaf = 0;
+
+  function setSpacerTransition(duration: number): void {
+    if (spacerEl) {
+      spacerEl.style.transition = `height ${duration}ms cubic-bezier(0.2, 0.8, 0.2, 1)`;
+    }
+  }
+
+  function stopSettle(): void {
+    if (settleRaf) {
+      cancelAnimationFrame(settleRaf);
+      settleRaf = 0;
+    }
+  }
+
+  function handleKeyboardHeight(height: number, duration?: number): void {
+    const inset = Math.max(0, height);
+    if (!spacerEl) {
+      spacerEl = document.querySelector<HTMLElement>('#keyboard-spacer');
+    }
+    if (spacerEl) {
+      if (duration !== undefined) {
+        // Open jump: RN sends the destination height once, with the measured
+        // keyboard animation duration; match it so the spacer and the keys
+        // rise together.
+        stopSettle();
+        setSpacerTransition(Math.max(1, duration));
+      } else {
+        // Per-frame tracking: apply heights directly, no transition lag.
+        setSpacerTransition(0);
+      }
+      spacerEl.style.height = `${inset}px`;
+    }
+    scrollSelectionIntoView();
+
+    if (duration === undefined || duration <= 16) {
+      return;
+    }
+    // The browser clamps scrollTop to the momentary max on each layout frame
+    // while the spacer transition shrinks the scroller, undoing a single
+    // scroll pass. Re-assert the caret scroll every frame for the animation
+    // window so the caret stays flush with the rising keyboard top.
+    const start = performance.now();
+    const settle = () => {
+      if (performance.now() - start > duration + 150) {
+        settleRaf = 0;
+        return;
+      }
+      scrollSelectionIntoView();
+      settleRaf = requestAnimationFrame(settle);
+    };
+    settleRaf = requestAnimationFrame(settle);
   }
 
   function initialize(options: InitializeOptions): void {
@@ -297,8 +373,8 @@ export function createEditor(parent: HTMLElement) {
 
     const placeholderExtension =
       currentPlaceholder.length > 0 &&
-      prefix.length === 0 &&
-      suffix.length === 0
+        prefix.length === 0 &&
+        suffix.length === 0
         ? placeholder(currentPlaceholder)
         : [];
 
@@ -331,8 +407,8 @@ export function createEditor(parent: HTMLElement) {
         setTheme(message.value);
         break;
 
-      case 'SCROLL_INTO_VIEW':
-        scrollSelectionIntoView();
+      case 'KEYBOARD_HEIGHT':
+        handleKeyboardHeight(message.value, message.duration);
         break;
 
       case 'FOCUS':
