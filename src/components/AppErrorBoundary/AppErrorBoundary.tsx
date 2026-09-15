@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { StyleSheet, View, Text, StatusBar } from 'react-native';
 import ErrorBoundary from 'react-native-error-boundary';
 import * as Clipboard from 'expo-clipboard';
@@ -8,6 +8,7 @@ import { showToast } from '@utils/showToast';
 import { Button, List } from '@components';
 import { useTheme } from '@hooks/persisted';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { restartApplication, shareCrashLogs } from '@services/crashLogs';
 
 interface ErrorFallbackProps {
   error: Error;
@@ -19,6 +20,7 @@ export const ErrorFallback: React.FC<ErrorFallbackProps> = ({
   resetError,
 }) => {
   const theme = useTheme();
+  const [isSharing, setIsSharing] = useState(false);
 
   const fallbackGetString = (
     key: Parameters<typeof getString>[0],
@@ -34,20 +36,40 @@ export const ErrorFallback: React.FC<ErrorFallbackProps> = ({
 
   const chainMessages = useMemo(() => getErrorChainMessages(error), [error]);
 
-  const handleCopyStackTrace = async () => {
+  const copyStackTrace = async () => {
     try {
       const message = chainMessages.join('\n\nCaused by: ');
       await Clipboard.setStringAsync(`${message}\n\n${error.stack}`);
-      showToast(
-        fallbackGetString(
-          'common.copiedToClipboard',
-          'Copied to clipboard: Stack trace',
-          { name: 'Stack trace' },
-        ),
-      );
+      return true;
     } catch {
-      // clipboard failure is non-critical
+      return false;
     }
+  };
+
+  const handleShareCrashLogs = async () => {
+    setIsSharing(true);
+    try {
+      await shareCrashLogs(error);
+    } catch {
+      const copiedStackTrace = await copyStackTrace();
+      showToast(
+        copiedStackTrace
+          ? fallbackGetString(
+              'errorBoundary.shareCrashLogsFailed',
+              'Could not share crash logs. The stack trace was copied instead.',
+            )
+          : fallbackGetString(
+              'errorBoundary.shareCrashLogsFailedWithoutCopy',
+              'Could not share crash logs or copy the stack trace.',
+            ),
+      );
+    } finally {
+      setIsSharing(false);
+    }
+  };
+
+  const handleRestart = () => {
+    restartApplication(resetError).catch(resetError);
   };
 
   return (
@@ -65,7 +87,7 @@ export const ErrorFallback: React.FC<ErrorFallbackProps> = ({
         <Text style={[styles.errorDesc, { color: theme.onSurface }]}>
           {fallbackGetString(
             'errorBoundary.description',
-            'The application ran into an unexpected error. Please copy the stack trace below and share it on our Discord support channel.',
+            'The application ran into an unexpected error. Please share the crash logs in our Discord support channel.',
           )}
         </Text>
         <Text
@@ -83,16 +105,18 @@ export const ErrorFallback: React.FC<ErrorFallbackProps> = ({
       </View>
       <List.Divider theme={theme} />
       <Button
-        onPress={handleCopyStackTrace}
+        disabled={isSharing}
+        loading={isSharing}
+        onPress={handleShareCrashLogs}
         title={fallbackGetString(
-          'errorBoundary.copyStackTrace',
-          'Copy stack trace',
+          'errorBoundary.shareCrashLogs',
+          'Share crash logs',
         )}
-        style={styles.copyButtonCtn}
+        style={styles.shareButtonCtn}
         mode="outlined"
       />
       <Button
-        onPress={resetError}
+        onPress={handleRestart}
         title={fallbackGetString(
           'errorBoundary.restart',
           'Restart the application',
@@ -121,7 +145,7 @@ const styles = StyleSheet.create({
     margin: 16,
     marginBottom: 32,
   },
-  copyButtonCtn: {
+  shareButtonCtn: {
     margin: 16,
     marginBottom: 8,
   },

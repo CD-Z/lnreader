@@ -1,0 +1,19 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <application>
+    <provider
+      android:name="expo.modules.nativecrashlogs.CrashHandlerInitializationProvider"
+      android:authorities="${applicationId}.crash-handler-initializer"
+      android:exported="false"
+      android:initOrder="110" />
+
+    <provider
+      android:name="expo.modules.nativecrashlogs.CrashLogFileProvider"
+      android:authorities="${applicationId}.crash-logs"
+      android:exported="false"
+      android:grantUriPermissions="true">
+      <meta-data
+        android:name="android.support.FILE_PROVIDER_PATHS"
+        android:resource="@xml/crash_log_paths" />
+    </provider>
+  </application>
+</manifest>

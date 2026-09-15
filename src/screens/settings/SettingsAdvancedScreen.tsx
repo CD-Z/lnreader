@@ -21,9 +21,11 @@ import CookieManager from '@preeternal/react-native-cookie-manager';
 import { store } from '@plugins/helpers/storage';
 import NativeDoh, { DohProviderId } from '@modules/native-doh';
 import DohProviderDialog, { DOH_PROVIDERS } from './DohProviderDialog';
+import { shareCrashLogs } from '@services/crashLogs';
 
 const AdvancedSettings = ({ navigation }: AdvancedSettingsScreenProps) => {
   const theme = useTheme();
+  const [isSharingCrashLogs, setIsSharingCrashLogs] = useState(false);
   const clearCookies = () => {
     CookieManager.clearAll();
     store.clearAll();
@@ -51,6 +53,17 @@ const AdvancedSettings = ({ navigation }: AdvancedSettingsScreenProps) => {
       showToast(getString('advancedSettingsScreen.clearUpdatesMessage'));
     } catch (error) {
       showToast(error instanceof Error ? error.message : String(error));
+    }
+  };
+
+  const handleShareCrashLogs = async () => {
+    setIsSharingCrashLogs(true);
+    try {
+      await shareCrashLogs();
+    } catch (error) {
+      showToast(getString('advancedSettingsScreen.shareCrashLogsFailed'));
+    } finally {
+      setIsSharingCrashLogs(false);
     }
   };
 
@@ -84,6 +97,20 @@ const AdvancedSettings = ({ navigation }: AdvancedSettingsScreenProps) => {
         theme={theme}
       />
       <ScrollView>
+        <List.Section>
+          <List.SubHeader theme={theme}>
+            {getString('advancedSettingsScreen.diagnostics')}
+          </List.SubHeader>
+          <List.Item
+            title={getString('advancedSettingsScreen.shareCrashLogs')}
+            description={getString(
+              'advancedSettingsScreen.shareCrashLogsDescription',
+            )}
+            disabled={isSharingCrashLogs}
+            onPress={handleShareCrashLogs}
+            theme={theme}
+          />
+        </List.Section>
         <List.Section>
           <List.SubHeader theme={theme}>
             {getString('advancedSettingsScreen.dataManagement')}

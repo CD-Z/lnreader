@@ -14,6 +14,7 @@ import {
 import AppErrorBoundary, {
   ErrorFallback,
 } from '@components/AppErrorBoundary/AppErrorBoundary';
+import CrashRecoveryGate from '@components/AppErrorBoundary/CrashRecoveryGate';
 
 import Main from './src/navigators/Main';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
@@ -64,7 +65,7 @@ const ThemedPaperProvider = ({ children }: PropsWithChildren) => {
   return <PaperProvider theme={paperTheme}>{children}</PaperProvider>;
 };
 
-const App = () => {
+const Application = () => {
   useRozeniteSqlitePlugin({ adapters: sqliteAdapters });
   const { success: databaseReady, error: databaseError } = useInitDatabase();
   const { ready: servicesReady, error: servicesError } =
@@ -80,9 +81,7 @@ const App = () => {
 
   if (initializationError) {
     return (
-      <ThemeProvider>
-        <ErrorFallback error={initializationError} resetError={() => null} />
-      </ThemeProvider>
+      <ErrorFallback error={initializationError} resetError={() => null} />
     );
   }
 
@@ -91,29 +90,32 @@ const App = () => {
   }
 
   return (
-    <Suspense fallback={null}>
-<ThemeProvider>
-        <ThemedRootView>
-          <KeyboardProvider>
-            <AppErrorBoundary>
-              <SafeAreaProvider>
-                <ThemedPaperProvider>
-                  <BottomSheetModalProvider>
-                    <StatusBar
-                      translucent={true}
-                      backgroundColor="transparent"
-                    />
-                    <Main />
-                  </BottomSheetModalProvider>
-                </ThemedPaperProvider>
-              </SafeAreaProvider>
-            </AppErrorBoundary>
-          </KeyboardProvider>
-        </ThemedRootView>
-      </ThemeProvider>
-    </Suspense>
+    <ThemedRootView>
+      <KeyboardProvider>
+        <AppErrorBoundary>
+          <SafeAreaProvider>
+            <ThemedPaperProvider>
+              <BottomSheetModalProvider>
+                <StatusBar translucent={true} backgroundColor="transparent" />
+                <Main />
+              </BottomSheetModalProvider>
+            </ThemedPaperProvider>
+          </SafeAreaProvider>
+        </AppErrorBoundary>
+      </KeyboardProvider>
+    </ThemedRootView>
   );
 };
+
+const App = () => (
+  <Suspense fallback={null}>
+    <ThemeProvider>
+      <CrashRecoveryGate>
+        <Application />
+      </CrashRecoveryGate>
+    </ThemeProvider>
+  </Suspense>
+);
 
 export default App;
 

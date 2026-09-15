@@ -148,6 +148,7 @@
       "reactNativeDirectoryCheck": {
         "exclude": [
           "native-file",
+          "native-crash-logs",
           "nitro-tts",
           "native-volume-button-listener",
           "native-zip-archive",

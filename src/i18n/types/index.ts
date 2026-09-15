@@ -23,6 +23,7 @@ export interface StringMap {
   'advancedSettingsScreen.dataManagement': 'string';
   'advancedSettingsScreen.deleteReadChapters': 'string';
   'advancedSettingsScreen.deleteReadChaptersDialogTitle': 'string';
+  'advancedSettingsScreen.diagnostics': 'string';
   'advancedSettingsScreen.disabled': 'string';
   'advancedSettingsScreen.dnsOverHttps': 'string';
   'advancedSettingsScreen.dnsOverHttpsDescription': 'string';
@@ -39,6 +40,9 @@ export interface StringMap {
   'advancedSettingsScreen.recreateDBIndexesDialogTitle': 'string';
   'advancedSettingsScreen.recreateDBIndexesDesc': 'string';
   'advancedSettingsScreen.restartRequired': 'string';
+  'advancedSettingsScreen.shareCrashLogs': 'string';
+  'advancedSettingsScreen.shareCrashLogsDescription': 'string';
+  'advancedSettingsScreen.shareCrashLogsFailed': 'string';
   'appearance': 'string';
   'appearanceScreen.accentColor': 'string';
   'appearanceScreen.alwaysShowNavLabels': 'string';
@@ -338,6 +342,9 @@ export interface StringMap {
   'errorBoundary.title': 'string';
   'errorBoundary.description': 'string';
   'errorBoundary.copyStackTrace': 'string';
+  'errorBoundary.shareCrashLogs': 'string';
+  'errorBoundary.shareCrashLogsFailed': 'string';
+  'errorBoundary.shareCrashLogsFailedWithoutCopy': 'string';
   'errorBoundary.restart': 'string';
   'generalSettings': 'string';
   'generalSettingsScreen.asc': 'string';

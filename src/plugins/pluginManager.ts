@@ -14,6 +14,7 @@ import NativeFile from '@modules/native-file';
 import { showToast } from '@utils/showToast';
 import { LEGACY_PLUGIN_STORAGE, PLUGIN_STORAGE } from '@utils/Storages';
 import { getMMKVObject, setMMKVObject } from '@utils/mmkv/mmkv';
+import { INSTALLED_PLUGINS_KEY } from './constants';
 
 import {
   store,
@@ -87,7 +88,7 @@ const initPlugin = (pluginId: string, rawCode: string) => {
 };
 
 const plugins: Record<string, Plugin | undefined> = {};
-export const INSTALLED_PLUGINS_KEY = 'INSTALL_PLUGINS';
+export { INSTALLED_PLUGINS_KEY } from './constants';
 const PLUGIN_FILES = ['custom.js', 'custom.css', 'index.js'] as const;
 
 // v2.1.0 stored plugin bundles in getExternalFilesDir(), which can be unavailable
