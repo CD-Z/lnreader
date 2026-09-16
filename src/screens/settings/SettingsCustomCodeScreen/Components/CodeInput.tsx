@@ -27,22 +27,22 @@ type CodeInputProps = {
 
 type NativeEditorMessage =
   | {
-    type: 'READY';
-  }
+      type: 'READY';
+    }
   | {
-    type: 'CODE_CHANGE';
-    value: string;
-  }
+      type: 'CODE_CHANGE';
+      value: string;
+    }
   | {
-    type: 'FOCUS';
-  }
+      type: 'FOCUS';
+    }
   | {
-    type: 'BLUR';
-  }
+      type: 'BLUR';
+    }
   | {
-    type: 'EDITOR_ERROR';
-    value: string;
-  };
+      type: 'EDITOR_ERROR';
+      value: string;
+    };
 
 type EditorMessage = {
   type: string;

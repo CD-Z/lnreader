@@ -44,26 +44,26 @@ type InitializeOptions = {
 
 type NativeMessage =
   | {
-    type: 'SET_CODE';
-    value: string;
-  }
+      type: 'SET_CODE';
+      value: string;
+    }
   | {
-    type: 'SET_THEME';
-    value: EditorTheme;
-  }
+      type: 'SET_THEME';
+      value: EditorTheme;
+    }
   | {
-    type: 'KEYBOARD_HEIGHT';
-    value: number;
-    /** Animation duration hint for open jumps; omit while tracking. */
-    duration?: number;
-  }
+      type: 'KEYBOARD_HEIGHT';
+      value: number;
+      /** Animation duration hint for open jumps; omit while tracking. */
+      duration?: number;
+    }
   | {
-    type: 'INITIALIZE';
-    value: InitializeOptions;
-  }
+      type: 'INITIALIZE';
+      value: InitializeOptions;
+    }
   | {
-    type: 'FOCUS';
-  };
+      type: 'FOCUS';
+    };
 
 const externalUpdate = Annotation.define<boolean>();
 
@@ -261,6 +261,7 @@ export function createEditor(parent: HTMLElement) {
       ],
     }),
   });
+  view.contentDOM.style.boxSizing = 'content-box';
 
   function setCode(code: string): void {
     const bodyEnd = view.state.doc.length - suffix.length;
@@ -288,6 +289,7 @@ export function createEditor(parent: HTMLElement) {
   }
 
   let spacerEl: HTMLElement | null = null;
+  let keyboardInset = 0;
 
   function scrollSelectionIntoView(): void {
     const scroller = view.scrollDOM;
@@ -296,19 +298,35 @@ export function createEditor(parent: HTMLElement) {
     if (!coords) {
       return;
     }
-    const margin = 8;
-    const top = coords.top;
-    const bottomLimit = scroller.clientHeight;
+    const margin = 16;
+    const scrollerRect = scroller.getBoundingClientRect();
+    const visibleTop = scrollerRect.top + margin;
+    const visibleBottom = Math.min(
+      scrollerRect.bottom - margin,
+      window.innerHeight - keyboardInset - margin,
+    );
     let target = scroller.scrollTop;
-    if (top < margin) {
-      target = scroller.scrollTop + (top - margin);
-    } else if (top > bottomLimit - margin) {
-      target = scroller.scrollTop + (top - (bottomLimit - margin));
+    if (coords.top < visibleTop) {
+      target += coords.top - visibleTop;
+    } else if (coords.bottom > visibleBottom) {
+      target += coords.bottom - visibleBottom;
     }
     target = Math.max(
       0,
       Math.min(target, scroller.scrollHeight - scroller.clientHeight),
     );
+    console.log('scrollSelectionIntoView', {
+      scrollerScrollTop: scroller.scrollTop,
+      target,
+      coordsTop: coords.top,
+      coordsBottom: coords.bottom,
+      visibleTop,
+      visibleBottom,
+      scrollerRectTop: scrollerRect.top,
+      scrollerRectBottom: scrollerRect.bottom,
+      windowInnerHeight: window.innerHeight,
+      keyboardInset,
+    });
     scroller.scrollTop = target;
   }
 
@@ -329,6 +347,9 @@ export function createEditor(parent: HTMLElement) {
 
   function handleKeyboardHeight(height: number, duration?: number): void {
     const inset = Math.max(0, height);
+    keyboardInset = inset;
+    view.contentDOM.style.paddingBottom = `${inset + 24}px`;
+
     if (!spacerEl) {
       spacerEl = document.querySelector<HTMLElement>('#keyboard-spacer');
     }
@@ -373,8 +394,8 @@ export function createEditor(parent: HTMLElement) {
 
     const placeholderExtension =
       currentPlaceholder.length > 0 &&
-        prefix.length === 0 &&
-        suffix.length === 0
+      prefix.length === 0 &&
+      suffix.length === 0
         ? placeholder(currentPlaceholder)
         : [];
 
