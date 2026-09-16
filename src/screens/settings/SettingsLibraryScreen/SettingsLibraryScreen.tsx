@@ -72,6 +72,7 @@ const SettingsLibraryScreen = ({ navigation }: LibrarySettingsScreenProps) => {
     showUnreadBadges = true,
     sortOrder = LibrarySortOrder.DateAdded_DESC,
     defaultCategoryId,
+    promptForCategoryOnAdd = false,
     globalUpdateExcludeCategoryIds = [],
     globalUpdateIncludeCategoryIds = [],
     setLibrarySettings,
@@ -125,6 +126,15 @@ const SettingsLibraryScreen = ({ navigation }: LibrarySettingsScreenProps) => {
   const setDefaultCategory = (categoryId: number) => {
     setLibrarySettings({
       defaultCategoryId: categoryId === 1 ? undefined : categoryId,
+      promptForCategoryOnAdd: false,
+    });
+    defaultCategoryDialog.setFalse();
+  };
+
+  const setPromptForCategoryOnAdd = () => {
+    setLibrarySettings({
+      defaultCategoryId: undefined,
+      promptForCategoryOnAdd: true,
     });
     defaultCategoryDialog.setFalse();
   };
@@ -286,7 +296,9 @@ const SettingsLibraryScreen = ({ navigation }: LibrarySettingsScreenProps) => {
           <List.Item
             title={getString('categories.defaultCategory')}
             description={
-              selectedDefaultCategory?.name ?? appDefaultCategory?.name
+              promptForCategoryOnAdd
+                ? getString('categories.alwaysAsk')
+                : selectedDefaultCategory?.name ?? appDefaultCategory?.name
             }
             onPress={defaultCategoryDialog.setTrue}
             theme={theme}
@@ -413,6 +425,8 @@ const SettingsLibraryScreen = ({ navigation }: LibrarySettingsScreenProps) => {
         <DefaultCategoryDialog
           categories={selectableCategories}
           defaultCategoryId={selectedDefaultCategory?.id ?? 1}
+          promptForCategoryOnAdd={promptForCategoryOnAdd}
+          setPromptForCategoryOnAdd={setPromptForCategoryOnAdd}
           visible={defaultCategoryDialog.value}
           hideDialog={defaultCategoryDialog.setFalse}
           setDefaultCategory={setDefaultCategory}

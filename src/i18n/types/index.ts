@@ -241,6 +241,7 @@ export interface StringMap {
   'categories.cantDeleteDefault': 'string';
   'categories.default': 'string';
   'categories.defaultCategory': 'string';
+  'categories.alwaysAsk': 'string';
   'categories.deleteModal.desc': 'string';
   'categories.deleteModal.header': 'string';
   'categories.duplicateError': 'string';

@@ -16,18 +16,22 @@ import { RootStackParamList } from '@navigators/types';
 
 interface SetCategoryModalProps {
   novelIds: number[];
+  initialCategoryIds?: number[];
   visible: boolean;
   onEditCategories?: () => void;
   closeModal: () => void;
   onSuccess?: () => void | Promise<void>;
+  onSubmit?: (categoryIds: number[]) => void | Promise<void>;
 }
 
 const SetCategoryModal: React.FC<SetCategoryModalProps> = ({
   novelIds,
+  initialCategoryIds,
   closeModal,
   visible,
   onSuccess,
   onEditCategories,
+  onSubmit,
 }) => {
   const theme = useTheme();
   const { navigate } = useNavigation<NavigationProp<RootStackParamList>>();
@@ -39,13 +43,19 @@ const SetCategoryModal: React.FC<SetCategoryModalProps> = ({
     void getCategoriesWithCount(novelIds).then(result => {
       if (active) {
         setCategories(result);
-        setSelectedCategories(result.filter(category => category.novelsCount));
+        setSelectedCategories(
+          result.filter(category =>
+            initialCategoryIds
+              ? initialCategoryIds.includes(category.id)
+              : category.novelsCount,
+          ),
+        );
       }
     });
     return () => {
       active = false;
     };
-  }, [novelIds]);
+  }, [initialCategoryIds, novelIds]);
 
   return (
     <Dialog.Root visible={visible} onDismiss={closeModal}>
@@ -94,10 +104,12 @@ const SetCategoryModal: React.FC<SetCategoryModalProps> = ({
         </Dialog.Action>
         <Dialog.Action
           onPress={async () => {
-            await updateNovelCategories(
-              novelIds,
-              selectedCategories.map(category => category.id),
-            );
+            const categoryIds = selectedCategories.map(category => category.id);
+            if (onSubmit) {
+              await onSubmit(categoryIds);
+            } else {
+              await updateNovelCategories(novelIds, categoryIds);
+            }
             closeModal();
             void onSuccess?.();
           }}

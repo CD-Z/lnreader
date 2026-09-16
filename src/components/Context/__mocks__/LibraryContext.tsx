@@ -8,7 +8,10 @@ const defaultLibraryContext = {
   refreshCategories: jest.fn().mockResolvedValue(undefined),
   setLibrary: jest.fn(),
   novelInLibrary: jest.fn(() => false),
-  switchNovelToLibrary: jest.fn().mockResolvedValue(undefined),
+  switchNovelToLibrary: jest.fn().mockResolvedValue(true),
+  pendingLibraryAddition: undefined,
+  cancelPendingLibraryAddition: jest.fn(),
+  confirmPendingLibraryAddition: jest.fn().mockResolvedValue(undefined),
   refetchLibrary: jest.fn(),
   setLibrarySearchText: jest.fn(),
   settings: {

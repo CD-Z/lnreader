@@ -96,7 +96,10 @@ export interface NovelStoreDependencies {
   persistPageIndex?: (value: number) => void;
   persistNovelSettings?: (value: NovelSettings) => void;
   persistLastRead?: (value: ChapterInfo) => void;
-  switchNovelToLibrary?: (novelPath: string, pluginId: string) => Promise<void>;
+  switchNovelToLibrary?: (
+    novelPath: string,
+    pluginId: string,
+  ) => Promise<boolean>;
 }
 
 export type SetState = {

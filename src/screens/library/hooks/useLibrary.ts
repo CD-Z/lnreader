@@ -12,7 +12,10 @@ import { Category, NovelInfo } from '@database/types';
 
 import { useLibrarySettings } from '@hooks/persisted';
 import { LibrarySortOrder } from '../constants/constants';
-import { switchNovelToLibraryQuery } from '@database/queries/NovelQueries';
+import {
+  getNovelByPath,
+  switchNovelToLibraryQuery,
+} from '@database/queries/NovelQueries';
 import {
   BACKGROUND_TASKS_STORE_KEY,
   BackgroundTask,
@@ -23,6 +26,9 @@ import { useMMKVObject } from 'react-native-mmkv';
 
 // type Library = Category & { novels: LibraryNovelInfo[] };
 export type ExtendedCategory = Category & { novelIds: number[] };
+export type PendingLibraryAddition = {
+  initialCategoryIds: number[];
+};
 export type UseLibraryReturnType = {
   library: NovelInfo[];
   categories: ExtendedCategory[];
@@ -32,7 +38,13 @@ export type UseLibraryReturnType = {
   refreshCategories: () => Promise<void>;
   setLibrary: React.Dispatch<React.SetStateAction<NovelInfo[]>>;
   novelInLibrary: (pluginId: string, novelPath: string) => boolean;
-  switchNovelToLibrary: (novelPath: string, pluginId: string) => Promise<void>;
+  switchNovelToLibrary: (
+    novelPath: string,
+    pluginId: string,
+  ) => Promise<boolean>;
+  pendingLibraryAddition?: PendingLibraryAddition;
+  cancelPendingLibraryAddition: () => void;
+  confirmPendingLibraryAddition: (categoryIds: number[]) => Promise<void>;
   refetchLibrary: () => Promise<void>;
   setLibrarySearchText: (text: string) => void;
 };
@@ -42,6 +54,7 @@ export const useLibrary = (): UseLibraryReturnType => {
     filter,
     sortOrder = LibrarySortOrder.DateAdded_DESC,
     downloadedOnlyMode = false,
+    promptForCategoryOnAdd = false,
   } = useLibrarySettings();
 
   const [library, setLibrary] = useState<NovelInfo[]>([]);
@@ -52,6 +65,16 @@ export const useLibrary = (): UseLibraryReturnType => {
   const hasLoadedRef = useRef(false);
   const hasErrorRef = useRef(false);
   const loadRequestIdRef = useRef(0);
+  const pendingLibraryAdditionRef = useRef<
+    | {
+        novelPath: string;
+        pluginId: string;
+        resolve: (completed: boolean) => void;
+      }
+    | undefined
+  >(undefined);
+  const [pendingLibraryAddition, setPendingLibraryAddition] =
+    useState<PendingLibraryAddition>();
 
   const libraryQuery = useMemo(
     () =>
@@ -132,9 +155,13 @@ export const useLibrary = (): UseLibraryReturnType => {
     [libraryLookup],
   );
 
-  const switchNovelToLibrary = useCallback(
-    async (novelPath: string, pluginId: string) => {
-      await switchNovelToLibraryQuery(novelPath, pluginId);
+  const performLibrarySwitch = useCallback(
+    async (novelPath: string, pluginId: string, categoryIds?: number[]) => {
+      const result = await switchNovelToLibraryQuery(
+        novelPath,
+        pluginId,
+        categoryIds,
+      );
 
       // Important to get correct chapters count
       // Count is set by sql trigger
@@ -147,8 +174,70 @@ export const useLibrary = (): UseLibraryReturnType => {
       );
 
       setLibrary(novels);
+
+      return result !== undefined;
     },
     [downloadedOnlyMode, filter, refreshCategories, searchText, sortOrder],
+  );
+
+  const switchNovelToLibrary = useCallback(
+    async (novelPath: string, pluginId: string) => {
+      if (promptForCategoryOnAdd) {
+        const novel = await getNovelByPath(novelPath, pluginId);
+        if (!novel?.inLibrary) {
+          return new Promise<boolean>(resolve => {
+            pendingLibraryAdditionRef.current?.resolve(false);
+            pendingLibraryAdditionRef.current = {
+              novelPath,
+              pluginId,
+              resolve,
+            };
+            setPendingLibraryAddition({
+              initialCategoryIds: [],
+            });
+          });
+        }
+      }
+
+      return performLibrarySwitch(novelPath, pluginId);
+    },
+    [performLibrarySwitch, promptForCategoryOnAdd],
+  );
+
+  const cancelPendingLibraryAddition = useCallback(() => {
+    pendingLibraryAdditionRef.current?.resolve(false);
+    pendingLibraryAdditionRef.current = undefined;
+    setPendingLibraryAddition(undefined);
+  }, []);
+
+  const confirmPendingLibraryAddition = useCallback(
+    async (categoryIds: number[]) => {
+      const pendingAddition = pendingLibraryAdditionRef.current;
+      if (!pendingAddition) return;
+
+      pendingLibraryAdditionRef.current = undefined;
+      setPendingLibraryAddition(undefined);
+
+      try {
+        const completed = await performLibrarySwitch(
+          pendingAddition.novelPath,
+          pendingAddition.pluginId,
+          categoryIds,
+        );
+        pendingAddition.resolve(completed);
+      } catch (librarySwitchError) {
+        pendingAddition.resolve(false);
+        throw librarySwitchError;
+      }
+    },
+    [performLibrarySwitch],
+  );
+
+  useEffect(
+    () => () => {
+      pendingLibraryAdditionRef.current?.resolve(false);
+    },
+    [],
   );
 
   useFocusEffect(
@@ -220,6 +309,9 @@ export const useLibrary = (): UseLibraryReturnType => {
     refreshCategories,
     novelInLibrary,
     switchNovelToLibrary,
+    pendingLibraryAddition,
+    cancelPendingLibraryAddition,
+    confirmPendingLibraryAddition,
     refetchLibrary: getLibrary,
     setLibrarySearchText: setSearchText,
   };

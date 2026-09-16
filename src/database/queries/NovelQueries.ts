@@ -28,7 +28,36 @@ import { getLibraryDefaultCategoryId } from '@hooks/persisted/useSettings';
 import NativeFile from '@modules/native-file';
 import { BUILT_IN_CATEGORY_IDS } from '@database/constants';
 
-const getCategoryForNewNovel = async (tx: TransactionParameter) => {
+const getBuiltInDefaultCategory = async (tx: TransactionParameter) => {
+  const defaultCategory = await tx
+    .select({ id: categorySchema.id })
+    .from(categorySchema)
+    .where(eq(categorySchema.id, BUILT_IN_CATEGORY_IDS.default))
+    .get();
+
+  return defaultCategory ? [defaultCategory] : [];
+};
+
+const getCategoriesForNewNovel = async (
+  tx: TransactionParameter,
+  categoryIds?: number[],
+) => {
+  if (categoryIds !== undefined) {
+    if (categoryIds.length) {
+      const selectedCategories = await tx
+        .select({ id: categorySchema.id })
+        .from(categorySchema)
+        .where(inArray(categorySchema.id, categoryIds))
+        .all();
+
+      if (selectedCategories.length) {
+        return selectedCategories;
+      }
+    }
+
+    return getBuiltInDefaultCategory(tx);
+  }
+
   const preferredCategoryId = getLibraryDefaultCategoryId();
 
   if (preferredCategoryId) {
@@ -39,16 +68,15 @@ const getCategoryForNewNovel = async (tx: TransactionParameter) => {
       .get();
 
     if (preferredCategory) {
-      return preferredCategory;
+      return [preferredCategory];
     }
   }
 
-  return tx
-    .select({ id: categorySchema.id })
-    .from(categorySchema)
-    .where(eq(categorySchema.id, BUILT_IN_CATEGORY_IDS.default))
-    .get();
+  return getBuiltInDefaultCategory(tx);
 };
+
+const getCategoryForNewNovel = async (tx: TransactionParameter) =>
+  (await getCategoriesForNewNovel(tx))[0];
 
 /**
  * Inserts a novel and its chapters into the database using Drizzle ORM.
@@ -143,6 +171,7 @@ export const getNovelByPath = (
 export const switchNovelToLibraryQuery = async (
   novelPath: string,
   pluginId: string,
+  categoryIds?: number[],
 ): Promise<NovelInfo | undefined> => {
   const novel = await getNovelByPath(novelPath, pluginId);
   if (novel) {
@@ -162,16 +191,18 @@ export const switchNovelToLibraryQuery = async (
           .run();
         showToast(getString('browseScreen.removeFromLibrary'));
       } else {
-        // Add to library: add to default category
-        const defaultCategory = await getCategoryForNewNovel(tx);
+        // Add to library with the selected or configured default categories.
+        const categories = await getCategoriesForNewNovel(tx, categoryIds);
 
-        if (defaultCategory) {
+        if (categories.length) {
           await tx
             .insert(novelCategorySchema)
-            .values({
-              novelId: novel.id,
-              categoryId: defaultCategory.id,
-            })
+            .values(
+              categories.map((category: { id: number }) => ({
+                novelId: novel.id,
+                categoryId: category.id,
+              })),
+            )
             .run();
         }
 
@@ -200,15 +231,17 @@ export const switchNovelToLibraryQuery = async (
           .where(eq(novelSchema.id, novelId))
           .run();
 
-        const defaultCategory = await getCategoryForNewNovel(tx);
+        const categories = await getCategoriesForNewNovel(tx, categoryIds);
 
-        if (defaultCategory) {
+        if (categories.length) {
           await tx
             .insert(novelCategorySchema)
-            .values({
-              novelId: novelId,
-              categoryId: defaultCategory.id,
-            })
+            .values(
+              categories.map((category: { id: number }) => ({
+                novelId: novelId,
+                categoryId: category.id,
+              })),
+            )
             .run();
         }
       });

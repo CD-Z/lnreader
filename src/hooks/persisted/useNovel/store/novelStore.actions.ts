@@ -262,7 +262,11 @@ export const createNovelStoreActions = ({
         return;
       }
 
-      await deps.switchNovelToLibrary(state.novelPath, state.pluginId);
+      const completed = await deps.switchNovelToLibrary(
+        state.novelPath,
+        state.pluginId,
+      );
+      if (!completed) return;
       set(inner => {
         if (!inner.novel) {
           return {};

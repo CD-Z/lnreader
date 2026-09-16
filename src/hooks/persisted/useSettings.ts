@@ -114,6 +114,8 @@ export interface BrowseSettings {
 export interface LibrarySettings {
   /** User-selected category for newly added novels. */
   defaultCategoryId?: number;
+  /** Prompt for categories whenever a novel is added to the library. */
+  promptForCategoryOnAdd?: boolean;
   /** Last category viewed in the library. */
   lastUsedCategoryId?: number;
   globalUpdateExcludeCategoryIds?: number[];
@@ -376,6 +378,7 @@ export const useBrowseSettings = () => {
 };
 
 const defaultLibrarySettings: LibrarySettings = {
+  promptForCategoryOnAdd: false,
   showNumberOfNovels: false,
   downloadedOnlyMode: false,
   incognitoMode: false,

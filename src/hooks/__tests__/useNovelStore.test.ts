@@ -23,7 +23,7 @@ const mockNovel: NovelInfo = {
 
 const createNovelStore = (
   overrides: Partial<NovelInfo> = {},
-  switchNovelToLibrary = jest.fn().mockResolvedValue(undefined),
+  switchNovelToLibrary = jest.fn().mockResolvedValue(true),
 ) =>
   createStore({
     pluginId: 'plugin-id',
@@ -123,7 +123,7 @@ describe('useNovel store', () => {
   });
 
   it('toggles follow state after followNovel action', async () => {
-    const switchNovelToLibrary = jest.fn().mockResolvedValue(undefined);
+    const switchNovelToLibrary = jest.fn().mockResolvedValue(true);
     const store = createNovelStore({ inLibrary: false }, switchNovelToLibrary);
 
     await store.getState().actions.followNovel();

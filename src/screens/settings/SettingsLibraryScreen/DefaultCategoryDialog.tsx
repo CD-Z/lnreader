@@ -13,6 +13,8 @@ interface DefaultCategoryDialogProps {
   hideDialog: () => void;
   categories: Category[];
   defaultCategoryId?: number;
+  promptForCategoryOnAdd: boolean;
+  setPromptForCategoryOnAdd: () => void;
   setDefaultCategory: (categoryId: number) => void | Promise<void>;
 }
 
@@ -21,6 +23,8 @@ const DefaultCategoryDialog: React.FC<DefaultCategoryDialogProps> = ({
   defaultCategoryId,
   hideDialog,
   visible,
+  promptForCategoryOnAdd,
+  setPromptForCategoryOnAdd,
   setDefaultCategory,
 }) => {
   const theme = useTheme();
@@ -29,6 +33,12 @@ const DefaultCategoryDialog: React.FC<DefaultCategoryDialogProps> = ({
     <Dialog.Root visible={visible} onDismiss={hideDialog}>
       <Dialog.Title>{getString('categories.defaultCategory')}</Dialog.Title>
       <Dialog.ScrollArea>
+        <RadioButton
+          status={promptForCategoryOnAdd}
+          label={getString('categories.alwaysAsk')}
+          onPress={setPromptForCategoryOnAdd}
+          theme={theme}
+        />
         <FlatList
           style={styles.scrollArea}
           initialNumToRender={10}
@@ -36,7 +46,7 @@ const DefaultCategoryDialog: React.FC<DefaultCategoryDialogProps> = ({
           keyExtractor={category => category.id.toString()}
           renderItem={({ item }) => (
             <RadioButton
-              status={item.id === defaultCategoryId}
+              status={!promptForCategoryOnAdd && item.id === defaultCategoryId}
               label={item.name}
               onPress={() => setDefaultCategory(item.id)}
               theme={theme}

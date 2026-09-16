@@ -254,6 +254,69 @@ describe('NovelQueries', () => {
       ).toBe(true);
     });
 
+    it('should assign the categories selected while adding', async () => {
+      const testDb = getTestDb();
+      const firstCategoryId = await insertTestCategory(testDb, {
+        name: 'First selected category',
+      });
+      const secondCategoryId = await insertTestCategory(testDb, {
+        name: 'Second selected category',
+      });
+      const novelId = await insertTestNovel(testDb, {
+        inLibrary: false,
+        path: '/test/selected-categories',
+        pluginId: 'test-plugin',
+      });
+
+      await switchNovelToLibraryQuery(
+        '/test/selected-categories',
+        'test-plugin',
+        [firstCategoryId, secondCategoryId],
+      );
+
+      const associations = await testDb.drizzleDb
+        .select()
+        .from(novelCategorySchema)
+        .where(eq(novelCategorySchema.novelId, novelId))
+        .all();
+
+      expect(associations.map(association => association.categoryId)).toEqual([
+        firstCategoryId,
+        secondCategoryId,
+      ]);
+    });
+
+    it('should use the built-in default when no categories are selected', async () => {
+      const testDb = getTestDb();
+      const previousDefaultCategoryId = await insertTestCategory(testDb, {
+        name: 'Previous default category',
+      });
+      const novelId = await insertTestNovel(testDb, {
+        inLibrary: false,
+        path: '/test/no-selected-categories',
+        pluginId: 'test-plugin',
+      });
+      mockGetLibraryDefaultCategoryId.mockReturnValue(
+        previousDefaultCategoryId,
+      );
+
+      await switchNovelToLibraryQuery(
+        '/test/no-selected-categories',
+        'test-plugin',
+        [],
+      );
+
+      const associations = await testDb.drizzleDb
+        .select()
+        .from(novelCategorySchema)
+        .where(eq(novelCategorySchema.novelId, novelId))
+        .all();
+
+      expect(associations.map(association => association.categoryId)).toEqual([
+        BUILT_IN_CATEGORY_IDS.default,
+      ]);
+    });
+
     it('should fall back when the selected category no longer exists', async () => {
       const testDb = getTestDb();
       const novelId = await insertTestNovel(testDb, {

@@ -20,7 +20,10 @@ interface Props {
   path: string;
   novel?: NovelInfo;
   defaultChapterSort: ChapterOrderKey;
-  switchNovelToLibrary: (novelPath: string, pluginId: string) => Promise<void>;
+  switchNovelToLibrary: (
+    novelPath: string,
+    pluginId: string,
+  ) => Promise<boolean>;
 }
 
 export function createStore({
