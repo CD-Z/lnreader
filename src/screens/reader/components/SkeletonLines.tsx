@@ -65,30 +65,38 @@ const SkeletonLines = ({
     [containerHeight, containerMargin, containerWidth],
   );
 
+  const skeleton = (
+    <>
+      {lines.map((_, index) => {
+        const lineWidth =
+          index % 5 === 4 ? resolvedWidth * 0.68 : resolvedWidth;
+
+        return (
+          <SkeletonBlock
+            key={`reader-line-skeleton-${index}`}
+            width={lineWidth}
+            height={textSize}
+            borderRadius={8}
+            color={color}
+            style={{
+              marginBottom: Math.max(0, rowHeight - textSize),
+            }}
+          />
+        );
+      })}
+    </>
+  );
+
   return (
     <View style={styles.container}>
       <SkeletonSection
         baseColor={color}
         highlightColor={highlightColor}
+        loading
+        maskElement={skeleton}
         style={stylesSection}
       >
-        {lines.map((_, index) => {
-          const lineWidth =
-            index % 5 === 4 ? resolvedWidth * 0.68 : resolvedWidth;
-
-          return (
-            <SkeletonBlock
-              key={`reader-line-skeleton-${index}`}
-              width={lineWidth}
-              height={textSize}
-              borderRadius={8}
-              color={color}
-              style={{
-                marginBottom: Math.max(0, rowHeight - textSize),
-              }}
-            />
-          );
-        })}
+        {skeleton}
       </SkeletonSection>
     </View>
   );

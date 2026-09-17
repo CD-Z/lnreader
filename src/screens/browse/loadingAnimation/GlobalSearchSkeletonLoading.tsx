@@ -17,12 +17,8 @@ const GlobalSearchSkeletonLoading: React.FC<Props> = ({ theme }) => {
   const [highlightColor, skeletonColor] = getLoadingColors(theme);
   const { width } = useWindowDimensions();
 
-  return (
-    <SkeletonSection
-      baseColor={skeletonColor}
-      highlightColor={highlightColor}
-      style={[styles.container, styles.row]}
-    >
+  const skeleton = (
+    <>
       {SKELETON_ITEMS.map(index => (
         <LoadingNovel
           key={index}
@@ -33,6 +29,18 @@ const GlobalSearchSkeletonLoading: React.FC<Props> = ({ theme }) => {
           displayMode={DisplayModes.Comfortable}
         />
       ))}
+    </>
+  );
+
+  return (
+    <SkeletonSection
+      baseColor={skeletonColor}
+      highlightColor={highlightColor}
+      loading
+      maskElement={skeleton}
+      style={[styles.container, styles.row]}
+    >
+      {skeleton}
     </SkeletonSection>
   );
 };

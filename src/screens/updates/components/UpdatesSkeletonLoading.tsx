@@ -20,6 +20,47 @@ const UpdatesSkeletonLoading: React.FC<Props> = ({ theme }) => {
   const textWidth = useMemo(() => Math.max(80, width - 120), [width]);
   const { disableLoadingAnimations } = useAppSettings();
 
+  const skeleton = (
+    <>
+      {SKELETON_ITEMS.map(i => (
+        <View key={`updates-skeleton-${i}`} style={styles.chapterCtn}>
+          <SkeletonBlock
+            width={42}
+            height={42}
+            borderRadius={4}
+            color={skeletonColor}
+            style={styles.picture}
+          />
+          <View style={styles.textCtn}>
+            <SkeletonBlock
+              width={textWidth}
+              height={16}
+              borderRadius={6}
+              color={skeletonColor}
+              style={styles.textTop}
+            />
+            <SkeletonBlock
+              width={textWidth}
+              height={12}
+              borderRadius={6}
+              color={skeletonColor}
+              style={styles.textBottom}
+            />
+          </View>
+          <View style={styles.buttonCtn}>
+            <SkeletonBlock
+              width={25}
+              height={25}
+              borderRadius={12.5}
+              color={skeletonColor}
+              style={styles.button}
+            />
+          </View>
+        </View>
+      ))}
+    </>
+  );
+
   return (
     <Animated.View
       entering={disableLoadingAnimations ? undefined : FadeIn.duration(500)}
@@ -28,43 +69,10 @@ const UpdatesSkeletonLoading: React.FC<Props> = ({ theme }) => {
       <SkeletonSection
         baseColor={skeletonColor}
         highlightColor={highlightColor}
+        loading
+        maskElement={skeleton}
       >
-        {SKELETON_ITEMS.map(i => (
-          <View key={`updates-skeleton-${i}`} style={styles.chapterCtn}>
-            <SkeletonBlock
-              width={42}
-              height={42}
-              borderRadius={4}
-              color={skeletonColor}
-              style={styles.picture}
-            />
-            <View style={styles.textCtn}>
-              <SkeletonBlock
-                width={textWidth}
-                height={16}
-                borderRadius={6}
-                color={skeletonColor}
-                style={styles.textTop}
-              />
-              <SkeletonBlock
-                width={textWidth}
-                height={12}
-                borderRadius={6}
-                color={skeletonColor}
-                style={styles.textBottom}
-              />
-            </View>
-            <View style={styles.buttonCtn}>
-              <SkeletonBlock
-                width={25}
-                height={25}
-                borderRadius={12.5}
-                color={skeletonColor}
-                style={styles.button}
-              />
-            </View>
-          </View>
-        ))}
+        {skeleton}
       </SkeletonSection>
     </Animated.View>
   );

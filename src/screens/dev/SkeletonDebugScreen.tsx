@@ -1,6 +1,12 @@
-import { memo, useMemo } from 'react';
-import { StyleSheet, Text, useWindowDimensions, View } from 'react-native';
-import { LegendList } from '@legendapp/list/react-native';
+import { memo, useMemo, useState } from 'react';
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 
 import { Appbar, SafeAreaView } from '@components';
 import { SkeletonBlock } from '@components/Skeleton/SkeletonBlock';
@@ -91,6 +97,7 @@ const SkeletonColorSwatch = memo(() => {
 
 type SkeletonRow = {
   id: string;
+  label: string;
   render: () => React.ReactNode;
 };
 
@@ -99,15 +106,17 @@ const SkeletonDebugScreen = ({ navigation }: Props) => {
   const [debugHighlight, debugSkeleton] = getLoadingColors(theme);
   const { width } = useWindowDimensions();
   const { disableLoadingAnimations, setAppSettings } = useAppSettings();
+  const [selectedId, setSelectedId] = useState('novel-screen');
 
   const toggleAnimations = () =>
     setAppSettings({ disableLoadingAnimations: !disableLoadingAnimations });
 
   const sections = useMemo<SkeletonRow[]>(
     () => [
-      { id: 'swatch', render: () => <SkeletonColorSwatch /> },
+      { id: 'swatch', label: 'Colors', render: () => <SkeletonColorSwatch /> },
       {
         id: 'source',
+        label: 'Source',
         render: () => (
           <Section label="Source screen (grid)">
             <SourceScreenSkeletonLoading theme={theme} />
@@ -116,6 +125,7 @@ const SkeletonDebugScreen = ({ navigation }: Props) => {
       },
       {
         id: 'global-search',
+        label: 'Global search',
         render: () => (
           <Section label="Global search">
             <GlobalSearchSkeletonLoading theme={theme} />
@@ -124,6 +134,7 @@ const SkeletonDebugScreen = ({ navigation }: Props) => {
       },
       {
         id: 'novel-screen',
+        label: 'Novel screen',
         render: () => (
           <Section label="Novel screen (full mask)">
             <SkeletonSection
@@ -147,6 +158,7 @@ const SkeletonDebugScreen = ({ navigation }: Props) => {
       },
       {
         id: 'novel-header',
+        label: 'Novel header',
         render: () => (
           <Section label="Novel header (cover + details)">
             <SkeletonSection
@@ -168,6 +180,7 @@ const SkeletonDebugScreen = ({ navigation }: Props) => {
       },
       {
         id: 'button-group',
+        label: 'Button group',
         render: () => (
           <Section label="Button group (read/migrate/webview)">
             <SkeletonSection
@@ -188,6 +201,7 @@ const SkeletonDebugScreen = ({ navigation }: Props) => {
       },
       {
         id: 'novel-meta',
+        label: 'Novel meta',
         render: () => (
           <Section label="Novel meta (summary + genres)">
             <SkeletonSection
@@ -209,6 +223,7 @@ const SkeletonDebugScreen = ({ navigation }: Props) => {
       },
       {
         id: 'chapter-list',
+        label: 'Chapter list',
         render: () => (
           <Section label="Chapter list (with covers)">
             <SkeletonSection
@@ -223,6 +238,7 @@ const SkeletonDebugScreen = ({ navigation }: Props) => {
       },
       {
         id: 'history',
+        label: 'History',
         render: () => (
           <Section label="History">
             <HistorySkeletonLoading theme={theme} />
@@ -231,6 +247,7 @@ const SkeletonDebugScreen = ({ navigation }: Props) => {
       },
       {
         id: 'updates',
+        label: 'Updates',
         render: () => (
           <Section label="Updates">
             <UpdatesSkeletonLoading theme={theme} />
@@ -239,6 +256,7 @@ const SkeletonDebugScreen = ({ navigation }: Props) => {
       },
       {
         id: 'mal',
+        label: 'MAL',
         render: () => (
           <Section label="MAL browse">
             <MalLoading theme={theme} />
@@ -247,6 +265,7 @@ const SkeletonDebugScreen = ({ navigation }: Props) => {
       },
       {
         id: 'tracker',
+        label: 'Tracker',
         render: () => (
           <Section label="Tracker">
             <TrackerLoading theme={theme} />
@@ -255,6 +274,7 @@ const SkeletonDebugScreen = ({ navigation }: Props) => {
       },
       {
         id: 'categories',
+        label: 'Categories',
         render: () => (
           <Section label="Categories">
             <CategorySkeletonLoading
@@ -267,6 +287,7 @@ const SkeletonDebugScreen = ({ navigation }: Props) => {
       },
       {
         id: 'reader',
+        label: 'Reader',
         render: () => (
           <Section
             label="Reader chapter loading (full-screen)"
@@ -281,6 +302,8 @@ const SkeletonDebugScreen = ({ navigation }: Props) => {
     ],
     [theme, width, debugHighlight, debugSkeleton],
   );
+
+  const selectedSection = sections.find(section => section.id === selectedId);
 
   return (
     <SafeAreaView excludeTop>
@@ -298,18 +321,69 @@ const SkeletonDebugScreen = ({ navigation }: Props) => {
           onValueChange={toggleAnimations}
         />
       </View>
-      <LegendList
-        data={sections}
-        keyExtractor={item => item.id}
-        renderItem={({ item }) => item.render()}
-        contentContainerStyle={styles.content}
-        style={styles.list}
-      />
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.chipRow}
+        contentContainerStyle={styles.chipContent}
+      >
+        {sections.map(section => {
+          const selected = section.id === selectedId;
+          return (
+            <Pressable
+              key={section.id}
+              onPress={() => setSelectedId(section.id)}
+              android_ripple={{ color: theme.rippleColor }}
+              style={[
+                styles.chip,
+                {
+                  backgroundColor: selected
+                    ? theme.primaryContainer
+                    : theme.surface,
+                  borderColor: selected ? theme.primary : theme.outline,
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.chipText,
+                  {
+                    color: selected ? theme.primary : theme.onSurfaceVariant,
+                  },
+                ]}
+              >
+                {section.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+      <ScrollView style={styles.list} contentContainerStyle={styles.content}>
+        {selectedSection?.render()}
+      </ScrollView>
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
+  chip: {
+    borderRadius: 20,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+  },
+  chipContent: {
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  chipRow: {
+    flexGrow: 0,
+  },
+  chipText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
   content: {
     paddingBottom: 40,
     paddingHorizontal: 8,

@@ -23,8 +23,8 @@ const HistorySkeletonLoading: React.FC<Props> = ({ theme }) => {
   const { width } = useWindowDimensions();
   const textWidth = useMemo(() => Math.max(80, width - 144), [width]);
 
-  return (
-    <SkeletonSection baseColor={skeletonColor} highlightColor={highlightColor}>
+  const skeleton = (
+    <>
       {SKELETON_ITEMS.map(({ dateWidth }, index) => (
         <View key={`historyLoading${index}`}>
           {dateWidth ? (
@@ -72,6 +72,17 @@ const HistorySkeletonLoading: React.FC<Props> = ({ theme }) => {
           </View>
         </View>
       ))}
+    </>
+  );
+
+  return (
+    <SkeletonSection
+      baseColor={skeletonColor}
+      highlightColor={highlightColor}
+      loading
+      maskElement={skeleton}
+    >
+      {skeleton}
     </SkeletonSection>
   );
 };

@@ -57,29 +57,39 @@ const SourceScreenSkeletonLoading: React.FC<Props> = ({
   );
 
   if (completeRow === 1) {
+    const skeleton = <>{renderLoadingNovel(completeRow)}</>;
     return (
       <SkeletonSection
         baseColor={skeletonColor}
         highlightColor={highlightColor}
+        loading
+        maskElement={skeleton}
       >
-        {renderLoadingNovel(completeRow)}
+        {skeleton}
       </SkeletonSection>
     );
   }
 
   if (displayMode === DisplayModes.List) {
     const items = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-    return (
-      <SkeletonSection
-        baseColor={skeletonColor}
-        highlightColor={highlightColor}
-        style={styles.container}
-      >
+    const skeleton = (
+      <>
         {items.map(item => (
           <View key={'sourceSkeletonRow' + item} style={styles.row}>
             {renderLoadingNovel(item)}
           </View>
         ))}
+      </>
+    );
+    return (
+      <SkeletonSection
+        baseColor={skeletonColor}
+        highlightColor={highlightColor}
+        loading
+        maskElement={skeleton}
+        style={styles.container}
+      >
+        {skeleton}
       </SkeletonSection>
     );
   }
@@ -89,12 +99,8 @@ const SourceScreenSkeletonLoading: React.FC<Props> = ({
     Math.floor((window.height - 100) / pictureHeight),
   );
 
-  return (
-    <SkeletonSection
-      baseColor={skeletonColor}
-      highlightColor={highlightColor}
-      style={styles.container}
-    >
+  const skeleton = (
+    <>
       {Array.from({ length: rowCount }, (_, item) => {
         const offset = Math.pow(10, item);
         const items: number[] = [1 * offset];
@@ -107,6 +113,18 @@ const SourceScreenSkeletonLoading: React.FC<Props> = ({
           </View>
         );
       })}
+    </>
+  );
+
+  return (
+    <SkeletonSection
+      baseColor={skeletonColor}
+      highlightColor={highlightColor}
+      loading
+      maskElement={skeleton}
+      style={styles.container}
+    >
+      {skeleton}
     </SkeletonSection>
   );
 };

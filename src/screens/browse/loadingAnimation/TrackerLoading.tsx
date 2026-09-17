@@ -23,12 +23,8 @@ const TrackerLoading: React.FC<Props> = ({ theme }) => {
   const { width } = useWindowDimensions();
   const textWidth = useMemo(() => Math.max(80, width - 140), [width]);
 
-  return (
-    <SkeletonSection
-      baseColor={skeletonColor}
-      highlightColor={highlightColor}
-      style={styles.container}
-    >
+  const skeleton = (
+    <>
       {SKELETON_ITEMS.map((item, index) => (
         <View
           key={`tracker-skeleton-${index}`}
@@ -65,6 +61,18 @@ const TrackerLoading: React.FC<Props> = ({ theme }) => {
           </View>
         </View>
       ))}
+    </>
+  );
+
+  return (
+    <SkeletonSection
+      baseColor={skeletonColor}
+      highlightColor={highlightColor}
+      loading
+      maskElement={skeleton}
+      style={styles.container}
+    >
+      {skeleton}
     </SkeletonSection>
   );
 };

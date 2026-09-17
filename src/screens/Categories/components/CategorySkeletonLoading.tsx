@@ -19,12 +19,8 @@ const CategorySkeletonLoading: React.FC<Props> = ({ height, width, theme }) => {
   const window = useWindowDimensions();
   const cardWidth = Math.min(width, window.width - 32);
 
-  return (
-    <SkeletonSection
-      baseColor={skeletonColor}
-      highlightColor={highlightColor}
-      style={styles.contentCtn}
-    >
+  const skeleton = (
+    <>
       {SKELETON_ITEMS.map(i => (
         <SkeletonBlock
           key={`category-skeleton-${i}`}
@@ -35,6 +31,18 @@ const CategorySkeletonLoading: React.FC<Props> = ({ height, width, theme }) => {
           style={styles.categoryCard}
         />
       ))}
+    </>
+  );
+
+  return (
+    <SkeletonSection
+      baseColor={skeletonColor}
+      highlightColor={highlightColor}
+      loading
+      maskElement={skeleton}
+      style={styles.contentCtn}
+    >
+      {skeleton}
     </SkeletonSection>
   );
 };
