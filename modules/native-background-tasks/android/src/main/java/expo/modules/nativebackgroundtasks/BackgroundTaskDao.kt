@@ -10,8 +10,21 @@ interface BackgroundTaskDao {
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insert(task: BackgroundTaskEntity)
 
-    @Query("SELECT * FROM background_tasks ORDER BY createdAt ASC")
-    suspend fun getAll(): List<BackgroundTaskEntity>
+    @Query(
+        "SELECT * FROM background_tasks " +
+            "WHERE state IN ('queued', 'running', 'paused') ORDER BY createdAt ASC",
+    )
+    suspend fun getActive(): List<BackgroundTaskEntity>
+
+    @Query(
+        "DELETE FROM background_tasks " +
+            "WHERE state IN ('succeeded', 'failed', 'cancelled') " +
+            "AND updatedAt < :cutoff",
+    )
+    suspend fun deleteOldTerminal(cutoff: Long)
+
+    @Query("DELETE FROM background_tasks WHERE id = :id")
+    suspend fun delete(id: String)
 
     @Query("SELECT * FROM background_tasks WHERE id = :id LIMIT 1")
     suspend fun get(id: String): BackgroundTaskEntity?

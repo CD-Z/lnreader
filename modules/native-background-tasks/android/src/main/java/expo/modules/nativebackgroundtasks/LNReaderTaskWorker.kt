@@ -17,7 +17,11 @@ class LNReaderTaskWorker(
         val taskId = inputData.getString(BackgroundTaskScheduler.TASK_ID) ?: return Result.failure()
         val dao = BackgroundTaskDatabase.get(applicationContext).tasks()
         val task = dao.get(taskId) ?: return Result.failure()
-        if (task.state == BackgroundTaskState.CANCELLED || task.state == BackgroundTaskState.PAUSED) {
+        if (task.state == BackgroundTaskState.CANCELLED) {
+            dao.delete(taskId)
+            return Result.success()
+        }
+        if (task.state == BackgroundTaskState.PAUSED) {
             return Result.success()
         }
 
@@ -50,6 +54,7 @@ class LNReaderTaskWorker(
                     val currentState = dao.get(taskId)?.state
                     if (currentState == BackgroundTaskState.CANCELLED) {
                         TaskNotificationFactory.dismiss(applicationContext, taskId)
+                        dao.delete(taskId)
                         return Result.success()
                     }
                     if (currentState == BackgroundTaskState.PAUSED) {
@@ -60,11 +65,15 @@ class LNReaderTaskWorker(
                     dao.get(taskId)?.let {
                         TaskNotificationFactory.postTerminal(applicationContext, it)
                     }
+                    dao.delete(taskId)
                     Result.success()
                 }
                 is TaskExecutionResult.Failure -> {
                     val currentState = dao.get(taskId)?.state
                     if (currentState == BackgroundTaskState.PAUSED || currentState == BackgroundTaskState.CANCELLED) {
+                        if (currentState == BackgroundTaskState.CANCELLED) {
+                            dao.delete(taskId)
+                        }
                         return Result.success()
                     }
                     if (executionResult.shouldRetry) {
@@ -75,14 +84,21 @@ class LNReaderTaskWorker(
                         dao.get(taskId)?.let {
                             TaskNotificationFactory.postTerminal(applicationContext, it)
                         }
+                        dao.delete(taskId)
                         Result.success()
                     }
                 }
             }
         } catch (error: CancellationException) {
             val latestState = dao.get(taskId)?.state
-            if (latestState !in listOf(BackgroundTaskState.PAUSED, BackgroundTaskState.CANCELLED)) {
-                dao.updateState(taskId, BackgroundTaskState.QUEUED, System.currentTimeMillis())
+            when (latestState) {
+                BackgroundTaskState.CANCELLED -> dao.delete(taskId)
+                BackgroundTaskState.PAUSED -> Unit
+                else -> dao.updateState(
+                    taskId,
+                    BackgroundTaskState.QUEUED,
+                    System.currentTimeMillis(),
+                )
             }
             throw error
         } catch (error: Exception) {
@@ -95,6 +111,9 @@ class LNReaderTaskWorker(
                 dao.get(taskId)?.let {
                     TaskNotificationFactory.postTerminal(applicationContext, it)
                 }
+            }
+            if (latestState != BackgroundTaskState.PAUSED) {
+                dao.delete(taskId)
             }
             Result.failure()
         } finally {

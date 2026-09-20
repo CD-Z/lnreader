@@ -155,4 +155,49 @@ describe('updateLibrary', () => {
       },
     );
   });
+  it('batches library download tasks per source', async () => {
+    mockedGetMMKVObject.mockReturnValue({ downloadNewChapters: true });
+    const novels = Array.from({ length: 101 }, (_, index) =>
+      novel(index + 1, 'source-a', `Novel ${index + 1}`),
+    );
+    mockedGetLibraryNovels.mockResolvedValue(novels);
+    mockedUpdateNovel.mockImplementation(
+      async (_pluginId, _path, novelId, options) => {
+        options.enqueue?.({
+          name: 'DOWNLOAD_CHAPTER',
+          data: {
+            novelName: `Novel ${novelId}`,
+            novelId,
+            pluginId: 'source-a',
+            chapters: [
+              {
+                chapterId: novelId,
+                chapterName: `Chapter ${novelId}`,
+              },
+            ],
+          },
+        });
+      },
+    );
+    const enqueue = jest.fn();
+
+    await updateLibrary({}, jest.fn(), enqueue);
+
+    expect(enqueue).toHaveBeenCalledTimes(2);
+    expect(enqueue.mock.calls[0][0]).toMatchObject({
+      name: 'DOWNLOAD_CHAPTER',
+      data: {
+        pluginId: 'source-a',
+        novelId: undefined,
+        chapters: expect.arrayContaining([
+          { chapterId: 1, chapterName: 'Chapter 1', novelId: 1 },
+          { chapterId: 100, chapterName: 'Chapter 100', novelId: 100 },
+        ]),
+      },
+    });
+    expect(enqueue.mock.calls[0][0].data.chapters).toHaveLength(100);
+    expect(enqueue.mock.calls[1][0].data.chapters).toEqual([
+      { chapterId: 101, chapterName: 'Chapter 101', novelId: 101 },
+    ]);
+  });
 });
