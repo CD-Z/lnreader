@@ -331,10 +331,12 @@ describe('selective backup data', () => {
         id: 1,
         cover: 'file:///storage/Novels/source/1/cover.png?123',
       }),
+      { includeChapterMappings: false },
     );
     expect(_restoreNovelAndChapters).toHaveBeenNthCalledWith(
       2,
       expect.objectContaining({ id: 2, cover: null }),
+      { includeChapterMappings: false },
     );
   });
 

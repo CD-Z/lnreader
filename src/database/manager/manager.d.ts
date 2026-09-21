@@ -21,7 +21,9 @@ export type TransactionParameter = SQLiteTransaction<
 export interface IDbManager {
   /**
    * Efficiently executes a Drizzle query for multiple data rows using
-   * op-sqlite executeBatch under the hood.
+   * op-sqlite executeBatch under the hood. The batch owns its transaction;
+   * it cannot be nested inside write(). The callback argument is only used
+   * to build the prepared query and is not the surrounding write transaction.
    */
   batch<T extends Record<string, unknown>>(
     data: T[],

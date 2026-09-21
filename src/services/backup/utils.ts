@@ -312,7 +312,9 @@ export const restoreData = async (
             backupNovel.cover = APP_STORAGE_URI + backupNovel.cover;
           }
 
-          const novelMapping = await _restoreNovelAndChapters(backupNovel);
+          const novelMapping = await _restoreNovelAndChapters(backupNovel, {
+            includeChapterMappings: manifest.sections.downloadedFiles,
+          });
           novelMappings.push(novelMapping);
           novelIdMap.set(backupNovel.id, novelMapping.restoredNovelId);
 
