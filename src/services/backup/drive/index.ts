@@ -77,7 +77,7 @@ export const createDriveBackup = async (
     progressText: getString('backupScreen.uploadingSelectedFiles'),
   }));
 
-  for (const section of getSelectedBackupFileSections(options)) {
+  for (const section of getSelectedBackupFileSections(options, 2)) {
     await uploadBackupSection(
       section.storagePath,
       section.archiveName,
@@ -149,6 +149,7 @@ export const driveRestore = async (
     const novelFilesRestorePath = getNovelFilesRestorePath(CACHE_DIR_PATH);
     for (const section of getSelectedBackupFileSections(
       restoreResult.manifest.sections,
+      2,
     )) {
       const file = await exists(section.archiveName, false, backupFolder.id);
       if (!file) {

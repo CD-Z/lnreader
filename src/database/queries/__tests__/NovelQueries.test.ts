@@ -37,6 +37,7 @@ import {
   updateNovelCategoryById,
   updateNovelCategories,
   _restoreNovelAndChapters,
+  _restoreNovelsAndChapters,
 } from '../NovelQueries';
 
 const mockGetLibraryDefaultCategoryId = jest.fn<number | undefined, []>();
@@ -525,6 +526,145 @@ describe('NovelQueries', () => {
           restoredChapterId: restoredChapters[0].id,
         },
       ]);
+    });
+    it('restores multiple novels in one batch', async () => {
+      const mappings = await _restoreNovelsAndChapters(
+        [
+          {
+            id: 100,
+            path: '/bulk/one',
+            pluginId: 'bulk-plugin',
+            name: 'Bulk One',
+            chapters: [],
+          },
+          {
+            id: 101,
+            path: '/bulk/two',
+            pluginId: 'bulk-plugin',
+            name: 'Bulk Two',
+            chapters: [],
+          },
+        ],
+        { includeChapterMappings: false },
+      );
+
+      expect(mappings).toHaveLength(2);
+      expect(mappings.map(mapping => mapping.pluginId)).toEqual([
+        'bulk-plugin',
+        'bulk-plugin',
+      ]);
+      expect(await getNovelByPath('/bulk/one', 'bulk-plugin')).toEqual(
+        expect.objectContaining({ name: 'Bulk One' }),
+      );
+      expect(await getNovelByPath('/bulk/two', 'bulk-plugin')).toEqual(
+        expect.objectContaining({ name: 'Bulk Two' }),
+      );
+    });
+    it('preserves mappings and aggregate stats for multiple novels', async () => {
+      const mappings = await _restoreNovelsAndChapters(
+        [
+          {
+            id: 200,
+            path: '/bulk/mapped-one',
+            pluginId: 'bulk-plugin',
+            name: 'Mapped One',
+            chapters: [
+              {
+                id: 2001,
+                novelId: 200,
+                path: '/bulk/chapter-one',
+                name: 'Chapter One',
+                releaseTime: null,
+                readTime: '2024-01-01T00:00:00.000Z',
+                bookmark: false,
+                unread: true,
+                isDownloaded: true,
+                updatedTime: '2024-01-01T00:00:00.000Z',
+                chapterNumber: 1,
+                page: '1',
+                progress: null,
+                position: 0,
+                scanlator: null,
+                timeSpent: 0,
+              },
+              {
+                id: 2002,
+                novelId: 200,
+                path: '/bulk/chapter-two',
+                name: 'Chapter Two',
+                releaseTime: null,
+                readTime: '2025-01-01T00:00:00.000Z',
+                bookmark: false,
+                unread: false,
+                isDownloaded: false,
+                updatedTime: '2023-01-01T00:00:00.000Z',
+                chapterNumber: 2,
+                page: '1',
+                progress: null,
+                position: 1,
+                scanlator: null,
+                timeSpent: 0,
+              },
+            ],
+          },
+          {
+            id: 201,
+            path: '/bulk/mapped-two',
+            pluginId: 'bulk-plugin',
+            name: 'Mapped Two',
+            chapters: [
+              {
+                id: 2011,
+                novelId: 201,
+                path: '/bulk/chapter-three',
+                name: 'Chapter Three',
+                releaseTime: null,
+                readTime: null,
+                bookmark: false,
+                unread: true,
+                isDownloaded: true,
+                updatedTime: '2026-01-01T00:00:00.000Z',
+                chapterNumber: 1,
+                page: '1',
+                progress: null,
+                position: 0,
+                scanlator: null,
+                timeSpent: 0,
+              },
+            ],
+          },
+        ],
+        { includeChapterMappings: true },
+      );
+
+      expect(mappings).toHaveLength(2);
+      expect(mappings[0].chapters).toHaveLength(2);
+      expect(mappings[1].chapters).toHaveLength(1);
+      expect(
+        new Set(
+          mappings
+            .flatMap(mapping => mapping.chapters)
+            .map(chapter => chapter.restoredChapterId),
+        ).size,
+      ).toBe(3);
+      expect(await getNovelByPath('/bulk/mapped-one', 'bulk-plugin')).toEqual(
+        expect.objectContaining({
+          totalChapters: 2,
+          chaptersDownloaded: 1,
+          chaptersUnread: 1,
+          lastReadAt: '2025-01-01T00:00:00.000Z',
+          lastUpdatedAt: '2024-01-01T00:00:00.000Z',
+        }),
+      );
+      expect(await getNovelByPath('/bulk/mapped-two', 'bulk-plugin')).toEqual(
+        expect.objectContaining({
+          totalChapters: 1,
+          chaptersDownloaded: 1,
+          chaptersUnread: 1,
+          lastReadAt: null,
+          lastUpdatedAt: '2026-01-01T00:00:00.000Z',
+        }),
+      );
     });
     it('restores chapters without allocating ID mappings when requested', async () => {
       const mapping = await _restoreNovelAndChapters(

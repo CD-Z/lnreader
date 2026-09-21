@@ -5,6 +5,7 @@ import { MMKVStorage } from '@utils/mmkv/mmkv';
 import { version } from '../../../package.json';
 import {
   _restoreNovelAndChapters,
+  _restoreNovelsAndChapters,
   getAllNovels,
 } from '@database/queries/NovelQueries';
 import { getAllNovelChaptersForBackup } from '@database/queries/ChapterQueries';
@@ -39,6 +40,12 @@ import { INSTALLED_PLUGINS_KEY } from '@plugins/pluginManager';
 import type { PluginItem } from '@plugins/types';
 
 const APP_STORAGE_URI = 'file://' + ROOT_STORAGE;
+
+const BACKUP_NOVEL_BATCH_SIZE = 100;
+
+const RESTORE_NOVEL_BATCH_SIZE = 100;
+
+const BACKUP_FILE_CONCURRENCY = 8;
 
 const stripUriSuffix = (uri: string) => uri.split(/[?#]/, 1)[0];
 
@@ -96,6 +103,7 @@ const restoreMMKVData = (data: any) => {
 export const prepareBackupData = async (
   cacheDirPath: string,
   requestedOptions?: BackupOptions,
+  formatVersion: BackupManifest['formatVersion'] = 2,
 ): Promise<BackupResult> => {
   const options = resolveBackupOptions(requestedOptions);
   const novelDirPath = cacheDirPath + '/' + BackupEntryName.NOVEL_AND_CHAPTERS;
@@ -109,7 +117,7 @@ export const prepareBackupData = async (
   // version
   const manifest: BackupManifest = {
     appVersion: version,
-    formatVersion: 2,
+    formatVersion,
     sections: options,
   };
   await NativeFile.writeFile(
@@ -120,60 +128,109 @@ export const prepareBackupData = async (
   // novels
   if (options.library) {
     await NativeFile.mkdir(novelDirPath);
-    await NativeFile.mkdir(coversDirPath);
-    await getAllNovels().then(async novels => {
-      for (const novel of novels) {
-        try {
-          const chapters = await getAllNovelChaptersForBackup(novel.id);
-          const backedUpChapters = options.downloadedFiles
-            ? chapters
-            : chapters.map(chapter => ({
-                ...chapter,
-                isDownloaded: false,
-              }));
-          let cover = novel.cover;
-          if (cover?.startsWith(APP_STORAGE_URI)) {
-            try {
-              await NativeFile.copyFile(
-                stripUriSuffix(cover),
-                coversDirPath + '/' + novel.id,
-              );
-              cover = cover.replace(APP_STORAGE_URI, '');
-            } catch {
-              cover = options.downloadedFiles
-                ? cover.replace(APP_STORAGE_URI, '')
-                : null;
-            }
-          }
-          await NativeFile.writeFile(
-            novelDirPath + '/' + novel.id + '.json',
-            JSON.stringify({
-              chapters: backedUpChapters,
-              ...novel,
-              cover,
-            }),
-          );
-        } catch {
-          failedNovelCount++;
+    if (!options.downloadedFiles) {
+      await NativeFile.mkdir(coversDirPath);
+    }
+    const novels = await getAllNovels();
+    for (
+      let start = 0;
+      start < novels.length;
+      start += BACKUP_NOVEL_BATCH_SIZE
+    ) {
+      const novelBatch = novels.slice(start, start + BACKUP_NOVEL_BATCH_SIZE);
+      let chapters;
+      try {
+        chapters = await getAllNovelChaptersForBackup(
+          novelBatch.map(novel => novel.id),
+        );
+      } catch {
+        failedNovelCount += novelBatch.length;
+        continue;
+      }
+
+      const chaptersByNovel = new Map<number, BackupNovel['chapters']>();
+      for (const chapter of chapters) {
+        const novelChapters = chaptersByNovel.get(chapter.novelId);
+        if (novelChapters) {
+          novelChapters.push(chapter);
+        } else {
+          chaptersByNovel.set(chapter.novelId, [chapter]);
         }
       }
-    });
+
+      for (
+        let fileStart = 0;
+        fileStart < novelBatch.length;
+        fileStart += BACKUP_FILE_CONCURRENCY
+      ) {
+        const fileBatch = novelBatch.slice(
+          fileStart,
+          fileStart + BACKUP_FILE_CONCURRENCY,
+        );
+        await Promise.all(
+          fileBatch.map(async novel => {
+            try {
+              const novelChapters = chaptersByNovel.get(novel.id) ?? [];
+              const backedUpChapters = options.downloadedFiles
+                ? novelChapters
+                : novelChapters.map(chapter => ({
+                    ...chapter,
+                    isDownloaded: false,
+                  }));
+              let cover = novel.cover;
+              if (cover?.startsWith(APP_STORAGE_URI)) {
+                if (options.downloadedFiles) {
+                  cover = cover.replace(APP_STORAGE_URI, '');
+                } else {
+                  try {
+                    await NativeFile.copyFile(
+                      stripUriSuffix(cover),
+                      coversDirPath + '/' + novel.id,
+                    );
+                    cover = cover.replace(APP_STORAGE_URI, '');
+                  } catch {
+                    cover = null;
+                  }
+                }
+              }
+              await NativeFile.writeFile(
+                novelDirPath + '/' + novel.id + '.json',
+                JSON.stringify({
+                  chapters: backedUpChapters,
+                  ...novel,
+                  cover,
+                }),
+              );
+            } catch {
+              failedNovelCount++;
+            }
+          }),
+        );
+      }
+    }
 
     // categories
     try {
       const categories = await getCategoriesFromDb();
       const novelCategories = await getAllNovelCategories();
+      const novelIdsByCategory = new Map<number, number[]>();
+      for (const novelCategory of novelCategories) {
+        const novelIds = novelIdsByCategory.get(novelCategory.categoryId);
+        if (novelIds) {
+          novelIds.push(novelCategory.novelId);
+        } else {
+          novelIdsByCategory.set(novelCategory.categoryId, [
+            novelCategory.novelId,
+          ]);
+        }
+      }
       await NativeFile.writeFile(
         cacheDirPath + '/' + BackupEntryName.CATEGORY,
         JSON.stringify(
-          categories.map(category => {
-            return {
-              ...category,
-              novelIds: novelCategories
-                .filter(nc => nc.categoryId === category.id)
-                .map(nc => nc.novelId),
-            };
-          }),
+          categories.map(category => ({
+            ...category,
+            novelIds: novelIdsByCategory.get(category.id) ?? [],
+          })),
         ),
       );
     } catch {
@@ -221,10 +278,13 @@ const getBackupManifest = async (
     const data = JSON.parse(fileContent) as Partial<BackupManifest> & {
       version?: string;
     };
-    if (data.formatVersion === 2 && data.sections) {
+    if (
+      (data.formatVersion === 2 || data.formatVersion === 3) &&
+      data.sections
+    ) {
       return {
         appVersion: data.appVersion ?? data.version ?? '',
-        formatVersion: 2,
+        formatVersion: data.formatVersion,
         sections: resolveBackupOptions(data.sections),
       };
     }
@@ -252,11 +312,15 @@ const updateRestoreProgress = (
   }));
 };
 
+type RestoreBenchmarkLogger = (message: string) => void;
+
 export const restoreData = async (
   cacheDirPath: string,
   setMeta?: TaskProgressUpdater,
+  benchmarkLog?: RestoreBenchmarkLogger,
 ): Promise<RestoreResult> => {
   const manifest = await getBackupManifest(cacheDirPath);
+  benchmarkLog?.('restoreData:manifest:loaded');
   const novelDirPath = cacheDirPath + '/' + BackupEntryName.NOVEL_AND_CHAPTERS;
   const coversDirPath = cacheDirPath + '/' + BackupEntryName.COVERS;
   const pluginIds = new Set<string>();
@@ -273,16 +337,17 @@ export const restoreData = async (
   })();
   let pluginsFromSettings: PluginItem[] = [];
 
-  // version
-  // nothing to do
-
-  // novels
+  benchmarkLog?.('restoreData:novels:start');
   if (manifest.sections.library) {
     updateRestoreProgress(setMeta, getString('backupScreen.restoringNovels'));
   }
   let novelCount = 0;
   let failedCount = 0;
   let failedSectionCount = 0;
+  let readMs = 0;
+  let parseMs = 0;
+  let databaseMs = 0;
+  let coverMs = 0;
 
   if (!manifest.sections.library) {
     // Intentionally omitted from this backup.
@@ -293,6 +358,82 @@ export const restoreData = async (
       const items = (await NativeFile.readDir(novelDirPath)).filter(
         item => !item.isDirectory,
       );
+      const pendingNovels: BackupNovel[] = [];
+      const restoreNovelBatchSize = RESTORE_NOVEL_BATCH_SIZE;
+      const restoreNovelBatch = async () => {
+        if (pendingNovels.length === 0) {
+          return;
+        }
+        const batch = pendingNovels.splice(0, pendingNovels.length);
+        let restoredNovels: {
+          backupNovel: BackupNovel;
+          mapping: RestoredNovelMapping;
+        }[];
+        const databaseStartedAt = performance.now();
+        try {
+          const mappings = await _restoreNovelsAndChapters(batch, {
+            includeChapterMappings: manifest.sections.downloadedFiles,
+          });
+          if (mappings.length !== batch.length) {
+            throw new Error('Restore returned incomplete novel mappings');
+          }
+          restoredNovels = batch.map((backupNovel, index) => ({
+            backupNovel,
+            mapping: mappings[index],
+          }));
+        } catch {
+          restoredNovels = [];
+          for (const backupNovel of batch) {
+            try {
+              restoredNovels.push({
+                backupNovel,
+                mapping: await _restoreNovelAndChapters(backupNovel, {
+                  includeChapterMappings: manifest.sections.downloadedFiles,
+                }),
+              });
+            } catch {
+              failedCount++;
+            }
+          }
+        } finally {
+          databaseMs += performance.now() - databaseStartedAt;
+        }
+
+        const coverStartedAt = performance.now();
+        for (
+          let start = 0;
+          start < restoredNovels.length;
+          start += BACKUP_FILE_CONCURRENCY
+        ) {
+          const coverBatch = restoredNovels.slice(
+            start,
+            start + BACKUP_FILE_CONCURRENCY,
+          );
+          await Promise.all(
+            coverBatch.map(async ({ backupNovel, mapping: novelMapping }) => {
+              if (
+                !manifest.sections.downloadedFiles &&
+                backupNovel.cover?.startsWith(APP_STORAGE_URI)
+              ) {
+                const coverBackupPath = coversDirPath + '/' + backupNovel.id;
+                if (await NativeFile.exists(coverBackupPath)) {
+                  const coverPath = `${NOVEL_STORAGE}/${backupNovel.pluginId}/${novelMapping.restoredNovelId}/cover.png`;
+                  await NativeFile.mkdir(parentDirectory(coverPath));
+                  await NativeFile.copyFile(coverBackupPath, coverPath);
+                }
+              }
+            }),
+          );
+        }
+        coverMs += performance.now() - coverStartedAt;
+
+        for (const { backupNovel, mapping: novelMapping } of restoredNovels) {
+          novelMappings.push(novelMapping);
+          novelIdMap.set(backupNovel.id, novelMapping.restoredNovelId);
+          novelCount++;
+        }
+      };
+
       for (const [index, item] of items.entries()) {
         updateRestoreProgress(
           setMeta,
@@ -301,42 +442,50 @@ export const restoreData = async (
             total: items.length,
           }),
         );
+        let fileContent: string;
+        const readStartedAt = performance.now();
         try {
-          const fileContent = await NativeFile.readFile(item.path);
-          const backupNovel = JSON.parse(fileContent) as BackupNovel;
-          pluginIds.add(backupNovel.pluginId);
-
-          const hasStoredCover =
-            backupNovel.cover && !backupNovel.cover.startsWith('http');
-          if (hasStoredCover) {
-            backupNovel.cover = APP_STORAGE_URI + backupNovel.cover;
-          }
-
-          const novelMapping = await _restoreNovelAndChapters(backupNovel, {
-            includeChapterMappings: manifest.sections.downloadedFiles,
-          });
-          novelMappings.push(novelMapping);
-          novelIdMap.set(backupNovel.id, novelMapping.restoredNovelId);
-
-          if (hasStoredCover) {
-            const coverBackupPath = coversDirPath + '/' + backupNovel.id;
-            if (await NativeFile.exists(coverBackupPath)) {
-              const coverPath = `${NOVEL_STORAGE}/${backupNovel.pluginId}/${novelMapping.restoredNovelId}/cover.png`;
-              await NativeFile.mkdir(parentDirectory(coverPath));
-              await NativeFile.copyFile(coverBackupPath, coverPath);
-            }
-          }
-          novelCount++;
+          fileContent = await NativeFile.readFile(item.path);
         } catch {
           failedCount++;
+          continue;
+        } finally {
+          readMs += performance.now() - readStartedAt;
+        }
+
+        const parseStartedAt = performance.now();
+        try {
+          const backupNovel = JSON.parse(fileContent!) as BackupNovel;
+          pluginIds.add(backupNovel.pluginId);
+
+          if (backupNovel.cover && !backupNovel.cover.startsWith('http')) {
+            backupNovel.cover = APP_STORAGE_URI + backupNovel.cover;
+          }
+          pendingNovels.push(backupNovel);
+        } catch {
+          failedCount++;
+        } finally {
+          parseMs += performance.now() - parseStartedAt;
+        }
+
+        if (pendingNovels.length >= restoreNovelBatchSize) {
+          await restoreNovelBatch();
         }
       }
+      await restoreNovelBatch();
+      benchmarkLog?.(
+        `restoreData:novels:done count=${novelCount} failed=${failedCount} readMs=${readMs.toFixed(
+          1,
+        )} parseMs=${parseMs.toFixed(1)} databaseMs=${databaseMs.toFixed(
+          1,
+        )} coverMs=${coverMs.toFixed(1)}`,
+      );
     } catch {
       failedSectionCount++;
     }
   }
 
-  // categories
+  benchmarkLog?.('restoreData:categories:start');
   if (manifest.sections.library) {
     updateRestoreProgress(
       setMeta,
@@ -383,8 +532,11 @@ export const restoreData = async (
       failedSectionCount++;
     }
   }
+  benchmarkLog?.(
+    `restoreData:categories:done count=${categoryCount} failed=${failedCategoryCount}`,
+  );
 
-  // settings
+  benchmarkLog?.('restoreData:settings:start');
   if (manifest.sections.settings) {
     updateRestoreProgress(setMeta, getString('backupScreen.restoringSettings'));
   }
@@ -411,11 +563,12 @@ export const restoreData = async (
       // Included in the completion warning below.
     }
   }
+  benchmarkLog?.(`restoreData:settings:done restored=${settingsRestored}`);
 
-  // installed plugin registry
+  benchmarkLog?.('restoreData:plugins:start');
+  let restoredPlugins = pluginsFromSettings;
   if (manifest.sections.plugins) {
-    let restoredPlugins = pluginsFromSettings;
-    if (manifest.formatVersion === 2) {
+    if (manifest.formatVersion === 2 || manifest.formatVersion === 3) {
       const pluginMetadataPath =
         cacheDirPath + '/' + BackupEntryName.PLUGIN_METADATA;
       if (!(await NativeFile.exists(pluginMetadataPath))) {
@@ -440,6 +593,8 @@ export const restoreData = async (
     ];
     MMKVStorage.set(INSTALLED_PLUGINS_KEY, JSON.stringify(mergedPlugins));
   }
+  benchmarkLog?.(`restoreData:plugins:done count=${restoredPlugins.length}`);
+  benchmarkLog?.('restoreData:done');
 
   return {
     novelCount,

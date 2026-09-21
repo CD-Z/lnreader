@@ -58,7 +58,7 @@ export const createSelfHostBackup = async (
 
   await sleep(200);
 
-  for (const section of getSelectedBackupFileSections(options)) {
+  for (const section of getSelectedBackupFileSections(options, 2)) {
     await upload(host, backupFolder, section.archiveName, section.storagePath);
   }
 
@@ -120,6 +120,7 @@ export const selfHostRestore = async (
     const novelFilesRestorePath = getNovelFilesRestorePath(CACHE_DIR_PATH);
     for (const section of getSelectedBackupFileSections(
       restoreResult.manifest.sections,
+      2,
     )) {
       await download(
         host,

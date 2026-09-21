@@ -11,6 +11,7 @@ export type BackupFileSection = {
 
 export const getSelectedBackupFileSections = (
   options: BackupOptions,
+  formatVersion: 2 | 3 = 3,
 ): BackupFileSection[] => {
   const sections: BackupFileSection[] = [];
 
@@ -20,7 +21,7 @@ export const getSelectedBackupFileSections = (
       storagePath: PLUGIN_STORAGE,
     });
   }
-  if (options.downloadedFiles) {
+  if (formatVersion === 2 && options.downloadedFiles) {
     sections.push({
       archiveName: ZipBackupName.NOVEL_FILES,
       storagePath: NOVEL_STORAGE,
