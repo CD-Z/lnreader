@@ -1,8 +1,8 @@
 import {
   _restoreNovelAndChapters,
   _restoreNovelsAndChapters,
-  getAllNovels,
-} from '@database/queries/NovelQueries';
+} from '@database/queries/NovelRestoreQueries';
+import { getAllNovels } from '@database/queries/NovelQueries';
 import { getAllNovelChaptersForBackup } from '@database/queries/ChapterQueries';
 import {
   _restoreCategory,
@@ -21,9 +21,12 @@ import type {
 import type { BackupOptions } from '../options';
 
 jest.mock('@database/queries/NovelQueries', () => ({
+  getAllNovels: jest.fn(),
+}));
+
+jest.mock('@database/queries/NovelRestoreQueries', () => ({
   _restoreNovelAndChapters: jest.fn(),
   _restoreNovelsAndChapters: jest.fn(),
-  getAllNovels: jest.fn(),
 }));
 
 jest.mock('@database/queries/ChapterQueries', () => ({

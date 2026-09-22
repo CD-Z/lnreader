@@ -3,11 +3,11 @@ import { OLD_TRACKED_NOVEL_PREFIX } from '@hooks/persisted/migrations/trackerMig
 import { LAST_UPDATE_TIME } from '@hooks/persisted/useUpdates';
 import { MMKVStorage } from '@utils/mmkv/mmkv';
 import { version } from '../../../package.json';
+import { getAllNovels } from '@database/queries/NovelQueries';
 import {
   _restoreNovelAndChapters,
   _restoreNovelsAndChapters,
-  getAllNovels,
-} from '@database/queries/NovelQueries';
+} from '@database/queries/NovelRestoreQueries';
 import { getAllNovelChaptersForBackup } from '@database/queries/ChapterQueries';
 import {
   _restoreCategory,
