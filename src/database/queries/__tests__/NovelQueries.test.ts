@@ -638,6 +638,11 @@ describe('NovelQueries', () => {
       );
 
       expect(mappings).toHaveLength(2);
+      expect(
+        mappings.map(mapping =>
+          mapping.chapters.map(chapter => chapter.backupChapterId),
+        ),
+      ).toEqual([[2001, 2002], [2011]]);
       expect(mappings[0].chapters).toHaveLength(2);
       expect(mappings[1].chapters).toHaveLength(1);
       expect(

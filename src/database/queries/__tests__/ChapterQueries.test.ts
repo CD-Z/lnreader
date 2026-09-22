@@ -185,6 +185,28 @@ describe('ChapterQueries', () => {
       expect(backupChapters).toHaveLength(1001);
       expect(backupChapters.at(-1)?.name).toBe('Chapter 1001');
     });
+
+    it('returns chapters for multiple novels in novel and chapter order', async () => {
+      const testDb = getTestDb();
+      testDb.sqlite.executeSync(`
+        INSERT INTO Chapter
+          (novelId, path, name, chapterNumber, page, position)
+        VALUES
+          (10, '/chapter/1', 'Chapter 1', 1, '1', 1),
+          (10, '/chapter/2', 'Chapter 2', 2, '1', 2),
+          (20, '/chapter/1', 'Chapter 1', 1, '1', 1),
+          (20, '/chapter/2', 'Chapter 2', 2, '1', 2)
+      `);
+
+      const chapters = await getAllNovelChaptersForBackup([20, 10]);
+
+      expect(chapters.map(chapter => [chapter.novelId, chapter.name])).toEqual([
+        [10, 'Chapter 1'],
+        [10, 'Chapter 2'],
+        [20, 'Chapter 1'],
+        [20, 'Chapter 2'],
+      ]);
+    });
   });
 
   describe('markChaptersRead', () => {

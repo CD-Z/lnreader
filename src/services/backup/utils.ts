@@ -19,6 +19,7 @@ import {
   BackupNovel,
   type RestoredNovelMapping,
 } from '@database/types';
+import { decodeNovelBatch, encodeNovelBatch } from './novelPayload';
 import {
   BackupEntryName,
   type BackupManifest,
@@ -114,10 +115,10 @@ export const prepareBackupData = async (
   await clearBackupCache(cacheDirPath);
   await NativeFile.mkdir(cacheDirPath);
 
-  // version
   const manifest: BackupManifest = {
     appVersion: version,
     formatVersion,
+    novelDataFormat: 2,
     sections: options,
   };
   await NativeFile.writeFile(
@@ -158,6 +159,7 @@ export const prepareBackupData = async (
         }
       }
 
+      const preparedNovels: BackupNovel[] = [];
       for (
         let fileStart = 0;
         fileStart < novelBatch.length;
@@ -167,8 +169,8 @@ export const prepareBackupData = async (
           fileStart,
           fileStart + BACKUP_FILE_CONCURRENCY,
         );
-        await Promise.all(
-          fileBatch.map(async novel => {
+        const prepared = await Promise.all(
+          fileBatch.map(async (novel): Promise<BackupNovel | null> => {
             try {
               const novelChapters = chaptersByNovel.get(novel.id) ?? [];
               const backedUpChapters = options.downloadedFiles
@@ -193,19 +195,40 @@ export const prepareBackupData = async (
                   }
                 }
               }
-              await NativeFile.writeFile(
-                novelDirPath + '/' + novel.id + '.json',
-                JSON.stringify({
-                  chapters: backedUpChapters,
-                  ...novel,
-                  cover,
-                }),
-              );
+              return {
+                ...novel,
+                chapters: backedUpChapters,
+                cover,
+              };
             } catch {
               failedNovelCount++;
+              return null;
             }
           }),
         );
+        preparedNovels.push(
+          ...prepared.filter((novel): novel is BackupNovel => novel !== null),
+        );
+      }
+
+      if (preparedNovels.length > 0) {
+        const batchName = `batch-${String(
+          Math.floor(start / BACKUP_NOVEL_BATCH_SIZE) + 1,
+        ).padStart(6, '0')}.json`;
+        const batchPath = novelDirPath + '/' + batchName;
+        try {
+          await NativeFile.writeFile(
+            batchPath,
+            JSON.stringify(encodeNovelBatch(preparedNovels)),
+          );
+        } catch {
+          failedNovelCount += preparedNovels.length;
+          try {
+            await NativeFile.unlink(batchPath);
+          } catch {
+            // Best effort cleanup prevents a failed write from restoring partial data.
+          }
+        }
       }
     }
 
@@ -282,9 +305,14 @@ const getBackupManifest = async (
       (data.formatVersion === 2 || data.formatVersion === 3) &&
       data.sections
     ) {
+      const novelDataFormat =
+        data.novelDataFormat === 1 || data.novelDataFormat === 2
+          ? data.novelDataFormat
+          : undefined;
       return {
         appVersion: data.appVersion ?? data.version ?? '',
         formatVersion: data.formatVersion,
+        ...(novelDataFormat === undefined ? {} : { novelDataFormat }),
         sections: resolveBackupOptions(data.sections),
       };
     }
@@ -355,9 +383,11 @@ export const restoreData = async (
     failedSectionCount++;
   } else {
     try {
-      const items = (await NativeFile.readDir(novelDirPath)).filter(
-        item => !item.isDirectory,
-      );
+      const items = (await NativeFile.readDir(novelDirPath))
+        .filter(item => !item.isDirectory)
+        .sort((left, right) =>
+          left.name < right.name ? -1 : left.name > right.name ? 1 : 0,
+        );
       const pendingNovels: BackupNovel[] = [];
       const restoreNovelBatchSize = RESTORE_NOVEL_BATCH_SIZE;
       const restoreNovelBatch = async () => {
@@ -455,13 +485,17 @@ export const restoreData = async (
 
         const parseStartedAt = performance.now();
         try {
-          const backupNovel = JSON.parse(fileContent!) as BackupNovel;
-          pluginIds.add(backupNovel.pluginId);
-
-          if (backupNovel.cover && !backupNovel.cover.startsWith('http')) {
-            backupNovel.cover = APP_STORAGE_URI + backupNovel.cover;
+          const decodedNovels =
+            manifest.novelDataFormat === 2
+              ? decodeNovelBatch(JSON.parse(fileContent!))
+              : [JSON.parse(fileContent!) as BackupNovel];
+          for (const backupNovel of decodedNovels) {
+            pluginIds.add(backupNovel.pluginId);
+            if (backupNovel.cover && !backupNovel.cover.startsWith('http')) {
+              backupNovel.cover = APP_STORAGE_URI + backupNovel.cover;
+            }
+            pendingNovels.push(backupNovel);
           }
-          pendingNovels.push(backupNovel);
         } catch {
           failedCount++;
         } finally {

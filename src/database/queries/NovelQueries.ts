@@ -20,6 +20,7 @@ import { dbManager } from '@database/db';
 import {
   createNovelTriggerQueryDelete,
   createNovelTriggerQueryInsert,
+  createNovelTriggerQueryUpdate,
 } from '@database/queryStrings/triggers';
 import {
   novelSchema,
@@ -481,60 +482,71 @@ export const updateNovelCategories = async (
 
 const disableNovelStatsTriggers = async (tx: TransactionParameter) => {
   await tx.run(sql.raw('DROP TRIGGER IF EXISTS update_novel_stats'));
+  await tx.run(sql.raw('DROP TRIGGER IF EXISTS update_novel_stats_on_update'));
   await tx.run(sql.raw('DROP TRIGGER IF EXISTS update_novel_stats_on_delete'));
 };
 
 const restoreNovelStatsTriggers = async (tx: TransactionParameter) => {
   await tx.run(sql.raw(createNovelTriggerQueryInsert));
   await tx.run(sql.raw(createNovelTriggerQueryDelete));
+  await tx.run(sql.raw(createNovelTriggerQueryUpdate));
 };
 
 const restoreNovelRecord = async (
   tx: TransactionParameter,
   novel: Omit<BackupNovel, 'id' | 'chapters'>,
 ) => {
+  const resetState = {
+    totalChapters: 0,
+    chaptersDownloaded: 0,
+    chaptersUnread: 0,
+    lastReadAt: null,
+    lastUpdatedAt: null,
+  };
+
+  // The order here makes resetState authoritative.
+  const values = {
+    ...resetState,
+    ...novel,
+  };
+
+  const localCover = values.cover?.startsWith(`file://${NOVEL_STORAGE}/`)
+    ? values.cover
+    : undefined;
+
+  const cacheSuffix = localCover?.match(/[?#].*$/)?.[0] ?? '';
+
   const restoredNovel = await tx
     .insert(novelSchema)
-    .values({
-      ...novel,
-      totalChapters: 0,
-      chaptersDownloaded: 0,
-      chaptersUnread: 0,
-      lastReadAt: null,
-      lastUpdatedAt: null,
-    })
+    .values(values)
     .onConflictDoUpdate({
       target: [novelSchema.path, novelSchema.pluginId],
-      set: {
-        ...novel,
-        totalChapters: 0,
-        chaptersDownloaded: 0,
-        chaptersUnread: 0,
-        lastReadAt: null,
-        lastUpdatedAt: null,
-      },
+      set: values,
     })
     .returning({ id: novelSchema.id })
     .get();
-
-  if (novel.cover?.startsWith(`file://${NOVEL_STORAGE}/`)) {
-    const cacheSuffix = novel.cover.match(/[?#].*$/)?.[0] ?? '';
-    await tx
-      .update(novelSchema)
-      .set({
-        cover: `file://${NOVEL_STORAGE}/${novel.pluginId}/${restoredNovel.id}/cover.png${cacheSuffix}`,
-      })
-      .where(eq(novelSchema.id, restoredNovel.id))
-      .run();
-  }
 
   await tx
     .delete(chapterSchema)
     .where(eq(chapterSchema.novelId, restoredNovel.id))
     .run();
 
+  if (localCover !== undefined) {
+    await tx
+      .update(novelSchema)
+      .set({
+        cover:
+          `file://${NOVEL_STORAGE}/` +
+          `${values.pluginId}/${restoredNovel.id}/cover.png` +
+          cacheSuffix,
+      })
+      .where(eq(novelSchema.id, restoredNovel.id))
+      .run();
+  }
+
   return restoredNovel;
 };
+
 const restoreChapterValues = (
   chapters: BackupNovel['chapters'],
   novelId: number,
@@ -682,10 +694,10 @@ const restoreNovelsAndChaptersInTransaction = async (
         chapters: chapterMappings,
       });
     }
-    await refreshRestoredNovelStats(
-      tx,
-      restoredNovels.map(restoredNovel => restoredNovel.restoredNovelId),
-    );
+    // await refreshRestoredNovelStats(
+    //   tx,
+    //   restoredNovels.map(restoredNovel => restoredNovel.restoredNovelId),
+    // );
     return mappings;
   } finally {
     await restoreNovelStatsTriggers(tx);

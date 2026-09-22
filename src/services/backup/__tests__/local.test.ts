@@ -273,6 +273,7 @@ describe('local selective backup', () => {
       manifest: {
         appVersion: '2.1.3',
         formatVersion: 3 as const,
+        novelDataFormat: 2 as const,
         sections: {
           library: true,
           settings: false,

@@ -12,7 +12,12 @@ import {
 import NativeFile from '@modules/native-file';
 import { MMKVStorage } from '@utils/mmkv/mmkv';
 import { prepareBackupData, restoreData } from '../utils';
-import type { BackupNovel, RestoredNovelMapping } from '@database/types';
+import { decodeNovelBatch, encodeNovelBatch } from '../novelPayload';
+import type {
+  BackupNovel,
+  ChapterInfo,
+  RestoredNovelMapping,
+} from '@database/types';
 import type { BackupOptions } from '../options';
 
 jest.mock('@database/queries/NovelQueries', () => ({
@@ -71,6 +76,45 @@ const pluginOnlyOptions: BackupOptions = {
   plugins: true,
   downloadedFiles: false,
 };
+const makeTestChapter = (novelId: number, chapterNumber = 1): ChapterInfo => ({
+  id: novelId * 100 + chapterNumber,
+  novelId,
+  path: `/novel/${novelId}/chapter/${chapterNumber}`,
+  name: `Chapter ${chapterNumber}`,
+  releaseTime: `2024-01-${String(chapterNumber).padStart(2, '0')}`,
+  readTime: null,
+  bookmark: chapterNumber % 2 === 0,
+  unread: chapterNumber % 2 !== 0,
+  isDownloaded: true,
+  updatedTime: `2024-02-${String(chapterNumber).padStart(2, '0')}`,
+  chapterNumber,
+  page: String(chapterNumber),
+  position: chapterNumber - 1,
+  progress: chapterNumber / 10,
+  scanlator: `scanlator-${chapterNumber}`,
+  timeSpent: chapterNumber * 60,
+});
+
+const makeTestNovel = (
+  id: number,
+  pluginId = 'source',
+  chapters = [makeTestChapter(id)],
+): BackupNovel => ({
+  id,
+  name: `Novel ${id}`,
+  path: `/novel/${id}`,
+  pluginId,
+  cover: null,
+  summary: `Summary ${id}`,
+  author: `Author ${id}`,
+  artist: `Artist ${id}`,
+  status: 'ongoing',
+  genres: 'fantasy',
+  inLibrary: true,
+  isLocal: false,
+  totalPages: 100,
+  chapters,
+});
 
 describe('selective backup data', () => {
   beforeEach(() => {
@@ -285,11 +329,18 @@ describe('selective backup data', () => {
 
     const novelWrite = jest
       .mocked(NativeFile.writeFile)
-      .mock.calls.find(([path]) => path.endsWith('/1.json'));
-    expect(JSON.parse(novelWrite?.[1] ?? '{}')).toMatchObject({
-      cover: '/Novels/source/1/cover.png?123',
-      chapters: [{ id: 10, isDownloaded: false }],
+      .mock.calls.find(([path]) =>
+        path.endsWith('/NovelAndChapters/batch-000001.json'),
+      );
+    const compactNovel = JSON.parse(novelWrite?.[1] ?? '[]')[0];
+    expect(compactNovel).toMatchObject({
+      id: 1,
+      co: '/Novels/source/1/cover.png?123',
     });
+    expect(compactNovel.c).toHaveLength(1);
+    expect(compactNovel.c[0]).toHaveLength(15);
+    expect(compactNovel.c[0][0]).toBe(10);
+    expect(compactNovel.c[0][7]).toBe(false);
     expect(NativeFile.copyFile).toHaveBeenCalledWith(
       'file:///storage/Novels/source/1/cover.png',
       '/cache/Covers/1',
@@ -319,15 +370,226 @@ describe('selective backup data', () => {
 
     const novelWrite = jest
       .mocked(NativeFile.writeFile)
-      .mock.calls.find(([path]) => path.endsWith('/1.json'));
-    expect(JSON.parse(novelWrite?.[1] ?? '{}')).toMatchObject({
-      cover: '/Novels/source/1/cover.png?123',
+      .mock.calls.find(([path]) =>
+        path.endsWith('/NovelAndChapters/batch-000001.json'),
+      );
+    const compactNovel = JSON.parse(novelWrite?.[1] ?? '[]')[0];
+    expect(compactNovel).toMatchObject({
+      id: 1,
+      co: '/Novels/source/1/cover.png?123',
     });
+
     expect(NativeFile.copyFile).not.toHaveBeenCalledWith(
       'file:///storage/Novels/source/1/cover.png',
       '/cache/Covers/1',
     );
     expect(NativeFile.mkdir).not.toHaveBeenCalledWith('/cache/Covers');
+  });
+
+  it('round-trips a fully populated novel through the compact codec', () => {
+    const novel: BackupNovel & {
+      chaptersDownloaded: number;
+      chaptersUnread: number;
+      totalChapters: number;
+      lastReadAt: string;
+      lastUpdatedAt: string;
+    } = {
+      id: 7,
+      name: 'The Compact Novel',
+      path: '/novels/compact',
+      pluginId: 'source',
+      cover: '/covers/compact.png?cache=1',
+      summary: null,
+      author: 'Author',
+      artist: null,
+      status: 'ongoing',
+      genres: null,
+      inLibrary: null,
+      isLocal: false,
+      totalPages: 2048,
+      chaptersDownloaded: 1,
+      chaptersUnread: 1,
+      totalChapters: 2,
+      lastReadAt: '2024-03-01T10:20:30.000Z',
+      lastUpdatedAt: '2024-03-02T10:20:30.000Z',
+      chapters: [
+        {
+          id: 701,
+          novelId: 7,
+          path: '/novels/compact/1',
+          name: 'First chapter',
+          releaseTime: '2024-01-01T00:00:00.000Z',
+          readTime: '2024-03-01T10:00:00.000Z',
+          bookmark: true,
+          unread: false,
+          isDownloaded: true,
+          updatedTime: '2024-02-01T00:00:00.000Z',
+          chapterNumber: 1,
+          page: '4',
+          position: 2,
+          progress: 0.75,
+          scanlator: 'Team A',
+          timeSpent: 90,
+        },
+        {
+          id: 702,
+          novelId: 7,
+          path: '/novels/compact/2',
+          name: 'Second chapter',
+          releaseTime: null,
+          readTime: null,
+          bookmark: null,
+          unread: true,
+          isDownloaded: false,
+          updatedTime: null,
+          chapterNumber: null,
+          page: null,
+          position: null,
+          progress: null,
+          scanlator: null,
+          timeSpent: null,
+        },
+      ],
+    };
+
+    const [compactNovel] = encodeNovelBatch([novel]);
+
+    expect(Object.keys(compactNovel).sort()).toEqual(
+      [
+        'c',
+        'id',
+        'p',
+        'pi',
+        'n',
+        'co',
+        's',
+        'a',
+        'ar',
+        'st',
+        'g',
+        'l',
+        'lo',
+        't',
+        'd',
+        'u',
+        'tc',
+        'lr',
+        'lu',
+      ].sort(),
+    );
+    expect(compactNovel).toMatchObject({
+      id: 7,
+      p: '/novels/compact',
+      pi: 'source',
+      n: 'The Compact Novel',
+      co: '/covers/compact.png?cache=1',
+      d: 1,
+      u: 1,
+      tc: 2,
+      lr: '2024-03-01T10:20:30.000Z',
+      lu: '2024-03-02T10:20:30.000Z',
+    });
+    expect(compactNovel.c).toEqual([
+      [
+        701,
+        '/novels/compact/1',
+        'First chapter',
+        '2024-01-01T00:00:00.000Z',
+        true,
+        false,
+        '2024-03-01T10:00:00.000Z',
+        true,
+        '2024-02-01T00:00:00.000Z',
+        1,
+        '4',
+        2,
+        0.75,
+        'Team A',
+        90,
+      ],
+      [
+        702,
+        '/novels/compact/2',
+        'Second chapter',
+        null,
+        null,
+        true,
+        null,
+        false,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+      ],
+    ]);
+    expect(Object.keys(compactNovel.c[0])).not.toContain('novelId');
+    expect(compactNovel).not.toHaveProperty('chapters');
+
+    expect(decodeNovelBatch([compactNovel])).toEqual([novel]);
+  });
+
+  it('writes 101 novels as ordered compact batches with a format marker', async () => {
+    const options: BackupOptions = {
+      library: true,
+      settings: false,
+      plugins: false,
+      downloadedFiles: true,
+    };
+    const novels = Array.from({ length: 101 }, (_, index) => {
+      const id = index + 1;
+      return makeTestNovel(id, 'source', [
+        makeTestChapter(id, 1),
+        makeTestChapter(id, 2),
+      ]);
+    });
+    jest.mocked(getAllNovels).mockResolvedValueOnce(novels);
+    jest.mocked(getAllNovelChaptersForBackup).mockImplementation(async ids => {
+      const requestedIds = Array.isArray(ids) ? ids : [ids];
+      return novels
+        .flatMap(novel => novel.chapters)
+        .filter(chapter => requestedIds.includes(chapter.novelId));
+    });
+
+    await prepareBackupData('/cache', options);
+
+    const batchWrites = jest
+      .mocked(NativeFile.writeFile)
+      .mock.calls.filter(([path]) => path.includes('/NovelAndChapters/batch-'));
+    expect(batchWrites.map(([path]) => path)).toEqual([
+      '/cache/NovelAndChapters/batch-000001.json',
+      '/cache/NovelAndChapters/batch-000002.json',
+    ]);
+    expect(batchWrites.some(([path]) => /\/\d+\.json$/.test(path))).toBe(false);
+
+    const batches = batchWrites.map(([, content]) => JSON.parse(content));
+    expect(batches.map(batch => batch.length)).toEqual([100, 1]);
+    const records = batches.flat();
+    expect(records.map(record => record.id)).toEqual(
+      novels.map(novel => novel.id),
+    );
+    expect(
+      records.map(record =>
+        record.c.map((chapter: [number, ...unknown[]]) => chapter[0]),
+      ),
+    ).toEqual(novels.map(novel => novel.chapters.map(chapter => chapter.id)));
+    expect(
+      records.every(
+        record =>
+          Array.isArray(record.c) &&
+          record.c.every((chapter: unknown[]) => chapter.length === 15),
+      ),
+    ).toBe(true);
+
+    const manifestWrite = jest
+      .mocked(NativeFile.writeFile)
+      .mock.calls.find(([path]) => path.endsWith('/Version.json'));
+    expect(JSON.parse(manifestWrite?.[1] ?? '{}')).toMatchObject({
+      formatVersion: 2,
+      novelDataFormat: 2,
+    });
   });
 
   it('restores stored covers from library data and preserves missing covers', async () => {
@@ -541,6 +803,98 @@ describe('selective backup data', () => {
     });
   });
 
+  it('restores scrambled compact batches in order with downloaded-file mappings', async () => {
+    const options: BackupOptions = {
+      library: true,
+      settings: false,
+      plugins: false,
+      downloadedFiles: true,
+    };
+    const firstNovel = makeTestNovel(11, 'plugin-a', [makeTestChapter(11, 1)]);
+    const secondNovel = makeTestNovel(22, 'plugin-b', [makeTestChapter(22, 1)]);
+    const mappings: RestoredNovelMapping[] = [
+      {
+        pluginId: 'plugin-a',
+        backupNovelId: 11,
+        restoredNovelId: 111,
+        chapters: [{ backupChapterId: 1101, restoredChapterId: 1001 }],
+      },
+      {
+        pluginId: 'plugin-b',
+        backupNovelId: 22,
+        restoredNovelId: 222,
+        chapters: [{ backupChapterId: 2201, restoredChapterId: 2001 }],
+      },
+    ];
+    jest
+      .mocked(NativeFile.exists)
+      .mockImplementation(async path => path === '/cache/NovelAndChapters');
+    jest.mocked(NativeFile.readDir).mockResolvedValue([
+      {
+        name: 'batch-000002.json',
+        path: '/cache/NovelAndChapters/batch-000002.json',
+        isDirectory: false,
+      },
+      {
+        name: 'ignored-directory',
+        path: '/cache/NovelAndChapters/ignored-directory',
+        isDirectory: true,
+      },
+      {
+        name: 'batch-000001.json',
+        path: '/cache/NovelAndChapters/batch-000001.json',
+        isDirectory: false,
+      },
+    ]);
+    jest.mocked(NativeFile.readFile).mockImplementation(async path => {
+      if (path.endsWith('/Version.json')) {
+        return JSON.stringify({
+          appVersion: '2.1.3',
+          formatVersion: 2,
+          novelDataFormat: 2,
+          sections: options,
+        });
+      }
+      if (path.endsWith('/batch-000001.json')) {
+        return JSON.stringify(encodeNovelBatch([firstNovel]));
+      }
+      if (path.endsWith('/batch-000002.json')) {
+        return JSON.stringify(encodeNovelBatch([secondNovel]));
+      }
+      throw new Error(`Unexpected read: ${path}`);
+    });
+    jest.mocked(_restoreNovelsAndChapters).mockResolvedValueOnce(mappings);
+
+    const result = await restoreData('/cache');
+
+    expect(_restoreNovelsAndChapters).toHaveBeenCalledTimes(1);
+    const restoredNovels = jest.mocked(_restoreNovelsAndChapters).mock
+      .calls[0][0] as BackupNovel[];
+    expect(restoredNovels.map(novel => novel.id)).toEqual([11, 22]);
+    expect(
+      restoredNovels.map(novel =>
+        novel.chapters.map(chapter => ({
+          id: chapter.id,
+          novelId: chapter.novelId,
+          isDownloaded: chapter.isDownloaded,
+        })),
+      ),
+    ).toEqual([
+      [{ id: 1101, novelId: 11, isDownloaded: true }],
+      [{ id: 2201, novelId: 22, isDownloaded: true }],
+    ]);
+    expect(_restoreNovelsAndChapters).toHaveBeenCalledWith(expect.any(Array), {
+      includeChapterMappings: true,
+    });
+    expect(_restoreNovelAndChapters).not.toHaveBeenCalled();
+    expect(result).toMatchObject({
+      novelCount: 2,
+      failedNovelCount: 0,
+      pluginIds: ['plugin-a', 'plugin-b'],
+      novelMappings: mappings,
+    });
+  });
+
   it('retries each downloaded-file novel when its batch restore fails', async () => {
     const options: BackupOptions = {
       library: true,
@@ -618,6 +972,165 @@ describe('selective backup data', () => {
       novelCount: 2,
       failedNovelCount: 0,
       novelMappings: mappings,
+    });
+  });
+
+  it.each([
+    {
+      label: 'v1',
+      manifest: { version: '1.0.0' },
+      formatVersion: 1,
+    },
+    {
+      label: 'v2',
+      manifest: {
+        appVersion: '2.0.0',
+        formatVersion: 2,
+        sections: {
+          library: true,
+          settings: false,
+          plugins: false,
+          downloadedFiles: true,
+        },
+      },
+      formatVersion: 2,
+    },
+    {
+      label: 'v3',
+      manifest: {
+        appVersion: '3.0.0',
+        formatVersion: 3,
+        sections: {
+          library: true,
+          settings: false,
+          plugins: false,
+          downloadedFiles: true,
+        },
+      },
+      formatVersion: 3,
+    },
+  ])(
+    '$label object payloads remain restorable',
+    async ({ manifest, formatVersion }) => {
+      const novel = makeTestNovel(301, 'legacy-source');
+      jest
+        .mocked(NativeFile.exists)
+        .mockImplementation(async path => path === '/cache/NovelAndChapters');
+      jest.mocked(NativeFile.readDir).mockResolvedValue([
+        {
+          name: 'legacy.json',
+          path: '/cache/NovelAndChapters/legacy.json',
+          isDirectory: false,
+        },
+      ]);
+      jest.mocked(NativeFile.readFile).mockImplementation(async path => {
+        if (path.endsWith('/Version.json')) {
+          return JSON.stringify(manifest);
+        }
+        return JSON.stringify(novel);
+      });
+
+      const result = await restoreData('/cache');
+
+      expect(_restoreNovelsAndChapters).toHaveBeenCalledWith(
+        [
+          expect.objectContaining({
+            id: 301,
+            pluginId: 'legacy-source',
+            chapters: [
+              expect.objectContaining({
+                id: 30101,
+                novelId: 301,
+              }),
+            ],
+          }),
+        ],
+        { includeChapterMappings: true },
+      );
+      expect(result.manifest).toMatchObject({ formatVersion });
+      expect(result).toMatchObject({
+        novelCount: 1,
+        failedNovelCount: 0,
+        novelMappings: [
+          expect.objectContaining({
+            backupNovelId: 301,
+            pluginId: 'legacy-source',
+          }),
+        ],
+      });
+    },
+  );
+
+  it('skips malformed compact files without partially restoring them', async () => {
+    const options: BackupOptions = {
+      library: true,
+      settings: false,
+      plugins: false,
+      downloadedFiles: true,
+    };
+    const validNovel = makeTestNovel(901, 'valid-source');
+    const [validRecord] = encodeNovelBatch([validNovel]);
+    const malformedFiles: Record<string, string> = {
+      'batch-000001.json': '{',
+      'batch-000002.json': JSON.stringify({}),
+      'batch-000003.json': JSON.stringify([{ ...validRecord, n: undefined }]),
+      'batch-000004.json': JSON.stringify([
+        validRecord,
+        {
+          ...validRecord,
+          c: [[...validRecord.c[0]].slice(0, 14)],
+        },
+      ]),
+      'batch-000005.json': JSON.stringify([{ ...validRecord, id: 'bad' }]),
+      'batch-000006.json': JSON.stringify([{ ...validRecord, p: 123 }]),
+      'batch-000007.json': JSON.stringify([validRecord]),
+    };
+    jest
+      .mocked(NativeFile.exists)
+      .mockImplementation(async path => path === '/cache/NovelAndChapters');
+    jest.mocked(NativeFile.readDir).mockResolvedValue(
+      Object.keys(malformedFiles)
+        .reverse()
+        .map(name => ({
+          name,
+          path: `/cache/NovelAndChapters/${name}`,
+          isDirectory: false,
+        })),
+    );
+    jest.mocked(NativeFile.readFile).mockImplementation(async path => {
+      if (path.endsWith('/Version.json')) {
+        return JSON.stringify({
+          appVersion: '2.1.3',
+          formatVersion: 2,
+          novelDataFormat: 2,
+          sections: options,
+        });
+      }
+      return malformedFiles[path.split('/').pop() ?? ''];
+    });
+
+    const result = await restoreData('/cache');
+
+    expect(_restoreNovelsAndChapters).toHaveBeenCalledTimes(1);
+    expect(_restoreNovelsAndChapters).toHaveBeenCalledWith(
+      [
+        expect.objectContaining({
+          id: 901,
+          pluginId: 'valid-source',
+          chapters: [
+            expect.objectContaining({
+              id: 90101,
+              novelId: 901,
+            }),
+          ],
+        }),
+      ],
+      { includeChapterMappings: true },
+    );
+    expect(_restoreNovelAndChapters).not.toHaveBeenCalled();
+    expect(result).toMatchObject({
+      novelCount: 1,
+      failedNovelCount: 6,
     });
   });
 

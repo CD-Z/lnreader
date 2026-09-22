@@ -1,19 +1,14 @@
 // db-manager.types.ts
+import type { DrizzleDb } from '@database/db';
 import type {
-  SQLiteTransaction,
-  TablesRelationalConfig,
   Placeholder,
 } from 'drizzle-orm';
 import { SQLitePreparedQuery } from 'drizzle-orm/sqlite-core';
 
 // Define the TransactionParameter type based on your DrizzleDb
-export type TransactionParameter = SQLiteTransaction<
-  'async',
-  { changes: number; lastInsertRowid: number } | void,
-  Record<string, unknown>,
-  TablesRelationalConfig
->;
-
+export type TransactionParameter = Parameters<
+  Parameters<DrizzleDb['transaction']>[0]
+>[0];
 /**
  * Interface defining the public API and documentation for the Drizzle database manager.
  * This contract ensures consistent documentation and type safety across the application.
