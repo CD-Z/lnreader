@@ -29,6 +29,8 @@ export interface Reader {
     finished: string;
     nextChapter: string;
     noNextChapter: string;
+    removeText: string;
+    replaceText: string;
   };
 
   setAdjacentChapters: (adjacent: {

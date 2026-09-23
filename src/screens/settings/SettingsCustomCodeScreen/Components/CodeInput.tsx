@@ -63,7 +63,6 @@ const CodeInput = ({
   scrollSink,
 }: CodeInputProps) => {
   const theme = useTheme();
-
   const codeFieldStyle = React.useMemo(
     () => ({
       color: theme.onBackground,
@@ -151,7 +150,12 @@ const CodeInput = ({
       {language !== 'js' ? null : (
         <MemoizedHighlightedCode
           startLine={lines.length + startLines.length}
-          style={[styles.fakeTextInput, styles.bottomField, codeFieldStyle]}
+          style={[
+            styles.fontStyle,
+            styles.fakeTextInput,
+            styles.bottomField,
+            codeFieldStyle,
+          ]}
           mode={language}
           isDark={theme.isDark}
           value={END_JS_CODE}

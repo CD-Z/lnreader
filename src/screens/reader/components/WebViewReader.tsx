@@ -357,6 +357,7 @@ const WebViewReader: React.FC<WebViewReaderProps> = ({
                 --theme-surfaceVariant: ${theme.surfaceVariant};
                 --theme-onSurfaceVariant: ${theme.onSurfaceVariant};
                 --theme-outline: ${theme.outline};
+                --theme-outlineVariant: ${theme.outlineVariant};
                 --theme-rippleColor: ${theme.rippleColor};
                 }
                 </style>
@@ -406,6 +407,8 @@ const WebViewReader: React.FC<WebViewReaderProps> = ({
                       ': ' +
                       chapter.name.trim(),
                     noNextChapter: getString('readerScreen.noNextChapter'),
+                    removeText: getString('common.remove'),
+                    replaceText: getString('customCodeSettings.replace'),
                   },
                 })}
               </script>

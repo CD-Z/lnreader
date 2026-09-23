@@ -1,18 +1,41 @@
-import { Appbar, Dialog, List, SafeAreaView } from '@components';
-import { CustomCodeSettingsScreenProps } from '@navigators/types';
-import React from 'react';
-import { Keyboard, ScrollView, StyleSheet, View } from 'react-native';
-import { TextInput } from 'react-native-paper';
-import ReplaceItemModal from './Modals/ReplaceItemModal';
+import { Appbar, Button, Dialog, SafeAreaView } from '@components';
 import { useChapterReaderSettings, useTheme } from '@hooks/persisted';
 import { getString } from '@i18n/translations';
+import { CustomCodeSettingsScreenProps } from '@navigators/types';
+import Icon from '@react-native-vector-icons/material-design-icons';
+import React from 'react';
+import { Keyboard, ScrollView, StyleSheet, View } from 'react-native';
+import { Text, TextInput } from 'react-native-paper';
+import { ThemeColors } from '@theme/types';
 import Snippet from './Components/Snippet';
+import ReplaceItemModal from './Modals/ReplaceItemModal';
+
+type SectionHeaderProps = {
+  status?: string;
+  theme: ThemeColors;
+  title: string;
+};
+
+const SectionHeader = ({ status, theme, title }: SectionHeaderProps) => (
+  <View style={styles.sectionHeader}>
+    <Text style={[styles.sectionTitle, { color: theme.onSurface }]}>
+      {title}
+    </Text>
+    {status ? (
+      <Text style={[styles.sectionStatus, { color: theme.onSurfaceVariant }]}>
+        {status}
+      </Text>
+    ) : null}
+  </View>
+);
 
 const SettingsCustomCode = ({ navigation }: CustomCodeSettingsScreenProps) => {
   const theme = useTheme();
   const {
     codeSnippetsJS,
     codeSnippetsCSS,
+    removeText,
+    replaceText,
     setChapterReaderSettings: setSettings,
   } = useChapterReaderSettings();
   const [renameSnippet, setRenameSnippet] = React.useState<{
@@ -20,23 +43,23 @@ const SettingsCustomCode = ({ navigation }: CustomCodeSettingsScreenProps) => {
     isJS: boolean;
     name: string;
   } | null>(null);
-  const [extended, setExtended] = React.useState([false, false, false, false]);
 
-  const toggleExtended = React.useCallback(
-    (index: number) => {
-      const newExtended = [false, false, false, false];
-      newExtended[index] = !extended[index];
-      setExtended(newExtended);
-    },
-    [extended],
-  );
+  const totalRules = removeText.length + Object.keys(replaceText).length;
+  const totalSnippets = codeSnippetsCSS.length + codeSnippetsJS.length;
+  const activeSnippets = [...codeSnippetsCSS, ...codeSnippetsJS].filter(
+    snippet => snippet.active,
+  ).length;
 
   const toggleSnippet = React.useCallback(
     (index: number, isJS: boolean) => {
-      const snippets = isJS ? [...codeSnippetsJS] : [...codeSnippetsCSS];
-      snippets[index].active = !snippets[index].active;
+      const snippets = isJS ? codeSnippetsJS : codeSnippetsCSS;
+      const nextSnippets = snippets.map((snippet, snippetIndex) =>
+        snippetIndex === index
+          ? { ...snippet, active: !snippet.active }
+          : snippet,
+      );
       setSettings({
-        [isJS ? 'codeSnippetsJS' : 'codeSnippetsCSS']: snippets,
+        [isJS ? 'codeSnippetsJS' : 'codeSnippetsCSS']: nextSnippets,
       });
     },
     [codeSnippetsJS, codeSnippetsCSS, setSettings],
@@ -44,33 +67,42 @@ const SettingsCustomCode = ({ navigation }: CustomCodeSettingsScreenProps) => {
 
   const deleteSnippet = React.useCallback(
     (index: number, isJS: boolean) => {
-      const snippets = isJS ? [...codeSnippetsJS] : [...codeSnippetsCSS];
-      snippets.splice(index, 1);
+      const snippets = isJS ? codeSnippetsJS : codeSnippetsCSS;
       setSettings({
-        [isJS ? 'codeSnippetsJS' : 'codeSnippetsCSS']: snippets,
+        [isJS ? 'codeSnippetsJS' : 'codeSnippetsCSS']: snippets.filter(
+          (_, snippetIndex) => snippetIndex !== index,
+        ),
       });
     },
     [codeSnippetsJS, codeSnippetsCSS, setSettings],
   );
 
-  const handleEditSnippet = (snippetIndex: number, isJS: boolean) => {
-    navigation.navigate('CodeSnippets', {
-      snippetIndex,
-      isJS,
-    });
-  };
+  const handleEditSnippet = React.useCallback(
+    (snippetIndex: number, isJS: boolean) => {
+      navigation.navigate('CodeSnippets', { snippetIndex, isJS });
+    },
+    [navigation],
+  );
+
+  const handleRenameSnippet = React.useCallback(
+    (index: number, isJS: boolean, name: string) => {
+      setRenameSnippet({ index, isJS, name });
+    },
+    [],
+  );
 
   const handleRenameSave = React.useCallback(() => {
-    if (!renameSnippet || !renameSnippet.name.trim()) return false;
-    const snippets = renameSnippet.isJS
-      ? [...codeSnippetsJS]
-      : [...codeSnippetsCSS];
-    snippets[renameSnippet.index].name = renameSnippet.name.trim();
+    if (!renameSnippet || !renameSnippet.name.trim()) return;
+    const snippets = renameSnippet.isJS ? codeSnippetsJS : codeSnippetsCSS;
+    const nextSnippets = snippets.map((snippet, index) =>
+      index === renameSnippet.index
+        ? { ...snippet, name: renameSnippet.name.trim() }
+        : snippet,
+    );
     setSettings({
-      [renameSnippet.isJS ? 'codeSnippetsJS' : 'codeSnippetsCSS']: snippets,
+      [renameSnippet.isJS ? 'codeSnippetsJS' : 'codeSnippetsCSS']: nextSnippets,
     });
     setRenameSnippet(null);
-    return true;
   }, [renameSnippet, codeSnippetsJS, codeSnippetsCSS, setSettings]);
 
   const handleRenameCancel = React.useCallback(() => {
@@ -87,100 +119,102 @@ const SettingsCustomCode = ({ navigation }: CustomCodeSettingsScreenProps) => {
         }}
         theme={theme}
       />
-      <ScrollView style={styles.paddingBottom}>
-        <List.Section>
-          <List.SubHeader theme={theme}>
-            {getString('customCodeSettings.textManipulation')}
-          </List.SubHeader>
-          <ReplaceItemModal
-            showReplace
-            toggleList={() => toggleExtended(0)}
-            listExpanded={extended[0]}
-          />
-          <ReplaceItemModal
-            toggleList={() => toggleExtended(1)}
-            listExpanded={extended[1]}
-          />
-          <List.Divider theme={theme} />
-          <List.SubHeader theme={theme}>
-            {getString('customCodeSettings.codeSnippets')}
-          </List.SubHeader>
-          {/* CSS Snippets */}
-          <View style={styles.subSubHeader}>
-            <List.SubHeader theme={theme}>
-              {getString('customCodeSettings.cssSnippets')}
-            </List.SubHeader>
-          </View>
-          {codeSnippetsCSS.length > 0 &&
-            codeSnippetsCSS.map((snippet, index) => (
-              <Snippet
-                key={`css-${index}`}
-                toggle={toggleSnippet}
-                rename={(_index, isJS, name) =>
-                  setRenameSnippet({
-                    index,
-                    isJS,
-                    name,
-                  })
-                }
-                edit={handleEditSnippet}
-                delete={deleteSnippet}
-                index={index}
-                snippet={snippet}
-              />
-            ))}
-          <List.Item
-            title={getString('customCodeSettings.createCSSSnippet')}
-            description={getString('customCodeSettings.addCssCode')}
-            theme={theme}
-            right="plus"
-            onPress={() => handleEditSnippet(-1, false)}
-          />
-          {codeSnippetsCSS.length === 0 && (
-            <List.Item
-              title={getString('customCodeSettings.noCodeSnippets')}
-              theme={theme}
-            />
-          )}
+      <ScrollView
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+      >
+        <Text style={[styles.description, { color: theme.onSurfaceVariant }]}>
+          {getString('customCodeSettings.description')}
+        </Text>
 
-          {/* JS Snippets */}
-          <View style={styles.subSubHeader}>
-            <List.SubHeader theme={theme}>
-              {getString('customCodeSettings.javascriptSnippets')}
-            </List.SubHeader>
-          </View>
-          {codeSnippetsJS.length > 0 &&
-            codeSnippetsJS.map((snippet, index) => (
-              <Snippet
-                key={`js-${index}`}
-                toggle={toggleSnippet}
-                rename={(_index, isJS, name) =>
-                  setRenameSnippet({
-                    index,
-                    isJS,
-                    name,
-                  })
-                }
-                edit={handleEditSnippet}
-                delete={deleteSnippet}
-                index={index}
-                snippet={snippet}
-              />
-            ))}
-          <List.Item
-            title={getString('customCodeSettings.createJSSnippet')}
-            description={getString('customCodeSettings.addJavascriptCode')}
+        <View style={styles.section}>
+          <SectionHeader
+            status={getString('customCodeSettings.ruleCount', {
+              count: totalRules,
+            })}
             theme={theme}
-            right="plus"
-            onPress={() => handleEditSnippet(-1, true)}
+            title={getString('customCodeSettings.textRules')}
           />
-          {codeSnippetsJS.length === 0 && (
-            <List.Item
-              title={getString('customCodeSettings.noCodeSnippets')}
-              theme={theme}
+          <ReplaceItemModal showReplace />
+          <ReplaceItemModal />
+        </View>
+
+        <View
+          style={[styles.divider, { backgroundColor: theme.outlineVariant }]}
+        />
+
+        <View style={styles.section}>
+          <SectionHeader
+            status={
+              totalSnippets > 0
+                ? getString('customCodeSettings.activeSnippetCount', {
+                    count: activeSnippets,
+                    total: totalSnippets,
+                  })
+                : undefined
+            }
+            theme={theme}
+            title={getString('customCodeSettings.codeSnippets')}
+          />
+
+          {codeSnippetsCSS.map((snippet, index) => (
+            <Snippet
+              key={`css-${index}`}
+              toggle={toggleSnippet}
+              rename={handleRenameSnippet}
+              edit={handleEditSnippet}
+              delete={deleteSnippet}
+              index={index}
+              snippet={snippet}
             />
-          )}
-        </List.Section>
+          ))}
+          {codeSnippetsJS.map((snippet, index) => (
+            <Snippet
+              key={`js-${index}`}
+              toggle={toggleSnippet}
+              rename={handleRenameSnippet}
+              edit={handleEditSnippet}
+              delete={deleteSnippet}
+              index={index}
+              snippet={snippet}
+            />
+          ))}
+
+          {totalSnippets === 0 ? (
+            <View style={styles.emptyState}>
+              <Icon
+                accessible={false}
+                name="code-tags"
+                size={24}
+                color={theme.onSurfaceVariant}
+              />
+              <Text
+                style={[styles.emptyText, { color: theme.onSurfaceVariant }]}
+              >
+                {getString('customCodeSettings.noCodeSnippets')}
+              </Text>
+            </View>
+          ) : null}
+
+          <View style={styles.snippetActions}>
+            <Button
+              icon="plus"
+              mode="outlined"
+              onPress={() => handleEditSnippet(-1, false)}
+              style={styles.snippetButton}
+            >
+              CSS
+            </Button>
+            <Button
+              icon="plus"
+              mode="outlined"
+              onPress={() => handleEditSnippet(-1, true)}
+              style={styles.snippetButton}
+            >
+              JavaScript
+            </Button>
+          </View>
+        </View>
       </ScrollView>
       <Dialog.Root
         visible={renameSnippet !== null}
@@ -194,26 +228,22 @@ const SettingsCustomCode = ({ navigation }: CustomCodeSettingsScreenProps) => {
         <Dialog.Content>
           <TextInput
             label={getString('common.name')}
-            defaultValue={renameSnippet?.name ?? ''}
-            onChangeText={text => {
-              if (renameSnippet) {
-                setRenameSnippet({ ...renameSnippet, name: text });
-              }
+            value={renameSnippet?.name ?? ''}
+            onChangeText={name => {
+              if (renameSnippet) setRenameSnippet({ ...renameSnippet, name });
             }}
             autoFocus
             mode="outlined"
-            style={styles.mb16}
+            style={styles.textfield}
             theme={{ colors: theme }}
           />
         </Dialog.Content>
         <Dialog.Actions>
-          <Dialog.Action onPress={handleRenameCancel}>Cancel</Dialog.Action>
-          <Dialog.Action
-            onPress={() => {
-              if (handleRenameSave()) setRenameSnippet(null);
-            }}
-          >
-            Save
+          <Dialog.Action onPress={handleRenameCancel}>
+            {getString('common.cancel')}
+          </Dialog.Action>
+          <Dialog.Action onPress={handleRenameSave}>
+            {getString('common.save')}
           </Dialog.Action>
         </Dialog.Actions>
       </Dialog.Root>
@@ -224,25 +254,67 @@ const SettingsCustomCode = ({ navigation }: CustomCodeSettingsScreenProps) => {
 export default SettingsCustomCode;
 
 const styles = StyleSheet.create({
-  mb16: { marginBottom: 16 },
-  paddingBottom: { paddingBottom: 40 },
-  subSubHeader: {
+  content: {
+    paddingBottom: 40,
+  },
+  description: {
     fontSize: 14,
-    marginTop: 8,
-    marginBottom: 4,
+    lineHeight: 20,
+    marginBottom: 24,
+    marginHorizontal: 24,
   },
-  snippetRow: {
-    flexDirection: 'row',
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    marginHorizontal: 16,
+    marginVertical: 16,
+  },
+  emptyState: {
     alignItems: 'center',
+    marginHorizontal: 16,
     paddingHorizontal: 16,
+    paddingVertical: 24,
   },
-  switchItem: {
-    flex: 1,
-    paddingHorizontal: 0,
+  emptyText: {
+    fontSize: 14,
+    lineHeight: 20,
+    marginTop: 8,
+    textAlign: 'center',
   },
-  actionButtons: {
+  section: {
+    width: '100%',
+  },
+  sectionHeader: {
+    alignItems: 'center',
     flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+    marginHorizontal: 24,
+  },
+  sectionStatus: {
+    flexShrink: 1,
+    fontSize: 14,
+    lineHeight: 20,
+    marginLeft: 16,
+    textAlign: 'right',
+  },
+  sectionTitle: {
+    flexShrink: 1,
+    fontSize: 16,
+    fontWeight: '600',
+    lineHeight: 24,
+  },
+  snippetActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 8,
-    marginLeft: 8,
+    marginHorizontal: 16,
+    marginTop: 8,
+  },
+  snippetButton: {
+    flexBasis: 140,
+    flexGrow: 1,
+  },
+  textfield: {
+    marginBottom: 16,
   },
 });

@@ -1,122 +1,93 @@
-import { AnimatedIconButton, Dialog, List } from '@components';
-import { getString } from '@i18n/translations';
+import { Button, Dialog } from '@components';
 import { useBoolean } from '@hooks/index';
-import { LinearGradient } from 'expo-linear-gradient';
-import React, { useCallback, useEffect, useMemo, useRef } from 'react';
-import {
-  TextInput as RNTextInput,
-  StyleSheet,
-  useWindowDimensions,
-} from 'react-native';
-import { TextInput } from 'react-native-paper';
-import Animated, {
-  FadeIn,
-  FadeOut,
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
-} from 'react-native-reanimated';
-import {
-  LIST_ITEM_HEIGHT,
-  RemoveItem,
-  ReplaceItem,
-} from '../Components/ListItems';
 import { useChapterReaderSettings, useTheme } from '@hooks/persisted';
-import { LegendList } from '@legendapp/list/react-native';
-
-const AnimatedLinearGradient = Animated.createAnimatedComponent(LinearGradient);
-const LIST_CLOSED_HEIGHT = LIST_ITEM_HEIGHT * 3;
+import { getString } from '@i18n/translations';
+import React, { useCallback, useMemo, useRef } from 'react';
+import { TextInput as RNTextInput, StyleSheet, View } from 'react-native';
+import { Text, TextInput } from 'react-native-paper';
+import { RemoveItem, ReplaceItem } from '../Components/ListItems';
 
 type ReplaceItemModalProps = {
   showReplace?: boolean;
-  listExpanded: boolean;
-  toggleList: () => void;
 };
 
-const ReplaceItemModal = ({
-  showReplace = false,
-  listExpanded = false,
-  toggleList,
-}: ReplaceItemModalProps) => {
+const ReplaceItemModal = ({ showReplace = false }: ReplaceItemModalProps) => {
   const theme = useTheme();
-  const { height: windowHeight } = useWindowDimensions();
   const modal = useBoolean(false);
   const {
     setChapterReaderSettings: setSettings,
     replaceText,
     removeText,
   } = useChapterReaderSettings();
-  const replaceArray = useMemo(() => {
-    return Object.entries(replaceText);
-  }, [replaceText]);
-
-  const arrayLength = showReplace ? replaceArray.length : removeText.length;
+  const replaceArray = useMemo(
+    () => Object.entries(replaceText),
+    [replaceText],
+  );
 
   const textRef = useRef<RNTextInput>(null);
   const replaceTextRef = useRef<RNTextInput>(null);
 
   const [text, setText] = React.useState('');
   const [replacementText, setReplacementText] = React.useState('');
-  const [editing, setEditing] = React.useState<string | undefined>();
-  const [error, setError] = React.useState<[string, string] | undefined>();
-  const listSize = useSharedValue<number | `${number}%`>(
-    Math.min(LIST_CLOSED_HEIGHT, arrayLength * LIST_ITEM_HEIGHT),
-  );
-  const iconRotation = useSharedValue<number>(0);
+  const [editing, setEditing] = React.useState<string>();
+  const [error, setError] = React.useState<[string, string]>();
 
-  const cancel = () => {
+  const resetForm = useCallback(() => {
     setError(undefined);
     textRef.current?.clear();
+    replaceTextRef.current?.clear();
     setText('');
+    setReplacementText('');
     setEditing(undefined);
-    if (showReplace) {
-      replaceTextRef.current?.clear();
-      setReplacementText('');
-    }
-  };
+  }, []);
+
+  const closeModal = useCallback(() => {
+    resetForm();
+    modal.setFalse();
+  }, [modal, resetForm]);
 
   const save = () => {
     if (!text || (showReplace && !replacementText)) {
-      const e: [string, string] = ['', ''];
-      if (!text) {
-        e[0] = getString('customCodeSettings.enterAMatch');
+      const nextError: [string, string] = ['', ''];
+      if (!text) nextError[0] = getString('customCodeSettings.enterAMatch');
+      if (showReplace && !replacementText) {
+        nextError[1] = getString('customCodeSettings.enterAReplace');
       }
-      if (!replacementText) {
-        e[1] = getString('customCodeSettings.enterAReplace');
-      }
-      setError(e);
-      return false;
+      setError(nextError);
+      return;
     }
 
     if (showReplace) {
-      if (editing && editing !== text) delete replaceText[editing];
-      replaceText[text] = replacementText;
-      setSettings({ replaceText: replaceText });
+      const nextReplaceText = { ...replaceText };
+      if (editing && editing !== text) delete nextReplaceText[editing];
+      nextReplaceText[text] = replacementText;
+      setSettings({ replaceText: nextReplaceText });
     } else {
+      const nextRemoveText = [...removeText];
       if (editing) {
-        const i = removeText.findIndex(v => v === editing);
-        removeText[i] = text;
-      } else if (!removeText.includes(text)) {
-        removeText.push(text);
+        const index = nextRemoveText.findIndex(value => value === editing);
+        nextRemoveText[index] = text;
+      } else if (!nextRemoveText.includes(text)) {
+        nextRemoveText.push(text);
       } else {
         setError([getString('customCodeSettings.itemAlreadyExists'), '']);
-        return false;
+        return;
       }
-      setSettings({ removeText: removeText });
+      setSettings({ removeText: nextRemoveText });
     }
-    cancel();
-    modal.setFalse();
-    return true;
+    closeModal();
   };
 
   const removeItem = useCallback(
     (identifier: string | number) => {
       if (showReplace) {
-        delete replaceText[identifier];
-        setSettings({ replaceText: replaceText });
+        const nextReplaceText = { ...replaceText };
+        delete nextReplaceText[String(identifier)];
+        setSettings({ replaceText: nextReplaceText });
       } else {
-        removeText.splice(identifier as number, 1);
-        setSettings({ removeText: removeText });
+        setSettings({
+          removeText: removeText.filter((_, index) => index !== identifier),
+        });
       }
     },
     [removeText, replaceText, setSettings, showReplace],
@@ -126,129 +97,47 @@ const ReplaceItemModal = ({
     (item: string[]) => {
       setEditing(item[0]);
       setText(item[0]);
-      if (showReplace) {
-        setReplacementText(item[1]);
-      }
+      if (showReplace) setReplacementText(item[1]);
       modal.setTrue();
     },
     [modal, showReplace],
   );
 
-  const colorTheme = useMemo(() => {
-    return { colors: theme };
-  }, [theme]);
-
-  const calcListSize = useCallback(
-    (toggle: boolean = true) => {
-      if (toggle) {
-        toggleList();
-        iconRotation.value = listExpanded ? 0 : 180;
-      }
-      if (listExpanded) {
-        listSize.value = Math.min(
-          windowHeight * 0.6,
-          arrayLength * LIST_ITEM_HEIGHT,
-        );
-      } else {
-        listSize.value = Math.min(
-          LIST_CLOSED_HEIGHT,
-          arrayLength * LIST_ITEM_HEIGHT,
-        );
-      }
-    },
-    [
-      arrayLength,
-      iconRotation,
-      listExpanded,
-      listSize,
-      toggleList,
-      windowHeight,
-    ],
-  );
-  useEffect(() => {
-    calcListSize(false);
-  }, [replaceArray, removeText, calcListSize]);
-  useEffect(() => {
-    iconRotation.value = !listExpanded ? 0 : 180;
-  }, [iconRotation, listExpanded]);
-
-  const animatedListSize = useAnimatedStyle(() => ({
-    height: withTiming(listSize.value, { duration: 250 }),
-    overflow: 'hidden',
-    position: 'relative',
-  }));
+  const colorTheme = useMemo(() => ({ colors: theme }), [theme]);
 
   return (
     <>
-      <List.Item
-        title={
-          showReplace
-            ? getString('customCodeSettings.replace')
-            : getString('common.remove')
-        }
-        description={
-          showReplace
-            ? getString('common.replaceText')
-            : getString('customCodeSettings.removeText')
-        }
-        theme={theme}
-        right="plus"
-        onPress={modal.setTrue}
-      />
-      <Animated.View style={animatedListSize}>
-        {arrayLength <= 3 || listExpanded ? null : (
-          <AnimatedLinearGradient
-            entering={FadeIn.duration(150)}
-            exiting={FadeOut.duration(150)}
-            colors={['transparent', 'transparent', theme.background]}
-            style={styles.gradient}
-            onTouchEnd={() => calcListSize()}
-          />
-        )}
-        {showReplace ? (
-          <LegendList
-            recycleItems
-            data={replaceArray}
-            renderItem={({ item }) => (
+      <View>
+        {showReplace
+          ? replaceArray.map(item => (
               <ReplaceItem
+                key={item[0]}
                 item={item}
                 removeItem={removeItem}
                 editItem={editItem}
               />
-            )}
-          />
-        ) : (
-          <LegendList
-            recycleItems
-            data={removeText}
-            renderItem={({ item, index }) => (
+            ))
+          : removeText.map((item, index) => (
               <RemoveItem
+                key={`${item}-${index}`}
                 item={item}
                 index={index}
                 removeItem={removeItem}
                 editItem={editItem}
               />
-            )}
-          />
-        )}
-      </Animated.View>
-      {arrayLength > 3 ? (
-        <AnimatedIconButton
-          name="menu-down"
-          theme={theme}
-          onPress={calcListSize}
-          style={styles.marginHorizontal}
-          color={theme.primary}
-          rotation={iconRotation}
-        />
-      ) : null}
-      <Dialog.Root
-        visible={modal.value}
-        onDismiss={() => {
-          modal.setFalse();
-          setError(undefined);
-        }}
-      >
+            ))}
+        <Button
+          icon="plus"
+          mode="outlined"
+          onPress={modal.setTrue}
+          style={styles.addButton}
+        >
+          {showReplace
+            ? getString('customCodeSettings.addReplaceRule')
+            : getString('customCodeSettings.addRemoveRule')}
+        </Button>
+      </View>
+      <Dialog.Root visible={modal.value} onDismiss={closeModal}>
         <Dialog.Header>
           <Dialog.Title>
             {getString('customCodeSettings.editReplace')}
@@ -257,44 +146,42 @@ const ReplaceItemModal = ({
         <Dialog.Content>
           <TextInput
             ref={textRef}
-            label={getString('common.textToReplace')}
+            label={getString(
+              showReplace
+                ? 'common.textToReplace'
+                : 'customCodeSettings.removeText',
+            )}
             theme={colorTheme}
-            defaultValue={text}
+            value={text}
             onChangeText={setText}
             autoCorrect={false}
             mode="outlined"
-            style={styles.textfield}
-            error={error && !!error[0]}
+            style={showReplace ? styles.pairedTextfield : styles.hintTextfield}
+            error={Boolean(error?.[0])}
           />
-          {!showReplace ? null : (
+          {showReplace ? (
             <TextInput
               ref={replaceTextRef}
               label={getString('common.replaceWith')}
               theme={colorTheme}
-              defaultValue={replacementText}
+              value={replacementText}
               onChangeText={setReplacementText}
               autoCorrect={false}
               mode="outlined"
-              style={[styles.textfield, styles.bottom]}
-              error={error && !!error[1]}
+              style={styles.hintTextfield}
+              error={Boolean(error?.[1])}
             />
-          )}
+          ) : null}
+          <Text style={[styles.regexHint, { color: theme.onSurfaceVariant }]}>
+            {getString('customCodeSettings.regexHint')}
+          </Text>
         </Dialog.Content>
         <Dialog.Actions>
-          <Dialog.Action
-            onPress={() => {
-              cancel();
-              modal.setFalse();
-            }}
-          >
-            Cancel
+          <Dialog.Action onPress={closeModal}>
+            {getString('common.cancel')}
           </Dialog.Action>
-          <Dialog.Action
-            onPress={() => {
-              if (save()) modal.setFalse();
-            }}
-          >
-            Save
+          <Dialog.Action onPress={save}>
+            {getString('common.save')}
           </Dialog.Action>
         </Dialog.Actions>
       </Dialog.Root>
@@ -305,21 +192,20 @@ const ReplaceItemModal = ({
 export default ReplaceItemModal;
 
 const styles = StyleSheet.create({
-  textfield: {
+  addButton: {
     marginBottom: 16,
-  },
-  bottom: {
-    marginBottom: 24,
-  },
-  marginHorizontal: {
     marginHorizontal: 16,
+    marginTop: 8,
   },
-  gradient: {
-    position: 'absolute',
-    top: 0,
-    bottom: 0,
-    left: 0,
-    right: 0,
-    zIndex: 1,
+  pairedTextfield: {
+    marginBottom: 2,
+  },
+  hintTextfield: {
+    marginBottom: 4,
+  },
+  regexHint: {
+    fontSize: 12,
+    lineHeight: 16,
+    marginBottom: 16,
   },
 });

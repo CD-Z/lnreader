@@ -2,14 +2,12 @@ import React from 'react';
 import {
   NavigationState,
   SceneRendererProps,
-  TabBar,
   TabView,
 } from 'react-native-tab-view';
 import { StyleSheet, useWindowDimensions } from 'react-native';
-import Color from 'color';
 
-import { Appbar, IconButtonV2, SafeAreaView } from '@components';
-import { useTheme } from '@hooks/persisted';
+import { Appbar, IconButtonV2, SafeAreaView, TopTabBar } from '@components';
+import { useChapterReaderSettings, useTheme } from '@hooks/persisted';
 import { showToast } from '@utils/showToast';
 import { getString } from '@i18n/translations';
 import SnippetEditor, { SnippetEditorHandle } from './SnippetEditor';
@@ -36,6 +34,12 @@ const CodeSnippetsScreen: React.FC<CodeSnippetsScreenProps> = ({
   const isJS = route?.params?.isJS;
   const language = isJS === false ? 'css' : 'js';
   const theme = useTheme();
+  const { codeSnippetsCSS, codeSnippetsJS } = useChapterReaderSettings();
+  const snippetName =
+    snippetIndex !== undefined && snippetIndex >= 0
+      ? (language === 'css' ? codeSnippetsCSS : codeSnippetsJS)[snippetIndex]
+          ?.name ?? ''
+      : '';
   const layout = useWindowDimensions();
 
   const [index, setIndex] = React.useState(0);
@@ -73,7 +77,7 @@ const CodeSnippetsScreen: React.FC<CodeSnippetsScreenProps> = ({
 
   const renderTabBar = React.useCallback(
     (props: SceneRendererProps & { navigationState: State }) => (
-      <TabBar
+      <TopTabBar
         {...props}
         indicatorStyle={[
           styles.tabBarIndicator,
@@ -82,9 +86,7 @@ const CodeSnippetsScreen: React.FC<CodeSnippetsScreenProps> = ({
         style={[
           {
             backgroundColor: theme.surface,
-            borderBottomColor: Color(theme.isDark ? '#FFFFFF' : '#000000')
-              .alpha(0.12)
-              .string(),
+            borderBottomColor: theme.outlineVariant,
           },
           styles.tabBar,
         ]}
@@ -96,7 +98,7 @@ const CodeSnippetsScreen: React.FC<CodeSnippetsScreenProps> = ({
       />
     ),
     [
-      theme.isDark,
+      theme.outlineVariant,
       theme.primary,
       theme.rippleColor,
       theme.secondary,
@@ -133,21 +135,26 @@ const CodeSnippetsScreen: React.FC<CodeSnippetsScreenProps> = ({
   return (
     <SafeAreaView excludeTop>
       <Appbar
-        title=""
+        title={snippetName}
         handleGoBack={() => navigation.goBack()}
         theme={theme}
         mode="small"
       >
         <IconButtonV2
+          accessibilityLabel={getString('customCodeSettings.importCode')}
           name="file-import-outline"
           size={24}
+          padding={10}
           onPress={handleImport}
           theme={theme}
         />
         <IconButtonV2
-          name="content-save"
+          accessibilityLabel={getString('common.save')}
+          name="content-save-outline"
           size={24}
+          padding={10}
           onPress={() => editorRef.current?.save()}
+          style={styles.saveAction}
           theme={theme}
         />
       </Appbar>
@@ -172,6 +179,9 @@ const CodeSnippetsScreen: React.FC<CodeSnippetsScreenProps> = ({
 export default CodeSnippetsScreen;
 
 const styles = StyleSheet.create({
+  saveAction: {
+    marginStart: 8,
+  },
   tabBar: {
     borderBottomWidth: 1,
     elevation: 0,

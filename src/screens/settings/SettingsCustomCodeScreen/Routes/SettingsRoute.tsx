@@ -8,8 +8,6 @@ type SettingsRouteProps = {
   onEditSnippet?: (index: number, isJS: boolean) => void;
 };
 
-const defaultExtended = [false, false, false, false];
-
 const SettingsRoute: React.FC<SettingsRouteProps> = ({ onEditSnippet }) => {
   const theme = useTheme();
   const {
@@ -17,16 +15,6 @@ const SettingsRoute: React.FC<SettingsRouteProps> = ({ onEditSnippet }) => {
     codeSnippetsCSS,
     setChapterReaderSettings: setSettings,
   } = useChapterReaderSettings();
-  const [extended, setExtended] = React.useState(defaultExtended);
-  const toggleExtended = React.useCallback(
-    (index: number) => {
-      const newExtended = [...defaultExtended];
-      newExtended[index] = !extended[index];
-      setExtended(newExtended);
-    },
-    [extended],
-  );
-
   const toggleSnippet = React.useCallback(
     (index: number, isJS: boolean) => {
       const snippets = isJS ? [...codeSnippetsJS] : [...codeSnippetsCSS];
@@ -60,15 +48,8 @@ const SettingsRoute: React.FC<SettingsRouteProps> = ({ onEditSnippet }) => {
     <ScrollView style={styles.paddingBottom}>
       <List.Section>
         <List.SubHeader theme={theme}>{'Text manipulation'}</List.SubHeader>
-        <ReplaceItemModal
-          showReplace
-          toggleList={() => toggleExtended(0)}
-          listExpanded={extended[0]}
-        />
-        <ReplaceItemModal
-          toggleList={() => toggleExtended(1)}
-          listExpanded={extended[1]}
-        />
+        <ReplaceItemModal showReplace />
+        <ReplaceItemModal />
         <List.Divider theme={theme} />
         <List.SubHeader theme={theme}>{'Code Snippets'}</List.SubHeader>
         <List.Item

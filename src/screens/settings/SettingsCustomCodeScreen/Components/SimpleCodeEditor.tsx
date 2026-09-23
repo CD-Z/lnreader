@@ -26,7 +26,7 @@ import materialDark from 'react-syntax-highlighter/dist/esm/styles/prism/materia
 import materialLight from 'react-syntax-highlighter/dist/esm/styles/prism/material-light';
 
 export const FONT_SIZE = 14;
-export const LINE_HEIGHT = Math.ceil(FONT_SIZE * 1.2);
+export const LINE_HEIGHT = Math.ceil(FONT_SIZE * 1.4);
 
 Light.registerLanguage('javascript', js);
 Light.registerLanguage('css', css);

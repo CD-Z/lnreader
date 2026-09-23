@@ -11,6 +11,7 @@ import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { Dialog, IconButtonV2 } from '@components';
 import type { HighlightMode } from './Components/SimpleCodeEditor';
 import { useMMKVString } from 'react-native-mmkv';
+import { formatSnippet } from './formatSnippet';
 export type SnippetEditorHandle = {
   save: () => void;
   setCode: (val: string) => void;
@@ -101,6 +102,15 @@ const SnippetEditor = React.forwardRef<SnippetEditorHandle, SnippetEditorProps>(
       setSnippetName('');
     }, []);
 
+    const handleBeautify = React.useCallback(() => {
+      if (!code.trim()) return;
+      try {
+        setCode(formatSnippet(code, language));
+      } catch {
+        showToast(getString('customCodeSettings.beautifyFailed'));
+      }
+    }, [code, language]);
+
     React.useImperativeHandle(
       ref,
       () => ({ save, setCode, getCode: () => code }),
@@ -109,49 +119,62 @@ const SnippetEditor = React.forwardRef<SnippetEditorHandle, SnippetEditorProps>(
 
     return (
       <>
-        <View style={styles.toolbar}>
-          <IconButtonV2
-            name="code-braces"
-            color={
-              highlightMode === 'off'
-                ? theme.outline
-                : highlightMode === 'on'
-                ? theme.primary
-                : theme.secondary
-            }
-            size={24}
-            theme={theme}
-            onPress={() =>
-              setHighlightMode((prev: HighlightMode) =>
-                prev === 'off'
-                  ? 'combined'
-                  : prev === 'combined'
-                  ? 'on'
-                  : 'off',
-              )
-            }
-            style={{ position: 'absolute', end: 8, top: 8, zIndex: 2 }}
-          />
+        <View style={styles.editorContainer}>
+          <View style={styles.toolbar}>
+            <IconButtonV2
+              accessibilityLabel={getString('customCodeSettings.beautifyCode')}
+              name="auto-fix"
+              disabled={!code.trim()}
+              padding={10}
+              theme={theme}
+              onPress={handleBeautify}
+            />
+            <IconButtonV2
+              accessibilityLabel={getString(
+                'customCodeSettings.syntaxHighlighting',
+              )}
+              name="code-braces"
+              color={
+                highlightMode === 'off'
+                  ? theme.outline
+                  : highlightMode === 'on'
+                  ? theme.primary
+                  : theme.secondary
+              }
+              size={24}
+              padding={10}
+              theme={theme}
+              onPress={() =>
+                setHighlightMode((prev: HighlightMode) =>
+                  prev === 'off'
+                    ? 'combined'
+                    : prev === 'combined'
+                    ? 'on'
+                    : 'off',
+                )
+              }
+            />
+          </View>
+          <KeyboardAwareScrollView
+            style={styles.scrollContainer}
+            bottomOffset={100}
+            nestedScrollEnabled
+            scrollEventThrottle={16}
+            onScroll={e => {
+              editorScrollSink.current?.(e.nativeEvent.contentOffset.y);
+            }}
+            contentContainerStyle={styles.flexGrow}
+          >
+            <CodeInput
+              language={language}
+              code={code}
+              setCode={setCode}
+              highlightMode={highlightMode}
+              error={error.code}
+              scrollSink={editorScrollSink}
+            />
+          </KeyboardAwareScrollView>
         </View>
-        <KeyboardAwareScrollView
-          style={styles.scrollContainer}
-          bottomOffset={100}
-          nestedScrollEnabled
-          scrollEventThrottle={16}
-          onScroll={e => {
-            editorScrollSink.current?.(e.nativeEvent.contentOffset.y);
-          }}
-          contentContainerStyle={styles.flexGrow}
-        >
-          <CodeInput
-            language={language}
-            code={code}
-            setCode={setCode}
-            highlightMode={highlightMode}
-            error={error.code}
-            scrollSink={editorScrollSink}
-          />
-        </KeyboardAwareScrollView>
         <Dialog.Root visible={showNameModal} onDismiss={handleNameModalCancel}>
           <Dialog.Header>
             <Dialog.Title>{getString('common.name')}</Dialog.Title>
@@ -190,13 +213,21 @@ export default React.memo(SnippetEditor);
 const styles = StyleSheet.create({
   flexGrow: { flexGrow: 1 },
   mb16: { marginBottom: 16 },
+  editorContainer: {
+    flex: 1,
+    paddingTop: 12,
+  },
   toolbar: {
+    alignItems: 'center',
     flexDirection: 'row',
-    justifyContent: 'flex-end',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    gap: 8,
+    position: 'absolute',
+    end: 8,
+    top: 12,
+    zIndex: 2,
   },
   scrollContainer: {
+    flex: 1,
     paddingHorizontal: 2,
   },
   scrollContent: {},

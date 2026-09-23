@@ -1,7 +1,11 @@
 import React from 'react';
 import { View } from 'react-native';
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
-import { MemoizedHighlightedCode, ScrollSink } from '../SimpleCodeEditor';
+import {
+  LINE_HEIGHT,
+  MemoizedHighlightedCode,
+  ScrollSink,
+} from '../SimpleCodeEditor';
 
 // The real Prism bundles are ESM under dist/esm and the renderer output is
 // irrelevant for the windowing behavior under test.
@@ -70,7 +74,9 @@ describe('MemoizedHighlightedCode', () => {
     // Let the layer measure its position, then scroll deep into the
     // document so the render window starts near the end of the content.
     fireEvent(screen.getByText(CHAR_MEASURE_STENCIL), 'layout', {
-      nativeEvent: { layout: { x: 0, y: 0, width: 120, height: 17 } },
+      nativeEvent: {
+        layout: { x: 0, y: 0, width: 120, height: LINE_HEIGHT },
+      },
     });
     act(() => {
       scrollSink.current?.(1_000_000);
