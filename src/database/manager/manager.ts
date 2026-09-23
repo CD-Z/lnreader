@@ -101,7 +101,11 @@ class DbManager implements IDbManager {
 
     return await this.queue.enqueue({
       id: 'write',
-      run: async () => await this.db.$client.executeBatch(commands),
+      run: async () => {
+        const result = await this.db.$client.executeBatch(commands);
+        this.db.$client.flushPendingReactiveQueries();
+        return result;
+      },
     });
   }
 

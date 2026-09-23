@@ -6,6 +6,7 @@ import {
   clearBackupCache,
   prepareBackupData,
   restoreData,
+  clearRestoreChapterMappingsSafely,
 } from '../utils';
 import {
   finalizeRestoredPlugins,
@@ -26,7 +27,6 @@ import {
   restoreNovelFiles,
 } from '../fileSections';
 import { resolveBackupOptions } from '../options';
-import { clearRestoreChapterMappings } from '@database/queries/NovelRestoreQueries';
 
 export const createSelfHostBackup = async (
   { host, backupFolder, options: requestedOptions }: SelfHostData,
@@ -159,7 +159,7 @@ export const selfHostRestore = async (
     }));
   } finally {
     if (restoreResult) {
-      await clearRestoreChapterMappings(restoreResult.restoreRunId);
+      await clearRestoreChapterMappingsSafely(restoreResult.restoreRunId);
     }
   }
 };

@@ -516,16 +516,14 @@ const restoreDataInternal = async (
 
       for (const [index, item] of items.entries()) {
         if (index % 100 === 0) {
-          setTimeout(async () => {
-            updateRestoreProgress(
-              setMeta,
-              getString('backupScreen.validatingNovelsProgress', {
-                current: index + 1,
-                total: items.length,
-              }),
-            );
-          }, 0)
-          }
+          updateRestoreProgress(
+            setMeta,
+            getString('backupScreen.validatingNovelsProgress', {
+              current: index + 1,
+              total: items.length,
+            }),
+          );
+        }
         const readStartedAt = performance.now();
         let fileContent: string;
         try {
@@ -615,16 +613,20 @@ const restoreDataInternal = async (
           );
           await Promise.all(
             coverBatch.map(async ({ backupNovel, mapping: novelMapping }) => {
-              if (
-                !manifest.sections.downloadedFiles &&
-                backupNovel.cover?.startsWith(APP_STORAGE_URI)
-              ) {
-                const coverBackupPath = coversDirPath + '/' + backupNovel.id;
-                if (await NativeFile.exists(coverBackupPath)) {
-                  const coverPath = `${NOVEL_STORAGE}/${backupNovel.pluginId}/${novelMapping.restoredNovelId}/cover.png`;
-                  await NativeFile.mkdir(parentDirectory(coverPath));
-                  await NativeFile.copyFile(coverBackupPath, coverPath);
+              try {
+                if (
+                  !manifest.sections.downloadedFiles &&
+                  backupNovel.cover?.startsWith(APP_STORAGE_URI)
+                ) {
+                  const coverBackupPath = coversDirPath + '/' + backupNovel.id;
+                  if (await NativeFile.exists(coverBackupPath)) {
+                    const coverPath = `${NOVEL_STORAGE}/${backupNovel.pluginId}/${novelMapping.restoredNovelId}/cover.png`;
+                    await NativeFile.mkdir(parentDirectory(coverPath));
+                    await NativeFile.copyFile(coverBackupPath, coverPath);
+                  }
                 }
+              } catch {
+                failedCount++;
               }
             }),
           );
@@ -832,6 +834,16 @@ const restoreDataInternal = async (
   };
 };
 
+export const clearRestoreChapterMappingsSafely = async (
+  restoreRunId: string,
+) => {
+  try {
+    await clearRestoreChapterMappings(restoreRunId);
+  } catch {
+    // Restore mappings are run-scoped and do not affect later restores.
+  }
+};
+
 export const restoreData = async (
   cacheDirPath: string,
   setMeta?: TaskProgressUpdater,
@@ -846,7 +858,7 @@ export const restoreData = async (
       restoreRunId,
     );
   } catch (error) {
-    await clearRestoreChapterMappings(restoreRunId).catch(() => undefined);
+    await clearRestoreChapterMappingsSafely(restoreRunId);
     throw error;
   }
 };

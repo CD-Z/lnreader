@@ -21,6 +21,7 @@ import {
  */
 export function clearAllTables(testDb: TestDb) {
   const { sqlite } = testDb;
+  sqlite.executeSync('DELETE FROM NovelCategory');
   sqlite.executeSync('DELETE FROM RestoreChapterMapping');
   sqlite.executeSync('DELETE FROM Chapter');
   sqlite.executeSync('DELETE FROM Novel');

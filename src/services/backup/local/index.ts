@@ -1,5 +1,6 @@
 import {
   CACHE_DIR_PATH,
+  clearRestoreChapterMappingsSafely,
   clearBackupCache,
   prepareBackupData,
   restoreData,
@@ -25,7 +26,6 @@ import {
   restoreNovelFiles,
 } from '../fileSections';
 import { resolveBackupOptions, type BackupOptions } from '../options';
-import { clearRestoreChapterMappings } from '@database/queries/NovelRestoreQueries';
 
 const logRestoreBenchmark = (message: string) => {
   if (!__DEV__) {
@@ -235,7 +235,7 @@ export const restoreBackup = async (
     throw error;
   } finally {
     if (restoreResult) {
-      await clearRestoreChapterMappings(restoreResult.restoreRunId);
+      await clearRestoreChapterMappingsSafely(restoreResult.restoreRunId);
     }
   }
 };

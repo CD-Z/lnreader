@@ -153,9 +153,7 @@ describe('ChapterQueries', () => {
   describe('getAllNovelChaptersForBackup', () => {
     it('returns chapters beyond the 1000-row UI query limit', async () => {
       const testDb = getTestDb();
-      // No Novel row is needed for this selector test. Keeping the id orphaned
-      // also avoids running aggregate-stat triggers 1001 times during setup.
-      const novelId = 123456;
+      const novelId = await insertTestNovel(testDb, { id: 123456 });
 
       const values = Array.from(
         { length: 1001 },
@@ -188,6 +186,8 @@ describe('ChapterQueries', () => {
 
     it('returns chapters for multiple novels in novel and chapter order', async () => {
       const testDb = getTestDb();
+      await insertTestNovel(testDb, { id: 10 });
+      await insertTestNovel(testDb, { id: 20 });
       testDb.sqlite.executeSync(`
         INSERT INTO Chapter
           (novelId, path, name, chapterNumber, page, position)

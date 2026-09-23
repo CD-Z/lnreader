@@ -7,6 +7,7 @@ import {
   clearBackupCache,
   prepareBackupData,
   restoreData,
+  clearRestoreChapterMappingsSafely,
 } from '../utils';
 import {
   finalizeRestoredPlugins,
@@ -28,7 +29,6 @@ import {
   restoreNovelFiles,
 } from '../fileSections';
 import { resolveBackupOptions } from '../options';
-import { clearRestoreChapterMappings } from '@database/queries/NovelRestoreQueries';
 
 const uploadBackupSection = async (
   sourcePath: string,
@@ -194,7 +194,7 @@ export const driveRestore = async (
     }));
   } finally {
     if (restoreResult) {
-      await clearRestoreChapterMappings(restoreResult.restoreRunId);
+      await clearRestoreChapterMappingsSafely(restoreResult.restoreRunId);
     }
   }
 };

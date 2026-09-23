@@ -18,9 +18,13 @@ class NativeZipArchiveModule : Module() {
     zos: ZipOutputStream,
     archivePrefix: String = "",
     archiveEntries: MutableSet<String>? = null,
+    excludedFile: File? = null,
   ) {
     val sourceDir = File(sourceDirPath)
-    sourceDir.walkBottomUp().filter { it.isFile }.forEach { file ->
+    val excludedCanonicalPath = excludedFile?.canonicalPath
+    sourceDir.walkBottomUp().filter { file ->
+      file.isFile && file.canonicalPath != excludedCanonicalPath
+    }.forEach { file ->
       val relativePath =
         file.absolutePath.removePrefix(sourceDir.absolutePath).removePrefix("/")
       val zipFileName = joinArchivePath(archivePrefix, relativePath)
@@ -90,7 +94,7 @@ class NativeZipArchiveModule : Module() {
       Thread {
         try {
           FileOutputStream(zipFilePath).use { fos ->
-            ZipOutputStream(fos).use { zos -> zipProcess(sourceDirPath, zos) }
+            ZipOutputStream(fos).use { zos -> zipProcess(sourceDirPath, zos, excludedFile = File(zipFilePath)) }
           }
           promise.resolve(null)
         } catch (e: Exception) {
@@ -120,7 +124,7 @@ class NativeZipArchiveModule : Module() {
           FileOutputStream(zipFilePath).use { fos ->
             ZipOutputStream(fos).use { zos ->
               normalizedSources.forEach { (sourceDirPath, archivePrefix) ->
-                zipProcess(sourceDirPath, zos, archivePrefix, archiveEntries)
+                zipProcess(sourceDirPath, zos, archivePrefix, archiveEntries, File(zipFilePath))
               }
             }
           }

@@ -1,4 +1,5 @@
 import {
+  clearRestoreChapterMappings,
   _restoreNovelAndChapters,
   _restoreNovelsAndChapters,
 } from '@database/queries/NovelRestoreQueries';
@@ -11,7 +12,11 @@ import {
 } from '@database/queries/CategoryQueries';
 import NativeFile from '@modules/native-file';
 import { MMKVStorage } from '@utils/mmkv/mmkv';
-import { prepareBackupData, restoreData } from '../utils';
+import {
+  clearRestoreChapterMappingsSafely,
+  prepareBackupData,
+  restoreData,
+} from '../utils';
 import { decodeNovelBatch, encodeNovelBatch } from '../novelPayload';
 import type {
   BackupNovel,
@@ -676,6 +681,99 @@ describe('selective backup data', () => {
       { includeChapterMappings: false },
     );
     expect(_restoreNovelAndChapters).not.toHaveBeenCalled();
+  });
+
+  it('keeps restored mappings when a stored cover copy fails', async () => {
+    const options: BackupOptions = {
+      library: true,
+      settings: false,
+      plugins: false,
+      downloadedFiles: false,
+    };
+    const novels = [1, 2, 3].map(id => ({
+      ...makeTestNovel(id),
+      cover: `/Novels/source/${id}/cover.png`,
+    }));
+    const mappings: RestoredNovelMapping[] = novels.map(novel => ({
+      pluginId: novel.pluginId,
+      backupNovelId: novel.id,
+      restoredNovelId: novel.id + 100,
+    }));
+    const category = { id: 1, name: 'Category', novelIds: [1, 2, 3] };
+
+    jest
+      .mocked(NativeFile.exists)
+      .mockImplementation(async path =>
+        [
+          '/cache/NovelAndChapters',
+          '/cache/Covers/1',
+          '/cache/Covers/2',
+          '/cache/Covers/3',
+          '/cache/Category.json',
+        ].includes(path),
+      );
+    jest.mocked(NativeFile.readDir).mockResolvedValue(
+      novels.map(novel => ({
+        name: `${novel.id}.json`,
+        path: `/cache/NovelAndChapters/${novel.id}.json`,
+        isDirectory: false,
+      })),
+    );
+    jest.mocked(NativeFile.readFile).mockImplementation(async path => {
+      if (path.endsWith('/Version.json')) {
+        return JSON.stringify({
+          appVersion: '2.1.3',
+          formatVersion: 2,
+          sections: options,
+        });
+      }
+      if (path.endsWith('/Category.json')) {
+        return JSON.stringify([category]);
+      }
+      const novel = novels.find(item => path.endsWith(`/${item.id}.json`));
+      if (!novel) {
+        throw new Error(`Unexpected read: ${path}`);
+      }
+      return JSON.stringify(novel);
+    });
+    jest.mocked(_restoreNovelsAndChapters).mockResolvedValueOnce(mappings);
+    jest.mocked(NativeFile.copyFile).mockImplementation(async source => {
+      if (source === '/cache/Covers/1') {
+        throw new Error('Cover copy failed');
+      }
+    });
+
+    const result = await restoreData('/cache');
+
+    expect(_restoreNovelsAndChapters).toHaveBeenCalledWith(
+      novels.map(novel => ({
+        ...novel,
+        cover: `file:///storage${novel.cover}`,
+      })),
+      { includeChapterMappings: false },
+    );
+    expect(NativeFile.copyFile).toHaveBeenCalledWith(
+      '/cache/Covers/2',
+      '/storage/Novels/source/102/cover.png',
+    );
+    expect(NativeFile.copyFile).toHaveBeenCalledWith(
+      '/cache/Covers/3',
+      '/storage/Novels/source/103/cover.png',
+    );
+    expect(_restoreCategory).toHaveBeenCalledWith(
+      expect.objectContaining({ novelIds: [1, 2, 3] }),
+      new Map([
+        [1, 101],
+        [2, 102],
+        [3, 103],
+      ]),
+    );
+    expect(result).toMatchObject({
+      novelCount: 3,
+      failedNovelCount: 1,
+      failedSectionCount: 0,
+      novelMappings: mappings,
+    });
   });
 
   it('omits the installed-plugin registry when plugin files are excluded', async () => {
@@ -1515,5 +1613,15 @@ describe('selective backup data', () => {
       },
     });
     expect(result.restoreRunId).toEqual(expect.any(String));
+  });
+  it('does not reject when restore mapping cleanup fails', async () => {
+    jest
+      .mocked(clearRestoreChapterMappings)
+      .mockRejectedValueOnce(new Error('mapping cleanup failed'));
+
+    await expect(
+      clearRestoreChapterMappingsSafely('restore-run'),
+    ).resolves.toBeUndefined();
+    expect(clearRestoreChapterMappings).toHaveBeenCalledWith('restore-run');
   });
 });

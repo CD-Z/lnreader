@@ -23,6 +23,15 @@ jest.mock('../fileSections', () => {
 jest.mock('../utils', () => ({
   CACHE_DIR_PATH: '/cache/BackupData',
   clearBackupCache: jest.fn(),
+  clearRestoreChapterMappingsSafely: jest.fn(async (restoreRunId: string) => {
+    try {
+      await jest
+        .requireMock('@database/queries/NovelRestoreQueries')
+        .clearRestoreChapterMappings(restoreRunId);
+    } catch {
+      // Match the production helper's best-effort cleanup.
+    }
+  }),
   prepareBackupData: jest.fn(),
   restoreData: jest.fn(),
 }));
@@ -218,6 +227,87 @@ describe('local selective backup', () => {
       jest.mocked(NativeZipArchive.unzip).mock.invocationCallOrder[1],
     );
   });
+  it('keeps a successful restore successful when mapping cleanup fails', async () => {
+    const restoreResult = {
+      novelCount: 1,
+      failedNovelCount: 0,
+      categoryCount: 0,
+      failedCategoryCount: 0,
+      settingsRestored: true,
+      failedSectionCount: 0,
+      pluginIds: [],
+      novelMappings: [],
+      restoreRunId: 'restore-run-cleanup-failure',
+      manifest: {
+        appVersion: '2.1.0',
+        formatVersion: 2 as const,
+        sections: {
+          library: true,
+          settings: false,
+          plugins: false,
+          downloadedFiles: false,
+        },
+      },
+    };
+    jest.mocked(restoreData).mockResolvedValueOnce(restoreResult);
+    jest.mocked(NativeFile.exists).mockResolvedValue(true);
+    jest.mocked(NativeFile.copyFile).mockResolvedValue(undefined);
+    jest.mocked(NativeZipArchive.unzip).mockResolvedValue(undefined);
+    jest.mocked(finalizeRestoredPlugins).mockResolvedValueOnce([]);
+    jest
+      .mocked(clearRestoreChapterMappings)
+      .mockRejectedValueOnce(new Error('mapping cleanup failed'));
+
+    await expect(
+      restoreBackup({ sourceUri: 'content://backup.zip' }),
+    ).resolves.toBeUndefined();
+    expect(clearRestoreChapterMappings).toHaveBeenCalledWith(
+      restoreResult.restoreRunId,
+    );
+  });
+
+  it('preserves the restore error when mapping cleanup also fails', async () => {
+    const restoreResult = {
+      novelCount: 1,
+      failedNovelCount: 0,
+      categoryCount: 0,
+      failedCategoryCount: 0,
+      settingsRestored: true,
+      failedSectionCount: 0,
+      pluginIds: [],
+      novelMappings: [],
+      restoreRunId: 'restore-run-restore-failure',
+      manifest: {
+        appVersion: '2.1.3',
+        formatVersion: 3 as const,
+        sections: {
+          library: true,
+          settings: false,
+          plugins: false,
+          downloadedFiles: true,
+        },
+      },
+    };
+    jest.mocked(restoreData).mockResolvedValueOnce(restoreResult);
+    jest
+      .mocked(NativeFile.exists)
+      .mockImplementation(
+        async path => path !== '/cache/BackupData/NovelFiles',
+      );
+    jest.mocked(NativeFile.copyFile).mockResolvedValue(undefined);
+    jest.mocked(NativeZipArchive.unzip).mockResolvedValue(undefined);
+    jest
+      .mocked(clearRestoreChapterMappings)
+      .mockRejectedValueOnce(new Error('mapping cleanup failed'));
+
+    await expect(
+      restoreBackup({ sourceUri: 'content://backup.zip' }),
+    ).rejects.toThrow('backupScreen.invalidBackupFolder');
+    expect(clearRestoreChapterMappings).toHaveBeenCalledWith(
+      restoreResult.restoreRunId,
+    );
+  });
+
   it('extracts the v1 downloaded archive into the legacy staging path', async () => {
     const restoreResult = {
       novelCount: 1,
