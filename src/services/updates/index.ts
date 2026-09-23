@@ -18,7 +18,6 @@ import {
 import type {
   BackgroundTask,
   BackgroundTaskEnqueuer,
-  DownloadChapterTask,
   TaskProgressUpdater,
 } from '@services/backgroundTasks/contracts';
 
@@ -40,61 +39,39 @@ const groupNovelsByPlugin = (novels: DBNovelInfo[]) => {
 };
 const MAX_DOWNLOAD_CHAPTERS_PER_TASK = 100;
 
-const createDownloadBatcher = (enqueue: BackgroundTaskEnqueuer) => {
-  const batches = new Map<string, DownloadChapterTask>();
+const enqueueDownloadTasks = (
+  enqueue: BackgroundTaskEnqueuer,
+  tasks: BackgroundTask | BackgroundTask[],
+) => {
+  for (const task of Array.isArray(tasks) ? tasks : [tasks]) {
+    if (task.name !== 'DOWNLOAD_CHAPTER') {
+      enqueue(task);
+      continue;
+    }
 
-  const enqueueTask = (tasks: BackgroundTask | BackgroundTask[]) => {
-    for (const task of Array.isArray(tasks) ? tasks : [tasks]) {
-      if (task.name !== 'DOWNLOAD_CHAPTER') {
-        enqueue(task);
-        continue;
-      }
+    const chapters = task.data.chapters.map(chapter =>
+      chapter.novelId === undefined && task.data.novelId !== undefined
+        ? { ...chapter, novelId: task.data.novelId }
+        : chapter,
+    );
 
-      const batchKey = task.data.pluginId || 'legacy';
-      const batch = batches.get(batchKey) ?? {
-        name: 'DOWNLOAD_CHAPTER',
+    for (
+      let start = 0;
+      start < chapters.length;
+      start += MAX_DOWNLOAD_CHAPTERS_PER_TASK
+    ) {
+      enqueue({
+        ...task,
         data: {
           ...task.data,
-          novelId: undefined,
-          chapters: [],
+          chapters: chapters.slice(
+            start,
+            start + MAX_DOWNLOAD_CHAPTERS_PER_TASK,
+          ),
         },
-      };
-      batch.data.chapters.push(
-        ...task.data.chapters.map(chapter => ({
-          ...chapter,
-          novelId: chapter.novelId ?? task.data.novelId,
-        })),
-      );
-
-      while (batch.data.chapters.length >= MAX_DOWNLOAD_CHAPTERS_PER_TASK) {
-        enqueue({
-          ...batch,
-          data: {
-            ...batch.data,
-            chapters: batch.data.chapters.splice(
-              0,
-              MAX_DOWNLOAD_CHAPTERS_PER_TASK,
-            ),
-          },
-        });
-      }
-
-      if (batch.data.chapters.length) {
-        batches.set(batchKey, batch);
-      } else {
-        batches.delete(batchKey);
-      }
+      });
     }
-  };
-
-  const flush = () => {
-    for (const batch of batches.values()) {
-      enqueue(batch);
-    }
-    batches.clear();
-  };
-
-  return { enqueueTask, flush };
+  }
 };
 
 const updateLibrary = async (
@@ -124,11 +101,10 @@ const updateLibrary = async (
     skipUnstarted: Boolean(smartUpdateSkipUnstarted),
     skipWithUnread: Boolean(smartUpdateSkipWithUnread),
   };
-  const downloadBatcher = createDownloadBatcher(enqueue);
   const options: UpdateNovelOptions = {
     downloadNewChapters: downloadNewChapters || false,
     refreshNovelMetadata: refreshNovelMetadata || false,
-    enqueue: downloadBatcher.enqueueTask,
+    enqueue: tasks => enqueueDownloadTasks(enqueue, tasks),
   };
 
   try {
@@ -188,7 +164,7 @@ const updateLibrary = async (
         }
       };
 
-      await Promise.all(
+      const sourceResults = await Promise.allSettled(
         Array.from(
           {
             length: Math.min(UPDATE_SOURCE_CONCURRENCY, sourceQueues.length),
@@ -196,11 +172,16 @@ const updateLibrary = async (
           updateNextSource,
         ),
       );
+      const rejectedSource = sourceResults.find(
+        result => result.status === 'rejected',
+      );
+      if (rejectedSource?.status === 'rejected') {
+        throw rejectedSource.reason;
+      }
     } else {
       showToast("There's no novel to be updated");
     }
   } finally {
-    downloadBatcher.flush();
     setMeta(meta => ({
       ...meta,
       progress: 1,

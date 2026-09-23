@@ -8,6 +8,8 @@ import androidx.work.CoroutineWorker
 import androidx.work.ForegroundInfo
 import androidx.work.WorkerParameters
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 
 class LNReaderTaskWorker(
     appContext: Context,
@@ -16,9 +18,9 @@ class LNReaderTaskWorker(
     override suspend fun doWork(): Result {
         val taskId = inputData.getString(BackgroundTaskScheduler.TASK_ID) ?: return Result.failure()
         val dao = BackgroundTaskDatabase.get(applicationContext).tasks()
-        val task = dao.get(taskId) ?: return Result.failure()
+        val task = dao.get(taskId) ?: return Result.success()
         if (task.state == BackgroundTaskState.CANCELLED) {
-            dao.delete(taskId)
+            consumeCancellation(dao, taskId)
             return Result.success()
         }
         if (task.state == BackgroundTaskState.PAUSED) {
@@ -32,13 +34,23 @@ class LNReaderTaskWorker(
             MAX_CONCURRENT_DOWNLOADS,
         )
         if (claimed == 0) {
-            return if (dao.get(taskId)?.state == BackgroundTaskState.QUEUED) {
-                Result.retry()
-            } else {
-                Result.success()
+            return when (dao.get(taskId)?.state) {
+                BackgroundTaskState.QUEUED -> Result.retry()
+                BackgroundTaskState.CANCELLED -> {
+                    consumeCancellation(dao, taskId)
+                    Result.success()
+                }
+                else -> Result.success()
             }
         }
-        val runningTask = dao.get(taskId) ?: return Result.failure()
+        val runningTask = dao.get(taskId) ?: return Result.success()
+        if (runningTask.state != BackgroundTaskState.RUNNING) {
+            if (runningTask.state == BackgroundTaskState.CANCELLED) {
+                consumeCancellation(dao, taskId)
+            }
+            return Result.success()
+        }
+
         setForeground(createForegroundInfo(runningTask))
         val execution = TaskExecutionRegistry.register(taskId)
 
@@ -51,73 +63,103 @@ class LNReaderTaskWorker(
 
             when (val executionResult = execution.await()) {
                 TaskExecutionResult.Success -> {
-                    val currentState = dao.get(taskId)?.state
-                    if (currentState == BackgroundTaskState.CANCELLED) {
-                        TaskNotificationFactory.dismiss(applicationContext, taskId)
-                        dao.delete(taskId)
-                        return Result.success()
+                    if (dao.finishRunning(taskId, BackgroundTaskState.SUCCEEDED, System.currentTimeMillis()) > 0) {
+                        postOwnedTerminal(taskId, dao, BackgroundTaskState.SUCCEEDED)
+                    } else {
+                        resultAfterLostOwnership(taskId, dao)
                     }
-                    if (currentState == BackgroundTaskState.PAUSED) {
-                        dao.get(taskId)?.let { TaskNotificationFactory.update(applicationContext, it) }
-                        return Result.success()
-                    }
-                    dao.finishRunning(taskId, BackgroundTaskState.SUCCEEDED, System.currentTimeMillis())
-                    dao.get(taskId)?.let {
-                        TaskNotificationFactory.postTerminal(applicationContext, it)
-                    }
-                    dao.delete(taskId)
                     Result.success()
                 }
                 is TaskExecutionResult.Failure -> {
-                    val currentState = dao.get(taskId)?.state
-                    if (currentState == BackgroundTaskState.PAUSED || currentState == BackgroundTaskState.CANCELLED) {
-                        if (currentState == BackgroundTaskState.CANCELLED) {
-                            dao.delete(taskId)
-                        }
-                        return Result.success()
-                    }
                     if (executionResult.shouldRetry) {
-                        dao.updateState(taskId, BackgroundTaskState.QUEUED, System.currentTimeMillis())
-                        Result.retry()
-                    } else {
-                        dao.updateState(taskId, BackgroundTaskState.FAILED, System.currentTimeMillis())
-                        dao.get(taskId)?.let {
-                            TaskNotificationFactory.postTerminal(applicationContext, it)
+                        if (dao.finishRunning(taskId, BackgroundTaskState.QUEUED, System.currentTimeMillis()) > 0) {
+                            Result.retry()
+                        } else {
+                            resultAfterLostOwnership(taskId, dao)
                         }
-                        dao.delete(taskId)
+                    } else if (
+                        dao.finishRunning(taskId, BackgroundTaskState.FAILED, System.currentTimeMillis()) > 0
+                    ) {
+                        postOwnedTerminal(taskId, dao, BackgroundTaskState.FAILED)
                         Result.success()
+                    } else {
+                        resultAfterLostOwnership(taskId, dao)
                     }
                 }
             }
         } catch (error: CancellationException) {
-            val latestState = dao.get(taskId)?.state
-            when (latestState) {
-                BackgroundTaskState.CANCELLED -> dao.delete(taskId)
-                BackgroundTaskState.PAUSED -> Unit
-                else -> dao.updateState(
-                    taskId,
-                    BackgroundTaskState.QUEUED,
-                    System.currentTimeMillis(),
-                )
+            withContext(NonCancellable) {
+                when (dao.get(taskId)?.state) {
+                    BackgroundTaskState.CANCELLED -> consumeCancellation(dao, taskId)
+                    BackgroundTaskState.RUNNING -> dao.finishRunning(
+                        taskId,
+                        BackgroundTaskState.QUEUED,
+                        System.currentTimeMillis(),
+                    )
+                    else -> Unit
+                }
             }
             throw error
         } catch (error: Exception) {
-            val latestState = dao.get(taskId)?.state
-            if (latestState !in listOf(BackgroundTaskState.PAUSED, BackgroundTaskState.CANCELLED)) {
-                val now = System.currentTimeMillis()
-                val message = error.message ?: error.javaClass.simpleName
-                dao.updateProgress(taskId, null, message, now)
-                dao.updateState(taskId, BackgroundTaskState.FAILED, now)
-                dao.get(taskId)?.let {
-                    TaskNotificationFactory.postTerminal(applicationContext, it)
+            val now = System.currentTimeMillis()
+            val message = error.message ?: error.javaClass.simpleName
+            if (
+                dao.finishRunningWithProgress(
+                    taskId,
+                    BackgroundTaskState.FAILED,
+                    null,
+                    message,
+                    now,
+                ) > 0
+            ) {
+                postOwnedTerminal(taskId, dao, BackgroundTaskState.FAILED)
+                Result.failure()
+            } else {
+                when (dao.get(taskId)?.state) {
+                    BackgroundTaskState.CANCELLED -> {
+                        consumeCancellation(dao, taskId)
+                        Result.success()
+                    }
+                    BackgroundTaskState.PAUSED -> Result.success()
+                    else -> Result.failure()
                 }
             }
-            if (latestState != BackgroundTaskState.PAUSED) {
-                dao.delete(taskId)
-            }
-            Result.failure()
         } finally {
             TaskExecutionRegistry.cancel(taskId)
+        }
+    }
+
+    private suspend fun resultAfterLostOwnership(
+        taskId: String,
+        dao: BackgroundTaskDao,
+    ): Result {
+        return when (dao.get(taskId)?.state) {
+            BackgroundTaskState.CANCELLED -> {
+                consumeCancellation(dao, taskId)
+                Result.success()
+            }
+            BackgroundTaskState.PAUSED -> {
+                dao.get(taskId)?.let { TaskNotificationFactory.update(applicationContext, it) }
+                Result.success()
+            }
+            else -> Result.success()
+        }
+    }
+
+    private suspend fun postOwnedTerminal(
+        taskId: String,
+        dao: BackgroundTaskDao,
+        state: String,
+    ) {
+        val terminalTask = dao.get(taskId) ?: return
+        if (terminalTask.state != state) return
+        TaskNotificationFactory.postTerminal(applicationContext, terminalTask)
+        dao.deleteIfState(taskId, state)
+    }
+
+    private suspend fun consumeCancellation(dao: BackgroundTaskDao, taskId: String) {
+        if (dao.deleteIfState(taskId, BackgroundTaskState.CANCELLED) > 0) {
+            TaskNotificationFactory.dismiss(applicationContext, taskId)
         }
     }
 
