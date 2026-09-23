@@ -42,6 +42,9 @@ class TaskActionReceiver : BroadcastReceiver() {
                         }
                         BackgroundTaskScheduler.cancel(context, taskId, isRunning)
                         TaskNotificationFactory.dismiss(context, taskId)
+                        if (!isRunning && task.state != BackgroundTaskState.QUEUED) {
+                            dao.deleteIfState(taskId, BackgroundTaskState.CANCELLED)
+                        }
                     }
                 }
             } finally {
