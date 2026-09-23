@@ -18,8 +18,8 @@ interface DonutChartWithLegendProps {
 const DonutChartWithLegend: React.FC<DonutChartWithLegendProps> = ({
   title,
   entries,
-  size = 160,
-  thickness = 28,
+  size = 104,
+  thickness = 16,
   colors,
   theme,
   centerLabel,
@@ -46,38 +46,44 @@ const DonutChartWithLegend: React.FC<DonutChartWithLegendProps> = ({
 
   return (
     <View>
-      <Text style={[styles.header, { color: theme.onSurfaceVariant }]}>
-        {title}
-      </Text>
-      <View style={styles.donutContainer}>
-        <DonutChart
-          entries={entries}
-          size={size}
-          thickness={thickness}
-          colors={colors}
-          centerLabel={centerLabel}
+      <Text style={[styles.header, { color: theme.onSurface }]}>{title}</Text>
+      <View style={styles.chartRow}>
+        <View style={styles.donutContainer}>
+          <DonutChart
+            entries={entries}
+            size={size}
+            thickness={thickness}
+            colors={colors}
+            centerLabel={centerLabel}
+            highlightedKey={highlightedKey}
+            onSegmentPress={handleSegmentPress}
+          />
+        </View>
+        <ChartLegend
+          entries={legendEntries}
           highlightedKey={highlightedKey}
-          onSegmentPress={handleSegmentPress}
+          onEntryPress={handleSegmentPress}
+          theme={theme}
         />
       </View>
-      <ChartLegend
-        entries={legendEntries}
-        highlightedKey={highlightedKey}
-        onEntryPress={handleSegmentPress}
-        theme={theme}
-      />
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   header: {
-    fontWeight: 'bold',
-    paddingVertical: 16,
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 12,
+  },
+  chartRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    marginBottom: 24,
   },
   donutContainer: {
     alignItems: 'center',
-    marginBottom: 12,
   },
 });
 

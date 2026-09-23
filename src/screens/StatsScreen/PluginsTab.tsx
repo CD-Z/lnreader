@@ -78,7 +78,7 @@ export const PluginsTab: React.FC<PluginsTabProps> = ({
   const { donutEntries, colors: pluginColors } = pluginData;
   const pluginListHeader = useCallback(
     () => (
-      <View>
+      <View style={styles.chartHeader}>
         <DonutChartWithLegend
           title={getString('statsScreen.pluginDistribution')}
           entries={donutEntries}
@@ -93,7 +93,6 @@ export const PluginsTab: React.FC<PluginsTabProps> = ({
 
   return (
     <LegendList
-      style={styles.list}
       contentContainerStyle={styles.listContent}
       data={pluginData.nodes}
       estimatedItemSize={56}
@@ -109,11 +108,11 @@ export const PluginsTab: React.FC<PluginsTabProps> = ({
 };
 
 const styles = StyleSheet.create({
-  list: {
-    paddingHorizontal: 16,
-  },
   listContent: {
     paddingTop: 16,
     paddingBottom: 40,
+  },
+  chartHeader: {
+    paddingHorizontal: 16,
   },
 });

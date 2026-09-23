@@ -80,7 +80,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   childRow: {
-    paddingLeft: 16,
+    minHeight: 32,
   },
   label: {
     flex: 1,

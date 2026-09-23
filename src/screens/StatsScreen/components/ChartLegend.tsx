@@ -23,6 +23,8 @@ const ChartLegend: React.FC<ChartLegendProps> = ({
   onEntryPress,
   theme,
 }) => {
+  const total = entries.reduce((sum, entry) => sum + entry.value, 0);
+
   return (
     <View style={styles.legendContainer}>
       {entries.map(entry => {
@@ -51,14 +53,17 @@ const ChartLegend: React.FC<ChartLegendProps> = ({
             />
             <Text
               style={[styles.legendLabel, { color: theme.onSurface }]}
-              numberOfLines={1}
+              numberOfLines={2}
             >
               {entry.label}
             </Text>
-            <Text
-              style={[styles.legendValue, { color: theme.onSurfaceVariant }]}
-            >
+            <Text style={[styles.legendValue, { color: theme.onSurface }]}>
               {entry.value}
+            </Text>
+            <Text
+              style={[styles.legendPercent, { color: theme.onSurfaceVariant }]}
+            >
+              {total > 0 ? Math.round((entry.value / total) * 100) : 0}%
             </Text>
           </Pressable>
         );
@@ -69,24 +74,31 @@ const ChartLegend: React.FC<ChartLegendProps> = ({
 
 const styles = StyleSheet.create({
   legendContainer: {
-    marginBottom: 8,
+    flex: 1,
   },
   legendRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 4,
+    minHeight: 32,
+    gap: 5,
   },
   legendDot: {
     borderRadius: 8,
   },
   legendLabel: {
     flex: 1,
-    fontSize: 14,
+    fontSize: 13,
+    fontWeight: '600',
   },
   legendValue: {
-    fontSize: 14,
+    fontSize: 13,
     textAlign: 'right',
-    width: 40,
+    minWidth: 20,
+  },
+  legendPercent: {
+    fontSize: 11,
+    minWidth: 32,
+    textAlign: 'right',
   },
 });
 

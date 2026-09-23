@@ -45,6 +45,7 @@ const PluginSection: React.FC<PluginSectionProps> = ({
       <Pressable
         onPress={() => setExpanded(e => !e)}
         accessibilityRole="button"
+        android_ripple={{ color: theme.rippleColor }}
         style={({ pressed }) => [
           styles.header,
           { borderBottomColor: theme.outlineVariant },
@@ -74,7 +75,13 @@ const PluginSection: React.FC<PluginSectionProps> = ({
             <Pressable
               key={novel.id}
               onPress={() => onNovelPress(novel)}
-              style={styles.novelRow}
+              accessibilityRole="button"
+              accessibilityLabel={novel.name}
+              android_ripple={{ color: theme.rippleColor }}
+              style={({ pressed }) => [
+                styles.novelRow,
+                pressed && { opacity: 0.7 },
+              ]}
             >
               <NovelCoverImage
                 uri={novel.cover}
@@ -90,6 +97,11 @@ const PluginSection: React.FC<PluginSectionProps> = ({
               >
                 {novel.name}
               </Text>
+              <MaterialCommunityIcons
+                name="chevron-right"
+                color={theme.onSurfaceVariant}
+                size={20}
+              />
             </Pressable>
           ))}
         </AnimatedHeight>
@@ -103,20 +115,27 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 12,
+    minHeight: 52,
+    paddingHorizontal: 16,
     borderBottomWidth: 1,
   },
-  name: { fontWeight: '600', flex: 1 },
+  name: { fontSize: 14, fontWeight: '600', flex: 1 },
   headerRight: { flexDirection: 'row', alignItems: 'center' },
   count: { marginRight: 8 },
-  novelRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
-  novelCover: {
-    width: 36,
-    aspectRatio: 2 / 3,
-    marginRight: 8,
-    borderRadius: 4,
+  novelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: 76,
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
   },
-  novelName: { flex: 1 },
+  novelCover: {
+    width: 40,
+    aspectRatio: 2 / 3,
+    borderRadius: 6,
+  },
+  novelName: { flex: 1, fontSize: 14 },
 });
 
 export default PluginSection;

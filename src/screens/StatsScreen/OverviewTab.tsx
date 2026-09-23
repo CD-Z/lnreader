@@ -1,7 +1,6 @@
 import { useCallback, useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { LegendList } from '@legendapp/list/react-native';
-import MaterialCommunityIcons from '@react-native-vector-icons/material-design-icons';
 import { NavigationProp } from '@react-navigation/native';
 
 import { getString } from '@i18n/translations';
@@ -73,7 +72,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
 
   const overviewListHeader = useCallback(
     () => (
-      <View>
+      <View style={styles.overviewHeader}>
         <ChapterBar
           read={stats.chaptersRead ?? 0}
           total={stats.chaptersCount ?? 0}
@@ -91,7 +90,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
         />
         {tree.length > 0 && (
           <View style={styles.genreSectionHeader}>
-            <Text style={[styles.header, { color: theme.onSurfaceVariant }]}>
+            <Text style={[styles.header, { color: theme.onSurface }]}>
               {getString('statsScreen.genreDistribution')}
             </Text>
             <Pressable
@@ -103,12 +102,11 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
               accessibilityRole="button"
               accessibilityLabel={getString('genreStats.editTaxonomy')}
               hitSlop={12}
+              style={styles.customizeButton}
             >
-              <MaterialCommunityIcons
-                name="cog-outline"
-                color={theme.onSurfaceVariant}
-                size={20}
-              />
+              <Text style={[styles.customizeText, { color: theme.primary }]}>
+                {getString('statsScreen.customizeGenres')}
+              </Text>
             </Pressable>
           </View>
         )}
@@ -119,7 +117,6 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
 
   return (
     <LegendList
-      style={styles.list}
       contentContainerStyle={styles.listContent}
       data={tree}
       estimatedItemSize={64}
@@ -135,20 +132,30 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
 };
 
 const styles = StyleSheet.create({
-  list: {
-    paddingHorizontal: 16,
-  },
   listContent: {
     paddingTop: 16,
     paddingBottom: 40,
+  },
+  overviewHeader: {
+    paddingHorizontal: 16,
   },
   genreSectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 4,
   },
   header: {
-    fontWeight: 'bold',
-    paddingVertical: 16,
+    fontSize: 14,
+    fontWeight: '600',
+    paddingVertical: 12,
+  },
+  customizeButton: {
+    minHeight: 40,
+    justifyContent: 'center',
+  },
+  customizeText: {
+    fontSize: 13,
+    fontWeight: '600',
   },
 });

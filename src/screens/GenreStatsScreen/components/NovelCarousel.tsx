@@ -14,7 +14,6 @@ interface NovelCarouselProps {
     cover: string | null;
     pluginId: string;
   }[];
-  genreName: string;
   theme: ThemeColors;
   onNovelPress: (novel: {
     id: number;
@@ -29,7 +28,6 @@ const MAX_VISIBLE = 10;
 
 const NovelCarousel: React.FC<NovelCarouselProps> = ({
   novels,
-  genreName,
   theme,
   onNovelPress,
 }) => {
@@ -53,11 +51,12 @@ const NovelCarousel: React.FC<NovelCarouselProps> = ({
   return (
     <View style={styles.container}>
       <Text style={[styles.heading, { color: theme.onSurfaceVariant }]}>
-        {getString('genreStats.novelsIn', { genre: genreName })}
+        {getString('genreStats.novels')}
       </Text>
       <FlatList
         horizontal
         showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.listContent}
         data={data}
         keyExtractor={item =>
           item.id != null && item.id !== -1 ? String(item.id) : 'see-all'
@@ -99,19 +98,24 @@ const NovelCarousel: React.FC<NovelCarouselProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    marginTop: 8,
+    marginTop: 12,
   },
   heading: {
     fontSize: 14,
-    marginBottom: 8,
+    marginBottom: 12,
+    paddingHorizontal: 16,
+  },
+  listContent: {
+    paddingHorizontal: 16,
   },
   emptyText: {
     fontSize: 13,
-    padding: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
   seeAllCard: {
     width: 80,
-    marginRight: 8,
+    marginRight: 16,
     justifyContent: 'center',
     alignItems: 'center',
   },

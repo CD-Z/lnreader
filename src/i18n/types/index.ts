@@ -621,9 +621,14 @@ export interface StringMap {
   'statsScreen.genreDistribution': 'string';
   'statsScreen.novels': 'string';
   'statsScreen.readChapters': 'string';
+  'statsScreen.readLabel': 'string';
+  'statsScreen.downloadedLabel': 'string';
   'statsScreen.sources': 'string';
   'statsScreen.statusDistribution': 'string';
   'statsScreen.title': 'string';
+  'statsScreen.readingTime': 'string';
+  'statsScreen.chaptersInLibrary': 'string';
+  'statsScreen.customizeGenres': 'string';
   'statsScreen.titlesInLibrary': 'string';
   'statsScreen.totalChapters': 'string';
   'statsScreen.unreadChapters': 'string';
@@ -722,7 +727,7 @@ export interface StringMap {
   'genreStats.seeAll': 'string';
   'genreStats.subgenres.one': 'string';
   'genreStats.subgenres.other': 'string';
-  'genreStats.novelsIn': 'string';
+  'genreStats.novels': 'string';
   'genreStats.noNovels': 'string';
   'genreStats.seeAllNovels': 'string';
   'genreStats.editTaxonomy': 'string';

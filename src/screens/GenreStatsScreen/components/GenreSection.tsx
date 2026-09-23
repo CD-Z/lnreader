@@ -58,6 +58,7 @@ const GenreSection: React.FC<GenreSectionProps> = ({
         onPress={toggleExpand}
         accessibilityRole="button"
         accessibilityLabel={accessibilityLabel}
+        android_ripple={{ color: theme.rippleColor }}
         style={({ pressed }) => [
           styles.headerRow,
           { borderBottomColor: theme.outlineVariant },
@@ -71,18 +72,26 @@ const GenreSection: React.FC<GenreSectionProps> = ({
           >
             {node.name}
           </Text>
-          {!expanded && hasChildren && (
+          {hasChildren && (
             <Text style={[styles.subtitle, { color: theme.onSurfaceVariant }]}>
               {getString('genreStats.subgenres', {
                 count: node.children!.length,
+              })}
+              {' · '}
+              {getString('genreStats.totalNovels', {
+                count: node.categoryTotal,
               })}
             </Text>
           )}
         </View>
         <View style={styles.headerRight}>
-          <Text style={[styles.headerCount, { color: theme.onSurfaceVariant }]}>
-            {node.categoryTotal}
-          </Text>
+          {!hasChildren && (
+            <Text
+              style={[styles.headerCount, { color: theme.onSurfaceVariant }]}
+            >
+              {node.categoryTotal}
+            </Text>
+          )}
           <MaterialCommunityIcons
             name={expanded ? 'chevron-down' : 'chevron-right'}
             color={theme.onSurfaceVariant}
@@ -93,21 +102,23 @@ const GenreSection: React.FC<GenreSectionProps> = ({
 
       {adaptiveRender === 'light' ? null : (
         <AnimatedHeight key={node.name + '-colapse'} expanded={expanded}>
-          {hasChildren &&
-            node.children!.map(child => (
-              <GenreRow
-                key={child.name}
-                name={child.name}
-                count={child.count}
-                maxCount={globalMax}
-                theme={theme}
-                isChild
-              />
-            ))}
+          {hasChildren && (
+            <View style={styles.childRows}>
+              {node.children!.map(child => (
+                <GenreRow
+                  key={child.name}
+                  name={child.name}
+                  count={child.count}
+                  maxCount={globalMax}
+                  theme={theme}
+                  isChild
+                />
+              ))}
+            </View>
+          )}
           {hasChildren && <View style={styles.separator} />}
           <NovelCarousel
             novels={categoryNovels}
-            genreName={node.name}
             theme={theme}
             onNovelPress={onNovelPress}
           />
@@ -120,14 +131,19 @@ const GenreSection: React.FC<GenreSectionProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 4,
+    marginBottom: 0,
   },
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 12,
+    minHeight: 64,
+    paddingHorizontal: 16,
     borderBottomWidth: 1,
+  },
+  childRows: {
+    paddingTop: 16,
+    paddingHorizontal: 16,
   },
   headerLeft: {
     flex: 1,
@@ -137,7 +153,7 @@ const styles = StyleSheet.create({
   },
   headerName: {
     fontWeight: '600',
-    fontSize: 16,
+    fontSize: 14,
   },
   subtitle: {
     fontSize: 12,
@@ -148,13 +164,10 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   headerCount: {
-    fontSize: 16,
-  },
-  expandedContent: {
-    paddingTop: 8,
+    fontSize: 14,
   },
   separator: {
-    height: 8,
+    height: 12,
   },
 });
 

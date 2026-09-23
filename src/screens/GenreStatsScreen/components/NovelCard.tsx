@@ -27,7 +27,7 @@ const NovelCard: React.FC<NovelCardProps> = React.memo(
         />
         <Text
           style={[styles.title, { color: theme.onSurface }]}
-          numberOfLines={1}
+          numberOfLines={2}
         >
           {novel.name}
         </Text>
@@ -40,7 +40,7 @@ const NovelCard: React.FC<NovelCardProps> = React.memo(
 const styles = StyleSheet.create({
   card: {
     width: 80,
-    marginRight: 8,
+    marginRight: 16,
   },
   cover: {
     width: 80,
@@ -50,7 +50,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 12,
     textAlign: 'center',
-    marginTop: 4,
+    marginTop: 8,
   },
 });
 

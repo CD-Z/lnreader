@@ -1,9 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { LegendList } from '@legendapp/list/react-native';
-import { IconButton } from 'react-native-paper';
-import dayjs from 'dayjs';
-import duration from 'dayjs/plugin/duration';
 
 import { getString } from '@i18n/translations';
 
@@ -15,8 +12,6 @@ import { formatTimeSpent } from './utils';
 
 import type { ThemeColors } from '@theme/types';
 import type { LibraryStats } from '@database/types';
-
-dayjs.extend(duration);
 
 type TimeSpentItem =
   | {
@@ -32,16 +27,6 @@ type TimeSpentItem =
 interface TimeTabProps {
   stats: LibraryStats;
   theme: ThemeColors;
-}
-
-function formatTotalTimeParts(totalMs: number | undefined) {
-  if (!totalMs || totalMs <= 0) return null;
-  const d = dayjs.duration(totalMs, 'milliseconds');
-  const days = Math.floor(d.asDays());
-  const hours = d.hours();
-  const minutes = d.minutes();
-
-  return { days, hours, minutes };
 }
 
 export const TimeTab: React.FC<TimeTabProps> = ({ stats, theme }) => {
@@ -88,11 +73,16 @@ export const TimeTab: React.FC<TimeTabProps> = ({ stats, theme }) => {
               style={styles.timeSpentNovelCover}
               contentFit="cover"
             />
-            <View>
+            <View style={styles.timeSpentText}>
               <Text style={[styles.timeSpentLabel, { color: theme.onSurface }]}>
                 {item.name}
               </Text>
-              <Text style={{ color: theme.onSurfaceVariant }}>
+              <Text
+                style={[
+                  styles.timeSpentDetail,
+                  { color: theme.onSurfaceVariant },
+                ]}
+              >
                 {formatTimeSpent(item.timeSpent)}
               </Text>
             </View>
@@ -105,7 +95,12 @@ export const TimeTab: React.FC<TimeTabProps> = ({ stats, theme }) => {
             <Text style={[styles.timeSpentLabel, { color: theme.onSurface }]}>
               {item.name}
             </Text>
-            <Text style={{ color: theme.onSurfaceVariant }}>
+            <Text
+              style={[
+                styles.timeSpentDetail,
+                { color: theme.onSurfaceVariant },
+              ]}
+            >
               {formatTimeSpent(item.timeSpent)}
             </Text>
           </View>
@@ -115,97 +110,26 @@ export const TimeTab: React.FC<TimeTabProps> = ({ stats, theme }) => {
     [theme],
   );
 
-  const totalTimeParts = formatTotalTimeParts(stats.totalTimeSpent);
-
-  const formatTwoNumbers = (timeSpent: number) =>
-    timeSpent <= 9 ? `0${timeSpent}` : timeSpent;
-
   const timeListHeader = useCallback(
     () => (
       <>
         <View style={styles.totalTimeContainer}>
+          <Text style={[styles.totalTimeNumber, { color: theme.onSurface }]}>
+            {formatTimeSpent(stats.totalTimeSpent)}
+          </Text>
           <Text
             style={[styles.totalTimeLabel, { color: theme.onSurfaceVariant }]}
           >
             {getString('statsScreen.totalTimeSpent')}
           </Text>
-          {totalTimeParts ? (
-            <View style={styles.totalTimeValueRow}>
-              {totalTimeParts.days > 0 && (
-                <View style={styles.totalTimeBlock}>
-                  <Text
-                    style={[styles.totalTimeNumber, { color: theme.primary }]}
-                  >
-                    {formatTwoNumbers(totalTimeParts.days)}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.totalTimeUnit,
-                      { color: theme.onSurfaceVariant },
-                    ]}
-                  >
-                    {getString('time.days', { count: totalTimeParts.days })
-                      .replace(/\d+/, '')
-                      .trim()}
-                  </Text>
-                </View>
-              )}
-              {totalTimeParts.hours > 0 && (
-                <View style={styles.totalTimeBlock}>
-                  <Text
-                    style={[styles.totalTimeNumber, { color: theme.primary }]}
-                  >
-                    {formatTwoNumbers(totalTimeParts.hours)}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.totalTimeUnit,
-                      { color: theme.onSurfaceVariant },
-                    ]}
-                  >
-                    {getString('time.hours', { count: totalTimeParts.hours })
-                      .replace(/\d+/, '')
-                      .trim()}
-                  </Text>
-                </View>
-              )}
-              <View style={styles.totalTimeBlock}>
-                <Text
-                  style={[styles.totalTimeNumber, { color: theme.primary }]}
-                >
-                  {formatTwoNumbers(totalTimeParts.minutes)}
-                </Text>
-                <Text
-                  style={[
-                    styles.totalTimeUnit,
-                    { color: theme.onSurfaceVariant },
-                  ]}
-                >
-                  {getString('time.minutes', {
-                    count: totalTimeParts.minutes,
-                  })
-                    .replace(/\d+/, '')
-                    .trim()}
-                </Text>
-              </View>
-            </View>
-          ) : (
-            <Text
-              style={[styles.totalTimeEmpty, { color: theme.onSurfaceVariant }]}
-            >
-              {formatTimeSpent(stats.totalTimeSpent)}
-            </Text>
-          )}
         </View>
         <View style={styles.timeSpentHeader}>
-          <Text style={[styles.header, { color: theme.onSurfaceVariant }]}>
+          <Text style={[styles.header, { color: theme.onSurface }]}>
             {showingNovels
               ? getString('statsScreen.topNovelsByTimeSpent')
               : getString('statsScreen.topCategoriesByTimeSpent')}
           </Text>
-          <IconButton
-            icon={showingNovels ? 'label-outline' : 'book'}
-            iconColor={theme.onSurfaceVariant}
+          <Pressable
             onPress={() => setShowingNovels(!showingNovels)}
             accessibilityRole="button"
             accessibilityLabel={
@@ -213,11 +137,18 @@ export const TimeTab: React.FC<TimeTabProps> = ({ stats, theme }) => {
                 ? getString('statsScreen.showCategories')
                 : getString('statsScreen.showNovels')
             }
-          />
+            style={[styles.toggleButton, { borderColor: theme.outlineVariant }]}
+          >
+            <Text style={[styles.toggleText, { color: theme.primary }]}>
+              {showingNovels
+                ? getString('statsScreen.showCategories')
+                : getString('statsScreen.showNovels')}
+            </Text>
+          </Pressable>
         </View>
       </>
     ),
-    [stats.totalTimeSpent, theme, showingNovels, totalTimeParts],
+    [stats.totalTimeSpent, theme, showingNovels],
   );
 
   return (
@@ -245,54 +176,59 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   totalTimeContainer: {
-    alignItems: 'center',
-    paddingVertical: 16,
+    paddingTop: 4,
+    paddingBottom: 24,
   },
   totalTimeLabel: {
-    fontSize: 14,
-    marginBottom: 12,
-  },
-  totalTimeValueRow: {
-    flexDirection: 'row',
-    gap: 20,
-    alignItems: 'flex-end',
-  },
-  totalTimeBlock: {
-    alignItems: 'center',
+    fontSize: 13,
+    marginTop: 4,
   },
   totalTimeNumber: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    lineHeight: 38,
-  },
-  totalTimeUnit: {
-    fontSize: 12,
-    marginTop: 2,
-  },
-  totalTimeEmpty: {
-    fontSize: 16,
+    fontSize: 28,
+    fontWeight: '700',
   },
   timeSpentHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    marginBottom: 12,
   },
   timeSpentRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    minHeight: 64,
     marginBottom: 8,
   },
   timeSpentNovelCover: {
-    width: 50,
+    width: 40,
     aspectRatio: 2 / 3,
-    marginRight: 8,
-    borderRadius: 4,
+    marginRight: 12,
+    borderRadius: 6,
+  },
+  timeSpentText: {
+    flex: 1,
   },
   timeSpentLabel: {
-    fontWeight: 'bold',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  timeSpentDetail: {
+    fontSize: 12,
+    marginTop: 4,
   },
   header: {
-    fontWeight: 'bold',
-    paddingVertical: 16,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  toggleButton: {
+    minHeight: 36,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    justifyContent: 'center',
+  },
+  toggleText: {
+    fontSize: 12,
+    fontWeight: '600',
   },
 });

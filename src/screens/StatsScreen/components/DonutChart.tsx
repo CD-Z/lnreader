@@ -182,7 +182,7 @@ export const DonutChart: React.FC<DonutChartProps> = ({
       key: entry.key,
       color: colors[entry.key] || theme.outline,
       startAngle: cursor,
-      endAngle: cursor + angle,
+      endAngle: cursor + Math.min(angle, 359.999),
     });
     cursor += angle;
   }
@@ -217,6 +217,7 @@ export const DonutChart: React.FC<DonutChartProps> = ({
 
       {/* Center count */}
       <View
+        pointerEvents="none"
         style={[styles.centerLabel, { width: totalSize, height: totalSize }]}
       >
         <Text style={[styles.centerCount, { color: theme.onSurface }]}>

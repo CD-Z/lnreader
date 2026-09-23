@@ -122,7 +122,7 @@ const StatsScreen = () => {
     () => [
       { key: 'overview', title: getString('generalSettings') },
       { key: 'plugins', title: getString('statsScreen.plugins') },
-      { key: 'time', title: getString('statsScreen.totalTimeSpent') },
+      { key: 'time', title: getString('statsScreen.readingTime') },
     ],
     [],
   );
@@ -137,7 +137,10 @@ const StatsScreen = () => {
     (props: any) => (
       <TopTabBar
         {...props}
-        indicatorStyle={styles.tabBarIndicator}
+        indicatorStyle={[
+          styles.tabBarIndicator,
+          { backgroundColor: theme.primary },
+        ]}
         style={[
           styles.tabBar,
           {
@@ -146,7 +149,7 @@ const StatsScreen = () => {
           },
         ]}
         tabStyle={styles.tabStyle}
-        gap={8}
+        gap={0}
         inactiveColor={theme.secondary}
         activeColor={theme.primary}
         android_ripple={{ color: theme.rippleColor }}
@@ -237,7 +240,6 @@ const styles = StyleSheet.create({
     elevation: 0,
   },
   tabBarIndicator: {
-    backgroundColor: '#000',
     height: 3,
   },
   tabStyle: {

@@ -16,95 +16,111 @@ export const ChapterBar: React.FC<ChapterBarProps> = ({
   downloaded,
 }) => {
   const theme = useTheme();
-
   const readPercent = total > 0 ? Math.min(read / total, 1) : 0;
+  const downloadedPercent = total > 0 ? Math.min(downloaded / total, 1) : 0;
 
   return (
     <View style={styles.container}>
-      <Text style={[styles.totalLabel, { color: theme.onSurface }]}>
-        {getString('statsScreen.totalChapters')}
-      </Text>
-      <Text style={[styles.totalCount, { color: theme.onSurface }]}>
-        {total}
-      </Text>
+      <View style={styles.totalRow}>
+        <Text style={[styles.totalCount, { color: theme.onSurface }]}>
+          {total.toLocaleString()}
+        </Text>
+        <Text style={[styles.totalLabel, { color: theme.onSurfaceVariant }]}>
+          {getString('statsScreen.chaptersInLibrary')}
+        </Text>
+      </View>
       <View style={[styles.track, { backgroundColor: theme.surfaceVariant }]}>
         <View
           style={[
             styles.fill,
             {
-              width: `${readPercent * 100}%` as any,
+              width: `${readPercent * 100}%`,
               backgroundColor: theme.primary,
             },
           ]}
         />
       </View>
-      {total > 0 && (
-        <View style={styles.labelsRow}>
-          <View style={styles.labelCol}>
-            <Text style={{ color: theme.onSurfaceVariant, fontSize: 12 }}>
-              {getString('statsScreen.readChapters')}
-            </Text>
-            <Text
-              style={{
-                color: theme.onSurface,
-                fontWeight: 'bold',
-                fontSize: 14,
-              }}
-            >
-              {read}
-            </Text>
-          </View>
-          <View style={styles.labelCol}>
-            <Text style={{ color: theme.onSurfaceVariant, fontSize: 12 }}>
-              {getString('statsScreen.downloadedChapters')}
-            </Text>
-            <Text
-              style={{
-                color: theme.onSurface,
-                fontWeight: 'bold',
-                fontSize: 14,
-              }}
-            >
-              {downloaded}
-            </Text>
-          </View>
+      <View style={styles.labelsRow}>
+        <View style={styles.labelGroup}>
+          <View style={[styles.dot, { backgroundColor: theme.primary }]} />
+          <Text style={[styles.label, { color: theme.onSurfaceVariant }]}>
+            {getString('statsScreen.readLabel')}
+          </Text>
+          <Text style={[styles.labelValue, { color: theme.onSurface }]}>
+            {read.toLocaleString()}
+          </Text>
+          <Text style={[styles.percent, { color: theme.onSurfaceVariant }]}>
+            {Math.round(readPercent * 100)}%
+          </Text>
         </View>
-      )}
+        <View style={styles.labelGroup}>
+          <View style={[styles.dot, { backgroundColor: theme.secondary }]} />
+          <Text style={[styles.label, { color: theme.onSurfaceVariant }]}>
+            {getString('statsScreen.downloadedLabel')}
+          </Text>
+          <Text style={[styles.labelValue, { color: theme.onSurface }]}>
+            {downloaded.toLocaleString()}
+          </Text>
+          <Text style={[styles.percent, { color: theme.onSurfaceVariant }]}>
+            {Math.round(downloadedPercent * 100)}%
+          </Text>
+        </View>
+      </View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 12,
+    marginBottom: 20,
   },
-  totalLabel: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    textAlign: 'center',
+  totalRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 8,
+    marginBottom: 10,
   },
   totalCount: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 4,
+    fontSize: 28,
+    fontWeight: '700',
+  },
+  totalLabel: {
+    fontSize: 13,
   },
   track: {
-    height: 20,
-    borderRadius: 10,
+    height: 7,
+    borderRadius: 4,
     overflow: 'hidden',
   },
   fill: {
     height: '100%',
-    borderRadius: 10,
+    borderRadius: 4,
   },
   labelsRow: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginTop: 4,
+    flexWrap: 'wrap',
+    columnGap: 16,
+    rowGap: 6,
+    marginTop: 10,
   },
-  labelCol: {
-    flex: 1,
+  labelGroup: {
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: 5,
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 2,
+  },
+  label: {
+    fontSize: 12,
+  },
+  labelValue: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  percent: {
+    fontSize: 11,
   },
 });
