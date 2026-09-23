@@ -1,6 +1,27 @@
 // require('react-native-gesture-handler/jestSetup');
 // require('react-native-reanimated').setUpTests();
 
+jest.mock('react-native-device-info', () => ({
+  __esModule: true,
+  default: {
+    getApiLevel: jest.fn().mockResolvedValue(35),
+    getBrand: jest.fn(() => 'mock-brand'),
+    getBuildId: jest.fn().mockResolvedValue('mock-build-id'),
+    getBuildNumber: jest.fn(() => '1'),
+    getBundleId: jest.fn(() => 'com.lnreader'),
+    getDeviceId: jest.fn(() => 'mock-device'),
+    getManufacturer: jest.fn().mockResolvedValue('mock-manufacturer'),
+    getModel: jest.fn(() => 'mock-model'),
+    getSystemName: jest.fn(() => 'Android'),
+    getSystemVersion: jest.fn(() => '15'),
+    supportedAbis: jest.fn().mockResolvedValue([]),
+  },
+  getBatteryLevel: jest.fn().mockResolvedValue(1),
+  getBatteryLevelSync: jest.fn(() => 1),
+  getUserAgentSync: jest.fn(() => 'LNReader test'),
+  useBatteryLevel: jest.fn(() => 1),
+}));
+
 jest.mock('@modules/native-file', () => ({
   __esModule: true,
   default: {

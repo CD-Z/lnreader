@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from '@test-utils';
+import type { ReactNode } from 'react';
 import { ReplaceItem } from '../ListItems';
 import Snippet from '../Snippet';
 
@@ -23,6 +24,33 @@ const theme = {
 jest.mock('@hooks/persisted', () => ({
   useTheme: () => theme,
 }));
+
+jest.mock('@components/AppErrorBoundary/AppErrorBoundary', () => ({
+  __esModule: true,
+  default: ({ children }: { children: ReactNode }) => children,
+}));
+
+jest.mock('@screens/novel/NovelContext', () => ({
+  NovelContextProvider: ({ children }: { children: ReactNode }) => children,
+}));
+
+jest.mock('react-native-safe-area-context', () => {
+  const ReactModule = require('react');
+  const { View } = jest.requireActual('react-native');
+  const frame = { height: 800, width: 400, x: 0, y: 0 };
+  const insets = { bottom: 0, left: 0, right: 0, top: 0 };
+
+  return {
+    SafeAreaFrameContext: ReactModule.createContext(frame),
+    SafeAreaInsetsContext: ReactModule.createContext(insets),
+    SafeAreaProvider: ({ children }: { children: ReactNode }) => children,
+    SafeAreaView: ({ children, ...props }: { children: ReactNode }) =>
+      ReactModule.createElement(View, props, children),
+    initialWindowMetrics: { frame, insets },
+    useSafeAreaFrame: () => frame,
+    useSafeAreaInsets: () => insets,
+  };
+});
 
 jest.mock('@i18n/translations', () => ({
   getString: (key: string) =>
@@ -76,7 +104,9 @@ describe('custom code cards', () => {
       />,
     );
 
-    const card = screen.getByLabelText('Bigger paragraph spacing');
+    const card = screen.getByRole('button', {
+      name: 'Bigger paragraph spacing',
+    });
     expect(card.props.onPress).toBeUndefined();
 
     fireEvent(card, 'longPress');
