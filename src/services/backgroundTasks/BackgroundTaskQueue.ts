@@ -50,10 +50,20 @@ export class BackgroundTaskQueue {
   }
 
   async refresh() {
-    const records = await NativeBackgroundTasks.getTasks();
-    const queue = records
-      .filter(record => ACTIVE_BACKGROUND_TASK_STATES.has(record.state))
-      .map(fromNativeTaskRecord);
+    const summaries = await NativeBackgroundTasks.getTasks();
+    const queue: QueuedBackgroundTask[] = [];
+
+    for (const summary of summaries) {
+      const record = await NativeBackgroundTasks.getTask(summary.id);
+      if (
+        record &&
+        ACTIVE_BACKGROUND_TASK_STATES.has(record.state) &&
+        record.payload
+      ) {
+        queue.push(fromNativeTaskRecord(record));
+      }
+    }
+
     this.store(queue);
     return queue;
   }

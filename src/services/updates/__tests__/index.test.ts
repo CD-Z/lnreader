@@ -155,4 +155,131 @@ describe('updateLibrary', () => {
       },
     );
   });
+  it('chunks each download task immediately without changing its identity', async () => {
+    mockedGetMMKVObject.mockReturnValue({ downloadNewChapters: true });
+    const novelId = 7;
+    const chapters = Array.from({ length: 101 }, (_, index) => ({
+      chapterId: index + 1,
+      chapterName: `Chapter ${index + 1}`,
+      ...(index === 0 ? {} : { novelId }),
+    }));
+    const downloadTask = {
+      name: 'DOWNLOAD_CHAPTER' as const,
+      data: {
+        novelName: 'Example Novel',
+        novelId,
+        pluginId: 'source-a',
+        chapters,
+      },
+    };
+    const secondDownloadTask = {
+      name: 'DOWNLOAD_CHAPTER' as const,
+      data: {
+        novelName: 'Second Novel',
+        novelId: 8,
+        pluginId: 'source-a',
+        chapters: [
+          {
+            chapterId: 102,
+            chapterName: 'Chapter 102',
+            novelId: 8,
+          },
+        ],
+      },
+    };
+    const otherTask = {
+      name: 'UPDATE_LIBRARY' as const,
+      data: { categoryId: 4 },
+    };
+    mockedGetLibraryNovels.mockResolvedValue([
+      novel(1, 'source-a', 'Example Novel'),
+    ]);
+
+    let resolveUpdate!: () => void;
+    mockedUpdateNovel.mockImplementation(
+      async (_pluginId, _path, _novelId, options) => {
+        options.enqueue?.([downloadTask, secondDownloadTask, otherTask]);
+        await new Promise<void>(resolve => {
+          resolveUpdate = resolve;
+        });
+      },
+    );
+    const enqueue = jest.fn();
+
+    const updatePromise = updateLibrary({}, jest.fn(), enqueue);
+    await flushPromises();
+
+    expect(enqueue).toHaveBeenCalledTimes(4);
+    const enqueuedTasks = enqueue.mock.calls.map(([task]) => task);
+    const normalizedChapters = chapters.map(chapter => ({
+      ...chapter,
+      novelId,
+    }));
+    expect(enqueuedTasks[0]).toEqual({
+      ...downloadTask,
+      data: {
+        ...downloadTask.data,
+        chapters: normalizedChapters.slice(0, 100),
+      },
+    });
+    expect(enqueuedTasks[1]).toEqual({
+      ...downloadTask,
+      data: {
+        ...downloadTask.data,
+        chapters: normalizedChapters.slice(100),
+      },
+    });
+    expect(enqueuedTasks[2]).toEqual(secondDownloadTask);
+    expect(enqueuedTasks[3]).toBe(otherTask);
+
+    resolveUpdate();
+    await updatePromise;
+  });
+
+  it('waits for every source worker before finalizing after an interruption', async () => {
+    mockedGetLibraryNovels.mockResolvedValue([
+      novel(1, 'source-a', 'A One'),
+      novel(2, 'source-b', 'B One'),
+    ]);
+    let resolveSecondSource!: () => void;
+    const secondSource = new Promise<void>(resolve => {
+      resolveSecondSource = resolve;
+    });
+    mockedUpdateNovel.mockImplementation((_pluginId, _path, novelId) =>
+      novelId === 2 ? secondSource : Promise.resolve(),
+    );
+
+    let metadata: BackgroundTaskMetadata = {
+      name: 'Update library',
+      isRunning: false,
+      progress: undefined,
+      progressText: undefined,
+    };
+    let shouldInterrupt = true;
+    const setMeta = (
+      transform: (meta: BackgroundTaskMetadata) => BackgroundTaskMetadata,
+    ) => {
+      const nextMetadata = transform(metadata);
+      if (shouldInterrupt && nextMetadata.progressText === 'A One') {
+        shouldInterrupt = false;
+        throw new Error('interrupted');
+      }
+      metadata = nextMetadata;
+    };
+
+    const updatePromise = updateLibrary({}, setMeta, jest.fn());
+    await flushPromises();
+
+    expect(metadata).toMatchObject({
+      isRunning: true,
+      progress: 0,
+    });
+    resolveSecondSource();
+    await expect(updatePromise).rejects.toThrow('interrupted');
+    expect(metadata).toMatchObject({
+      isRunning: false,
+      progress: 1,
+      progressText: undefined,
+    });
+  });
 });
