@@ -1,17 +1,22 @@
-import { useState } from 'react';
-import { FlatList, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { IconButton, TextInput } from 'react-native-paper';
+import { useCallback, useMemo, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
+import MaterialCommunityIcons from '@react-native-vector-icons/material-design-icons';
+import { FAB, TextInput } from 'react-native-paper';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Appbar, Dialog, List, SafeAreaView } from '@components';
 import ConfirmationDialog from '@components/ConfirmationDialog/ConfirmationDialog';
 import { useTheme } from '@hooks/persisted';
 import { useGenreTaxonomy } from '@hooks/persisted/useGenreTaxonomy';
+import { getNovelsWithGenresFromDb } from '@database/queries/StatsQueries';
 import { normalizeGenre } from '@screens/GenreStatsScreen/utils';
 import { getString } from '@i18n/translations';
 import type { GenreTaxonomyScreenProps } from '@navigators/types';
 
 const SettingsTaxonomyScreen = ({ navigation }: GenreTaxonomyScreenProps) => {
   const theme = useTheme();
+  const { bottom, right } = useSafeAreaInsets();
   const { taxonomy, setTaxonomy } = useGenreTaxonomy();
 
   const [dialog, setDialog] = useState<
@@ -23,12 +28,50 @@ const SettingsTaxonomyScreen = ({ navigation }: GenreTaxonomyScreenProps) => {
   // Form fields
   const [parentName, setParentName] = useState('');
   const [childName, setChildName] = useState('');
+  const [libraryGenres, setLibraryGenres] = useState<string[]>([]);
+
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      void getNovelsWithGenresFromDb()
+        .then(novels => {
+          if (!active) return;
+          const genres = new Map<string, string>();
+          novels.forEach(novel =>
+            novel.genres?.split(',').forEach(part => {
+              const name = part.trim();
+              if (name && !genres.has(normalizeGenre(name))) {
+                genres.set(normalizeGenre(name), name);
+              }
+            }),
+          );
+          setLibraryGenres(
+            [...genres.values()].sort((a, b) => a.localeCompare(b)),
+          );
+        })
+        .catch(() => {
+          if (active) setLibraryGenres([]);
+        });
+      return () => {
+        active = false;
+      };
+    }, []),
+  );
+
+  const suggestions = useMemo(() => {
+    const grouped = new Set(
+      taxonomy
+        .flatMap(node => [node.parent, ...node.children])
+        .map(normalizeGenre),
+    );
+    return libraryGenres.filter(name => !grouped.has(normalizeGenre(name)));
+  }, [libraryGenres, taxonomy]);
 
   // Delete confirmation
-  const [deleteTarget, setDeleteTarget] = useState<
-    | { type: 'parent'; name: string }
-    | null
-  >(null);
+  const [deleteTarget, setDeleteTarget] = useState<{
+    type: 'parent';
+    name: string;
+  } | null>(null);
 
   const resetForm = () => {
     setParentName('');
@@ -36,9 +79,7 @@ const SettingsTaxonomyScreen = ({ navigation }: GenreTaxonomyScreenProps) => {
   };
 
   const openDialog = (
-    d:
-      | { type: 'addParent' }
-      | { type: 'editParent'; parentName: string },
+    d: { type: 'addParent' } | { type: 'editParent'; parentName: string },
   ) => {
     resetForm();
     if (d.type === 'editParent') setParentName(d.parentName);
@@ -48,11 +89,9 @@ const SettingsTaxonomyScreen = ({ navigation }: GenreTaxonomyScreenProps) => {
   const handleAddParent = () => {
     const name = parentName.trim();
     if (!name) return;
-    if (
-      taxonomy.some(
-        t => normalizeGenre(t.parent) === normalizeGenre(name),
-      )
-    ) return;
+    if (taxonomy.some(t => normalizeGenre(t.parent) === normalizeGenre(name))) {
+      return;
+    }
     setTaxonomy([...taxonomy, { parent: name, children: [] }]);
     // Stay in the same dialog, now in edit mode, so subgenres can be added
     // directly without reopening.
@@ -69,7 +108,9 @@ const SettingsTaxonomyScreen = ({ navigation }: GenreTaxonomyScreenProps) => {
           t.parent !== oldName &&
           normalizeGenre(t.parent) === normalizeGenre(name),
       )
-    ) return;
+    ) {
+      return;
+    }
     const updated = taxonomy.map(t =>
       t.parent === oldName ? { ...t, parent: name } : t,
     );
@@ -77,14 +118,16 @@ const SettingsTaxonomyScreen = ({ navigation }: GenreTaxonomyScreenProps) => {
     setDialog({ type: 'none' });
   };
 
-  const handleAddChild = () => {
-    const name = childName.trim();
+  const handleAddChild = (value = childName) => {
+    const name = value.trim();
     if (!name || dialog.type !== 'editParent') return;
     const node = taxonomy.find(t => t.parent === dialog.parentName);
     if (
       !node ||
       node.children.some(c => normalizeGenre(c) === normalizeGenre(name))
-    ) return;
+    ) {
+      return;
+    }
     const updated = taxonomy.map(t =>
       t.parent === dialog.parentName
         ? { ...t, children: [...t.children, name] }
@@ -122,10 +165,12 @@ const SettingsTaxonomyScreen = ({ navigation }: GenreTaxonomyScreenProps) => {
         style={[{ backgroundColor: theme.background }, styles.flex]}
         contentContainerStyle={styles.scrollContent}
       >
-        {/* Parent categories section */}
+        <Text style={[styles.description, { color: theme.onSurfaceVariant }]}>
+          {getString('genreStats.taxonomyDescription')}
+        </Text>
         <List.Section>
           <List.SubHeader theme={theme}>
-            {getString('genreStats.parentCategories')}
+            {getString('genreStats.genreGroups')}
           </List.SubHeader>
           {hasTaxonomy ? (
             taxonomy.map(node => (
@@ -136,7 +181,12 @@ const SettingsTaxonomyScreen = ({ navigation }: GenreTaxonomyScreenProps) => {
                 }
                 android_ripple={{ color: theme.rippleColor }}
               >
-                <View style={styles.row}>
+                <View
+                  style={[
+                    styles.row,
+                    { borderBottomColor: theme.outlineVariant },
+                  ]}
+                >
                   <View style={styles.rowTextContainer}>
                     <Text
                       style={[styles.rowText, { color: theme.onSurface }]}
@@ -149,25 +199,23 @@ const SettingsTaxonomyScreen = ({ navigation }: GenreTaxonomyScreenProps) => {
                         styles.rowSubText,
                         { color: theme.onSurfaceVariant },
                       ]}
+                      numberOfLines={1}
                     >
-                      {getString('genreStats.subgenres', {
-                        count: node.children.length,
-                      })}
+                      {node.children.length
+                        ? node.children.join(', ')
+                        : getString('genreStats.noGenresInGroup')}
                     </Text>
                   </View>
-                  <View style={styles.rowActions}>
-                    <IconButton
-                      icon="close"
-                      iconColor={theme.onSurfaceVariant}
-                      size={20}
-                      onPress={() =>
-                        setDeleteTarget({
-                          type: 'parent',
-                          name: node.parent,
-                        })
-                      }
-                    />
-                  </View>
+                  {node.children.length > 0 && (
+                    <Text style={{ color: theme.onSurfaceVariant }}>
+                      {node.children.length}
+                    </Text>
+                  )}
+                  <MaterialCommunityIcons
+                    name="chevron-right"
+                    color={theme.onSurfaceVariant}
+                    size={24}
+                  />
                 </View>
               </Pressable>
             ))
@@ -177,105 +225,163 @@ const SettingsTaxonomyScreen = ({ navigation }: GenreTaxonomyScreenProps) => {
               theme={theme}
             />
           )}
-          <List.Item
-            title={getString('genreStats.addCategory')}
-            icon="plus"
-            onPress={() => openDialog({ type: 'addParent' })}
-            theme={theme}
-          />
         </List.Section>
       </ScrollView>
 
+      <FAB
+        style={[styles.fab, { backgroundColor: theme.primary, right, bottom }]}
+        color={theme.onPrimary}
+        icon="plus"
+        label={getString('genreStats.newGroup')}
+        uppercase={false}
+        onPress={() => openDialog({ type: 'addParent' })}
+      />
+
       {/* Add / Edit Parent Dialog */}
       {(dialog.type === 'addParent' || dialog.type === 'editParent') && (
-        <Dialog.Root
-          visible
-          onDismiss={() => setDialog({ type: 'none' })}
-        >
+        <Dialog.Root visible onDismiss={() => setDialog({ type: 'none' })}>
           <Dialog.Header>
             <Dialog.Title>
               {dialog.type === 'addParent'
-                ? getString('genreStats.addCategory')
-                : dialog.parentName}
+                ? getString('genreStats.newGroup')
+                : getString('genreStats.editGenreGroup')}
             </Dialog.Title>
           </Dialog.Header>
           <Dialog.Content>
-            <TextInput
-              label={getString('genreStats.parentNamePlaceholder')}
-              value={parentName}
-              onChangeText={setParentName}
-              mode="outlined"
-            />
+            <ScrollView
+              keyboardShouldPersistTaps="handled"
+              style={styles.dialogScroll}
+              contentContainerStyle={styles.dialogContent}
+            >
+              <TextInput
+                label={getString('genreStats.parentNamePlaceholder')}
+                value={parentName}
+                onChangeText={setParentName}
+                mode="outlined"
+              />
 
-            {dialog.type === 'editParent' &&
-              (() => {
-                const node = taxonomy.find(
-                  t => t.parent === dialog.parentName,
-                );
-                if (!node) return null;
-                return (
-                  <>
-                    {node.children.length > 0 && (
-                      <FlatList
-                        data={node.children}
-                        keyExtractor={item => item}
-                        renderItem={({ item }) => (
-                          <View style={styles.childRow}>
-                            <Text
-                              style={[
-                                styles.childText,
-                                { color: theme.onSurface },
-                              ]}
-                              numberOfLines={1}
-                            >
-                              {item}
-                            </Text>
+              {dialog.type === 'editParent' &&
+                (() => {
+                  const node = taxonomy.find(
+                    t => t.parent === dialog.parentName,
+                  );
+                  if (!node) return null;
+                  return (
+                    <>
+                      <Text
+                        style={[styles.fieldLabel, { color: theme.onSurface }]}
+                      >
+                        {getString('genreStats.genresInGroup')}
+                      </Text>
+                      {node.children.length > 0 ? (
+                        <View style={styles.chips}>
+                          {node.children.map(item => (
                             <Pressable
+                              key={item}
+                              accessibilityRole="button"
+                              accessibilityLabel={`${getString(
+                                'common.remove',
+                              )} ${item}`}
                               onPress={() =>
                                 handleDeleteChild(dialog.parentName, item)
                               }
-                              hitSlop={8}
+                              style={[
+                                styles.chip,
+                                { backgroundColor: theme.secondaryContainer },
+                              ]}
                             >
-                              <IconButton
-                                icon="close"
-                                iconColor={theme.onSurfaceVariant}
-                                size={18}
+                              <Text
+                                style={{ color: theme.onSecondaryContainer }}
+                              >
+                                {item}
+                              </Text>
+                              <MaterialCommunityIcons
+                                name="close"
+                                size={16}
+                                color={theme.onSecondaryContainer}
                               />
                             </Pressable>
-                          </View>
-                        )}
-                        style={styles.childList}
-                      />
-                    )}
-                    <View style={styles.inlineAddChild}>
+                          ))}
+                        </View>
+                      ) : (
+                        <Text style={{ color: theme.onSurfaceVariant }}>
+                          {getString('genreStats.noGenresInGroup')}
+                        </Text>
+                      )}
                       <TextInput
                         label={getString('genreStats.childNamePlaceholder')}
                         value={childName}
                         onChangeText={setChildName}
+                        onSubmitEditing={() => handleAddChild()}
+                        returnKeyType="done"
                         mode="outlined"
-                        style={styles.inlineInput}
+                        right={
+                          <TextInput.Icon
+                            icon="plus"
+                            disabled={!childName.trim()}
+                            onPress={() => handleAddChild()}
+                          />
+                        }
                       />
-                      <IconButton
-                        icon="plus"
-                        iconColor={theme.primary}
-                        size={24}
-                        disabled={!childName.trim()}
-                        onPress={handleAddChild}
-                      />
-                    </View>
-                  </>
-                );
-              })()}
+                      {suggestions.length > 0 && (
+                        <View style={styles.suggestions}>
+                          <Text
+                            style={[
+                              styles.fieldLabel,
+                              { color: theme.onSurface },
+                            ]}
+                          >
+                            {getString('genreStats.foundInLibrary')}
+                          </Text>
+                          <Text style={{ color: theme.onSurfaceVariant }}>
+                            {getString('genreStats.ungroupedGenresDescription')}
+                          </Text>
+                          <View style={styles.chips}>
+                            {suggestions.map(name => (
+                              <Pressable
+                                key={name}
+                                accessibilityRole="button"
+                                onPress={() => handleAddChild(name)}
+                                style={[
+                                  styles.suggestionChip,
+                                  { borderColor: theme.outlineVariant },
+                                ]}
+                              >
+                                <MaterialCommunityIcons
+                                  name="plus"
+                                  size={18}
+                                  color={theme.primary}
+                                />
+                                <Text style={{ color: theme.onSurface }}>
+                                  {name}
+                                </Text>
+                              </Pressable>
+                            ))}
+                          </View>
+                        </View>
+                      )}
+                    </>
+                  );
+                })()}
+            </ScrollView>
           </Dialog.Content>
           <Dialog.Actions>
+            {dialog.type === 'editParent' && (
+              <Dialog.Action
+                onPress={() => {
+                  setDialog({ type: 'none' });
+                  setDeleteTarget({ type: 'parent', name: dialog.parentName });
+                }}
+              >
+                {getString('common.delete')}
+              </Dialog.Action>
+            )}
             <Dialog.Action onPress={() => setDialog({ type: 'none' })}>
               {getString('common.cancel')}
             </Dialog.Action>
             <Dialog.Action
               onPress={
-                dialog.type === 'addParent'
-                  ? handleAddParent
-                  : handleEditParent
+                dialog.type === 'addParent' ? handleAddParent : handleEditParent
               }
             >
               {getString('common.ok')}
@@ -284,13 +390,11 @@ const SettingsTaxonomyScreen = ({ navigation }: GenreTaxonomyScreenProps) => {
         </Dialog.Root>
       )}
 
-
-      {/* Delete confirmations */}
       {deleteTarget?.type === 'parent' && (
         <ConfirmationDialog
           visible
           title={getString('genreStats.deleteConfirmTitle')}
-          message={getString('genreStats.deleteCategoryConfirm')}
+          message={getString('genreStats.deleteGroupConfirm')}
           confirmLabel={getString('common.delete')}
           onConfirm={() => handleDeleteParent(deleteTarget.name)}
           onDismiss={() => setDeleteTarget(null)}
@@ -306,15 +410,26 @@ const styles = StyleSheet.create({
   flex: {
     flex: 1,
   },
+  dialogScroll: { flexShrink: 1 },
+  dialogContent: { gap: 16 },
   scrollContent: {
-    paddingBottom: 40,
+    paddingBottom: 104,
   },
+  description: {
+    fontSize: 14,
+    lineHeight: 20,
+    marginHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 16,
+  },
+  fab: { position: 'absolute', margin: 16, right: 0 },
   row: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 16,
     minHeight: 48,
   },
   rowTextContainer: {
@@ -327,32 +442,24 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 2,
   },
-  rowActions: {
-    flexDirection: 'row',
+  fieldLabel: { fontSize: 14, fontWeight: '600' },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  chip: {
     alignItems: 'center',
-    gap: 4,
-  },
-  childList: {
-    marginTop: 16,
-  },
-  childRow: {
+    borderRadius: 8,
     flexDirection: 'row',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+  },
+  suggestions: { gap: 8, marginTop: 8 },
+  suggestionChip: {
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 8,
-    paddingLeft: 8,
-  },
-  childText: {
-    fontSize: 14,
-    flex: 1,
-  },
-  inlineAddChild: {
+    borderRadius: 8,
+    borderWidth: 1,
     flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 12,
-  },
-  inlineInput: {
-    flex: 1,
-    marginRight: 8,
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
   },
 });

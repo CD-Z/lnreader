@@ -728,6 +728,15 @@ export interface StringMap {
   'genreStats.editTaxonomy': 'string';
   'genreStats.taxonomyTitle': 'string';
   'genreStats.parentCategories': 'string';
+  'genreStats.genreGroups': 'string';
+  'genreStats.taxonomyDescription': 'string';
+  'genreStats.newGroup': 'string';
+  'genreStats.editGenreGroup': 'string';
+  'genreStats.genresInGroup': 'string';
+  'genreStats.noGenresInGroup': 'string';
+  'genreStats.foundInLibrary': 'string';
+  'genreStats.ungroupedGenresDescription': 'string';
+  'genreStats.deleteGroupConfirm': 'string';
   'genreStats.normalization': 'string';
   'genreStats.addCategory': 'string';
   'genreStats.addChild': 'string';

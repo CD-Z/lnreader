@@ -1,6 +1,18 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
 
+import { getNovelsWithGenresFromDb } from '@database/queries/StatsQueries';
+
 import SettingsTaxonomyScreen from '../SettingsTaxonomyScreen';
+
+jest.mock('@react-navigation/native', () => ({
+  useFocusEffect: (callback: () => () => void) => {
+    require('react').useEffect(callback, [callback]);
+  },
+}));
+
+jest.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: () => ({ bottom: 0, right: 0 }),
+}));
 
 let mockTaxonomy: { parent: string; children: string[] }[] = [];
 const mockSetTaxonomy = jest.fn(
@@ -26,6 +38,10 @@ jest.mock('@hooks/persisted/useGenreTaxonomy', () => ({
   }),
 }));
 
+jest.mock('@database/queries/StatsQueries', () => ({
+  getNovelsWithGenresFromDb: jest.fn(),
+}));
+
 jest.mock('@i18n/translations', () => ({
   getString: (key: string) => key,
 }));
@@ -33,10 +49,28 @@ jest.mock('@i18n/translations', () => ({
 jest.mock('react-native-paper', () => {
   const React = require('react');
   const { Pressable, Text, TextInput } = require('react-native');
+  const MockTextInput = (props: any) =>
+    React.createElement(
+      React.Fragment,
+      null,
+      React.createElement(TextInput, { ...props, testID: props.label }),
+      props.right,
+    );
+  MockTextInput.Icon = ({ icon, onPress, disabled }: any) =>
+    React.createElement(
+      Pressable,
+      { testID: `icon-${icon}`, onPress, disabled },
+      React.createElement(Text, null, icon),
+    );
 
   return {
-    TextInput: (props: any) =>
-      React.createElement(TextInput, { ...props, testID: props.label }),
+    TextInput: MockTextInput,
+    FAB: ({ label, onPress }: any) =>
+      React.createElement(
+        Pressable,
+        { onPress },
+        React.createElement(Text, null, label),
+      ),
     IconButton: ({ icon, onPress, disabled }: any) =>
       React.createElement(
         Pressable,
@@ -91,19 +125,20 @@ jest.mock(
 );
 
 const renderScreen = () =>
-  render(
-    <SettingsTaxonomyScreen navigation={{} as any} route={{} as any} />,
-  );
+  render(<SettingsTaxonomyScreen navigation={{} as any} route={{} as any} />);
 
 describe('SettingsTaxonomyScreen', () => {
   beforeEach(() => {
     mockTaxonomy = [{ parent: 'Fantasy', children: ['Sci-Fi'] }];
     mockSetTaxonomy.mockClear();
+    jest
+      .mocked(getNovelsWithGenresFromDb)
+      .mockImplementation(() => new Promise(() => {}));
   });
 
   it('refuses a parent that normalizes to an existing parent', () => {
     renderScreen();
-    fireEvent.press(screen.getByText('genreStats.addCategory'));
+    fireEvent.press(screen.getByText('genreStats.newGroup'));
     fireEvent.changeText(
       screen.getByTestId('genreStats.parentNamePlaceholder'),
       'fantasy',
@@ -114,7 +149,7 @@ describe('SettingsTaxonomyScreen', () => {
 
   it('adds a parent with a distinct normalized name', () => {
     renderScreen();
-    fireEvent.press(screen.getByText('genreStats.addCategory'));
+    fireEvent.press(screen.getByText('genreStats.newGroup'));
     fireEvent.changeText(
       screen.getByTestId('genreStats.parentNamePlaceholder'),
       'Comedy',
@@ -128,7 +163,7 @@ describe('SettingsTaxonomyScreen', () => {
 
   it('stays in the dialog to add subgenres right after adding a parent', () => {
     renderScreen();
-    fireEvent.press(screen.getByText('genreStats.addCategory'));
+    fireEvent.press(screen.getByText('genreStats.newGroup'));
     fireEvent.changeText(
       screen.getByTestId('genreStats.parentNamePlaceholder'),
       'Comedy',
@@ -182,6 +217,28 @@ describe('SettingsTaxonomyScreen', () => {
     fireEvent.press(screen.getByTestId('icon-plus'));
     expect(mockSetTaxonomy).toHaveBeenCalledWith([
       { parent: 'Fantasy', children: ['Sci-Fi', 'Harem'] },
+    ]);
+  });
+
+  it('suggests ungrouped library genres and adds one to the group', async () => {
+    jest.mocked(getNovelsWithGenresFromDb).mockResolvedValue([
+      {
+        id: 1,
+        name: 'Novel',
+        path: '',
+        cover: null,
+        pluginId: '',
+        genres: 'Sci Fi, Wuxia',
+        status: null,
+      },
+    ]);
+    renderScreen();
+    fireEvent.press(screen.getByText('Fantasy'));
+    expect(await screen.findByText('Wuxia')).toBeTruthy();
+    expect(screen.queryByText('Sci Fi')).toBeNull();
+    fireEvent.press(screen.getByText('Wuxia'));
+    expect(mockSetTaxonomy).toHaveBeenLastCalledWith([
+      { parent: 'Fantasy', children: ['Sci-Fi', 'Wuxia'] },
     ]);
   });
 });
