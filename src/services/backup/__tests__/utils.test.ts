@@ -316,23 +316,16 @@ describe('selective backup data', () => {
   it('includes stored covers with library data when downloads are omitted', async () => {
     jest.mocked(getAllNovels).mockResolvedValueOnce([
       {
-        id: 1,
-        name: 'Example',
-        path: '/example',
-        pluginId: 'source',
+        ...makeTestNovel(1),
         cover: 'file:///storage/Novels/source/1/cover.png?123',
       },
     ]);
     jest.mocked(getAllNovelChaptersForBackup).mockResolvedValueOnce([
       {
+        ...makeTestChapter(1),
         id: 10,
-        novelId: 1,
-        path: '/chapter-1',
-        name: 'Chapter 1',
-        isDownloaded: true,
       },
-    ] as Awaited<ReturnType<typeof getAllNovelChaptersForBackup>>);
-
+    ]);
     await prepareBackupData('/cache', {
       library: true,
       settings: false,
@@ -363,10 +356,7 @@ describe('selective backup data', () => {
   it('does not duplicate covers when downloaded files are included', async () => {
     jest.mocked(getAllNovels).mockResolvedValueOnce([
       {
-        id: 1,
-        name: 'Example',
-        path: '/example',
-        pluginId: 'source',
+        ...makeTestNovel(1),
         cover: 'file:///storage/Novels/source/1/cover.png?123',
       },
     ]);

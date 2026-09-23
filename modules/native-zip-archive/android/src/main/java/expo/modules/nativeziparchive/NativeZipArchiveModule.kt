@@ -66,6 +66,17 @@ class NativeZipArchiveModule : Module() {
       createdDirectories.add(parentPath)
     }
   }
+  private fun resolveZipEntry(destination: File, entryName: String): File {
+    val canonicalDestination = destination.canonicalFile
+    val outputFile = File(destination, entryName).canonicalFile
+    val destinationPath =
+      canonicalDestination.path.let { if (it.endsWith(File.separator)) it else it + File.separator }
+    require(outputFile.path.startsWith(destinationPath)) {
+      "ZIP entry is outside the destination directory: $entryName"
+    }
+    return outputFile
+  }
+
 
   override fun definition() = ModuleDefinition {
     Name("NativeZipArchive")
@@ -76,7 +87,7 @@ class NativeZipArchiveModule : Module() {
           val createdDirectories = mutableSetOf<String>()
           ZipFile(sourceFilePath).use { zis ->
             zis.entries().asSequence().filterNot { it.isDirectory }.forEach { zipEntry ->
-              val newFile = File(distDirPath, zipEntry.name)
+              val newFile = resolveZipEntry(File(distDirPath), zipEntry.name)
               ensureParentDirectory(newFile, createdDirectories)
               zis.getInputStream(zipEntry).use { inputStream ->
                 FileOutputStream(newFile).use { fos -> inputStream.copyTo(fos, COPY_BUFFER_SIZE) }
@@ -148,7 +159,7 @@ class NativeZipArchiveModule : Module() {
             generateSequence { zis.nextEntry }
               .filterNot { it.isDirectory }
               .forEach { zipEntry ->
-                val newFile = File(distDirPath, zipEntry.name)
+                val newFile = resolveZipEntry(File(distDirPath), zipEntry.name)
                 ensureParentDirectory(newFile, createdDirectories)
                 FileOutputStream(newFile).use { fos -> zis.copyTo(fos, COPY_BUFFER_SIZE) }
               }

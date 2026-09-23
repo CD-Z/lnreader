@@ -201,11 +201,12 @@ export const prepareBackupData = async (
                   }
                 }
               }
-              return {
+              const preparedNovel = {
                 ...novel,
                 chapters: backedUpChapters,
                 cover,
               };
+              return validateBackupNovel(preparedNovel);
             } catch {
               failedNovelCount++;
               return null;

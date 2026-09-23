@@ -143,7 +143,7 @@ const normalizeLegacyChapter = (
   if (
     !positiveId(chapter.id) ||
     !nonEmptyString(chapter.path) ||
-    !nonEmptyString(chapter.name) ||
+    !isString(chapter.name) ||
     (chapter.novelId !== undefined &&
       chapter.novelId !== null &&
       !positiveId(chapter.novelId))
@@ -284,7 +284,7 @@ const isCompactChapter = (value: unknown): value is CompactChapter => {
   return (
     isId(value[0]) &&
     nonEmptyString(value[1]) &&
-    nonEmptyString(value[2]) &&
+    isString(value[2]) &&
     nullableString(value[3]) &&
     nullableBoolean(value[4]) &&
     nullableBoolean(value[5]) &&
