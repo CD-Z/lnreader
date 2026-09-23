@@ -34,7 +34,9 @@ export const getDownloadProgressKey = (
     .filter(
       task =>
         task.task.name === 'DOWNLOAD_CHAPTER' &&
-        (novelId === undefined || task.task.data.novelId === novelId),
+        (novelId === undefined ||
+          task.task.data.novelId === novelId ||
+          task.task.data.chapters.some(chapter => chapter.novelId === novelId)),
     )
     .map(
       task =>

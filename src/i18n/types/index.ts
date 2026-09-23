@@ -124,6 +124,8 @@ export interface StringMap {
   'backupScreen.novelDirectoryReadFailed': 'string';
   'backupScreen.restoringCategories': 'string';
   'backupScreen.restoringCategoriesProgress': 'string';
+  'backupScreen.validatingNovels': 'string';
+  'backupScreen.validatingNovelsProgress': 'string';
   'backupScreen.restoringNovels': 'string';
   'backupScreen.restoringNovelsProgress': 'string';
   'backupScreen.restoringSettings': 'string';
@@ -386,6 +388,7 @@ export interface StringMap {
   'generalSettingsScreen.jumpToLastReadChapter': 'string';
   'generalSettingsScreen.novel': 'string';
   'generalSettingsScreen.novelBadges': 'string';
+  'generalSettingsScreen.showContinueReadingButton': 'string';
   'generalSettingsScreen.novelSort': 'string';
   'generalSettingsScreen.refreshMetadata': 'string';
   'generalSettingsScreen.refreshMetadataDescription': 'string';
@@ -398,6 +401,7 @@ export interface StringMap {
   'generalSettingsScreen.updateLibraryDesc': 'string';
   'generalSettingsScreen.updateTime': 'string';
   'generalSettingsScreen.useFAB': 'string';
+  'generalSettingsScreen.useFABDescription': 'string';
   'generalSettingsScreen.timeTracking': 'string';
   'generalSettingsScreen.enableTimeTracking': 'string';
   'generalSettingsScreen.enableTimeTrackingDesc': 'string';
@@ -421,12 +425,14 @@ export interface StringMap {
   'libraryScreen.bottomSheet.display.badges': 'string';
   'libraryScreen.bottomSheet.display.comfortable': 'string';
   'libraryScreen.bottomSheet.display.compact': 'string';
+  'libraryScreen.bottomSheet.display.continueReadingButton': 'string';
   'libraryScreen.bottomSheet.display.displayMode': 'string';
   'libraryScreen.bottomSheet.display.download': 'string';
   'libraryScreen.bottomSheet.display.downloadBadges': 'string';
   'libraryScreen.bottomSheet.display.list': 'string';
   'libraryScreen.bottomSheet.display.noTitle': 'string';
   'libraryScreen.bottomSheet.display.numberOfItems': 'string';
+  'libraryScreen.bottomSheet.display.overlays': 'string';
   'libraryScreen.bottomSheet.display.showNoOfItems': 'string';
   'libraryScreen.bottomSheet.display.unread': 'string';
   'libraryScreen.bottomSheet.display.unreadBadges': 'string';
