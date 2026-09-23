@@ -2,10 +2,12 @@ import './mockDb';
 import { setupTestDatabase, getTestDb, teardownTestDatabase } from './setup';
 import { insertTestNovel, insertTestChapter, clearAllTables } from './testData';
 import { chapterSchema, novelSchema } from '@database/schema';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 
 import { getNovelByPath } from '../NovelQueries';
 import {
+  clearRestoreChapterMappings,
+  getRestoreChapterMappings,
   restoreLibrary,
   _restoreNovelAndChapters,
   _restoreNovelsAndChapters,
@@ -76,41 +78,44 @@ describe('NovelRestoreQueries', () => {
         inLibrary: true,
       });
 
-      const mapping = await _restoreNovelAndChapters({
-        id: 1,
-        path: '/restored/novel',
-        pluginId: 'restored-plugin',
-        name: 'Restored Novel',
-        cover: null,
-        summary: null,
-        author: null,
-        artist: null,
-        status: 'Ongoing',
-        genres: null,
-        inLibrary: true,
-        isLocal: false,
-        totalPages: 0,
-        chapters: [
-          {
-            id: 10,
-            novelId: 1,
-            path: '/restored/chapter-1',
-            name: 'Chapter 1',
-            releaseTime: null,
-            readTime: null,
-            bookmark: false,
-            unread: true,
-            isDownloaded: true,
-            updatedTime: null,
-            chapterNumber: 1,
-            page: '1',
-            progress: null,
-            position: 0,
-            scanlator: null,
-            timeSpent: 0,
-          },
-        ],
-      });
+      const mapping = await _restoreNovelAndChapters(
+        {
+          id: 1,
+          path: '/restored/novel',
+          pluginId: 'restored-plugin',
+          name: 'Restored Novel',
+          cover: null,
+          summary: null,
+          author: null,
+          artist: null,
+          status: 'Ongoing',
+          genres: null,
+          inLibrary: true,
+          isLocal: false,
+          totalPages: 0,
+          chapters: [
+            {
+              id: 10,
+              novelId: 1,
+              path: '/restored/chapter-1',
+              name: 'Chapter 1',
+              releaseTime: null,
+              readTime: null,
+              bookmark: false,
+              unread: true,
+              isDownloaded: true,
+              updatedTime: null,
+              chapterNumber: 1,
+              page: '1',
+              progress: null,
+              position: 0,
+              scanlator: null,
+              timeSpent: 0,
+            },
+          ],
+        },
+        { restoreRunId: 'restore-collision' },
+      );
 
       expect(mapping.restoredNovelId).not.toBe(1);
       expect(
@@ -124,12 +129,8 @@ describe('NovelRestoreQueries', () => {
         .from(chapterSchema)
         .where(eq(chapterSchema.novelId, mapping.restoredNovelId))
         .all();
-      expect(mapping.chapters).toEqual([
-        {
-          backupChapterId: 10,
-          restoredChapterId: restoredChapters[0].id,
-        },
-      ]);
+      expect(restoredChapters).toHaveLength(1);
+      expect(restoredChapters[0].path).toBe('/restored/chapter-1');
     });
     it('restores multiple novels in one batch', async () => {
       const mappings = await _restoreNovelsAndChapters(
@@ -165,7 +166,7 @@ describe('NovelRestoreQueries', () => {
       );
     });
     it('preserves mappings and aggregate stats for multiple novels', async () => {
-      const mappings = await _restoreNovelsAndChapters(
+      await _restoreNovelsAndChapters(
         [
           {
             id: 200,
@@ -238,22 +239,28 @@ describe('NovelRestoreQueries', () => {
             ],
           },
         ],
-        { includeChapterMappings: true },
+        { includeChapterMappings: true, restoreRunId: 'restore-mappings' },
       );
 
-      expect(mappings).toHaveLength(2);
+      const stagedMappingsOne = await getRestoreChapterMappings(
+        'restore-mappings',
+        200,
+        [2001, 2002],
+      );
+      const stagedMappingsTwo = await getRestoreChapterMappings(
+        'restore-mappings',
+        201,
+        [2011],
+      );
       expect(
-        mappings.map(mapping =>
-          mapping.chapters.map(chapter => chapter.backupChapterId),
-        ),
-      ).toEqual([[2001, 2002], [2011]]);
-      expect(mappings[0].chapters).toHaveLength(2);
-      expect(mappings[1].chapters).toHaveLength(1);
+        stagedMappingsOne.map(row => row.backupChapterId).sort((a, b) => a - b),
+      ).toEqual([2001, 2002]);
+      expect(stagedMappingsTwo.map(row => row.backupChapterId)).toEqual([2011]);
       expect(
         new Set(
-          mappings
-            .flatMap(mapping => mapping.chapters)
-            .map(chapter => chapter.restoredChapterId),
+          [...stagedMappingsOne, ...stagedMappingsTwo].map(
+            row => row.restoredChapterId,
+          ),
         ).size,
       ).toBe(3);
       expect(await getNovelByPath('/bulk/mapped-one', 'bulk-plugin')).toEqual(
@@ -315,7 +322,6 @@ describe('NovelRestoreQueries', () => {
         { includeChapterMappings: false },
       );
 
-      expect(mapping.chapters).toEqual([]);
       const restoredChapters = await getTestDb()
         .drizzleDb.select()
         .from(chapterSchema)
@@ -323,76 +329,221 @@ describe('NovelRestoreQueries', () => {
         .all();
       expect(restoredChapters).toHaveLength(1);
       expect(restoredChapters[0].path).toBe('/restored/chapter-2');
+      expect(
+        await getRestoreChapterMappings('without-mappings', 2, [20]),
+      ).toEqual([]);
     });
-    it('rebuilds aggregate timestamps after replacing existing chapters', async () => {
+    it('merges restored identities without replacing existing rows', async () => {
       const testDb = getTestDb();
-      const novelId = await insertTestNovel(testDb, {
-        path: '/restore/stats',
-        pluginId: 'stats-plugin',
+      const existingNovelId = await insertTestNovel(testDb, {
+        path: '/restore/merge',
+        pluginId: 'merge-plugin',
+        name: 'Before Restore',
+        cover: 'before-cover',
+        summary: 'before-summary',
+        author: 'Before Author',
+        artist: 'Before Artist',
+        status: 'Paused',
+        genres: 'before',
+        inLibrary: false,
+        isLocal: false,
+        totalPages: 1,
       });
-      await insertTestChapter(testDb, novelId, {
-        path: '/restore/old-chapter',
-        readTime: '2020-01-01T00:00:00.000Z',
-        updatedTime: '2020-01-01T00:00:00.000Z',
-      });
-      await testDb.drizzleDb
-        .update(novelSchema)
-        .set({
-          lastReadAt: 'stale-read-time',
-          lastUpdatedAt: 'stale-update-time',
-        })
-        .where(eq(novelSchema.id, novelId))
-        .run();
-
-      await _restoreNovelAndChapters(
+      const conflictingChapterId = await insertTestChapter(
+        testDb,
+        existingNovelId,
         {
-          id: 3,
-          path: '/restore/stats',
-          pluginId: 'stats-plugin',
-          name: 'Restored Stats',
-          cover: null,
-          summary: null,
-          author: null,
-          artist: null,
-          status: 'Ongoing',
-          genres: null,
-          inLibrary: true,
-          isLocal: false,
-          totalPages: 0,
-          chapters: [
-            {
-              id: 30,
-              novelId: 3,
-              path: '/restore/new-chapter',
-              name: 'New Chapter',
-              releaseTime: null,
-              readTime: '2024-01-01T00:00:00.000Z',
-              bookmark: false,
-              unread: false,
-              isDownloaded: true,
-              updatedTime: '2025-01-01T00:00:00.000Z',
-              chapterNumber: 1,
-              page: '1',
-              progress: null,
-              position: 0,
-              scanlator: null,
-              timeSpent: 0,
-            },
-          ],
+          path: '/restore/merge/chapter',
+          name: 'Before Chapter',
+          bookmark: false,
+          unread: true,
+          readTime: '2023-01-01T00:00:00.000Z',
+          isDownloaded: false,
+          updatedTime: '2022-01-01T00:00:00.000Z',
+          chapterNumber: 1,
+          page: '1',
+          position: 0,
+          progress: 1,
+          timeSpent: 2,
         },
-        { includeChapterMappings: false },
       );
+      const unrelatedChapterId = await insertTestChapter(
+        testDb,
+        existingNovelId,
+        {
+          path: '/restore/merge/unrelated',
+          name: 'Unrelated Chapter',
+          bookmark: false,
+          unread: true,
+          readTime: '2024-01-01T00:00:00.000Z',
+          isDownloaded: false,
+          updatedTime: '2024-01-01T00:00:00.000Z',
+          chapterNumber: 2,
+          page: '1',
+          position: 1,
+          progress: 0,
+          timeSpent: 3,
+        },
+      );
+      expect(existingNovelId).not.toBe(900);
+      expect(conflictingChapterId).not.toBe(9001);
 
-      const restored = await getNovelByPath('/restore/stats', 'stats-plugin');
-      expect(restored).toEqual(
+      const restoreRunId = 'restore-merge';
+      const backupNovel = {
+        id: 900,
+        path: '/restore/merge',
+        pluginId: 'merge-plugin',
+        name: 'Restored Novel',
+        cover: 'file:///mock/novel/storage/cache-key?size=large',
+        summary: 'backup-summary',
+        author: 'Backup Author',
+        artist: 'Backup Artist',
+        status: 'Completed',
+        genres: 'backup',
+        inLibrary: true,
+        isLocal: true,
+        totalPages: 123,
+        chapters: [
+          {
+            id: 9001,
+            novelId: 900,
+            path: '/restore/merge/chapter',
+            name: 'Restored Chapter',
+            releaseTime: '2024-02-01T00:00:00.000Z',
+            readTime: '2025-01-01T00:00:00.000Z',
+            bookmark: true,
+            unread: false,
+            isDownloaded: true,
+            updatedTime: '2026-01-01T00:00:00.000Z',
+            chapterNumber: 10,
+            page: '7',
+            progress: 42,
+            position: 4,
+            scanlator: 'Backup Scanlator',
+            timeSpent: 9,
+          },
+        ],
+      };
+
+      const firstMapping = await _restoreNovelAndChapters(backupNovel, {
+        includeChapterMappings: true,
+        restoreRunId,
+      });
+      expect(firstMapping).toEqual({
+        pluginId: 'merge-plugin',
+        backupNovelId: 900,
+        restoredNovelId: existingNovelId,
+      });
+
+      const restoredNovel = await getNovelByPath(
+        '/restore/merge',
+        'merge-plugin',
+      );
+      expect(restoredNovel).toEqual(
         expect.objectContaining({
-          totalChapters: 1,
+          id: existingNovelId,
+          name: 'Restored Novel',
+          cover: `file:///mock/novel/storage/merge-plugin/${existingNovelId}/cover.png?size=large`,
+          summary: 'backup-summary',
+          author: 'Backup Author',
+          artist: 'Backup Artist',
+          status: 'Completed',
+          genres: 'backup',
+          inLibrary: 1,
+          isLocal: 1,
+          totalPages: 123,
+          totalChapters: 2,
           chaptersDownloaded: 1,
-          chaptersUnread: 0,
-          lastReadAt: '2024-01-01T00:00:00.000Z',
-          lastUpdatedAt: '2025-01-01T00:00:00.000Z',
+          chaptersUnread: 1,
+          lastReadAt: '2025-01-01T00:00:00.000Z',
+          lastUpdatedAt: '2026-01-01T00:00:00.000Z',
         }),
       );
+
+      const restoredChapters = await testDb.drizzleDb
+        .select()
+        .from(chapterSchema)
+        .where(eq(chapterSchema.novelId, existingNovelId))
+        .all();
+      expect(restoredChapters).toHaveLength(2);
+      expect(
+        restoredChapters.find(
+          chapter => chapter.path === '/restore/merge/chapter',
+        ),
+      ).toEqual(
+        expect.objectContaining({
+          id: conflictingChapterId,
+          novelId: existingNovelId,
+          name: 'Restored Chapter',
+          releaseTime: '2024-02-01T00:00:00.000Z',
+          readTime: '2025-01-01T00:00:00.000Z',
+          bookmark: true,
+          unread: false,
+          isDownloaded: true,
+          updatedTime: '2026-01-01T00:00:00.000Z',
+          chapterNumber: 10,
+          page: '7',
+          progress: 42,
+          position: 4,
+          scanlator: 'Backup Scanlator',
+          timeSpent: 9,
+        }),
+      );
+      expect(
+        restoredChapters.find(
+          chapter => chapter.path === '/restore/merge/unrelated',
+        ),
+      ).toEqual(
+        expect.objectContaining({
+          id: unrelatedChapterId,
+          name: 'Unrelated Chapter',
+        }),
+      );
+
+      expect(
+        await getRestoreChapterMappings(restoreRunId, 900, [9001]),
+      ).toEqual([
+        {
+          backupChapterId: 9001,
+          restoredChapterId: conflictingChapterId,
+        },
+      ]);
+
+      const secondMapping = await _restoreNovelAndChapters(backupNovel, {
+        includeChapterMappings: true,
+        restoreRunId,
+      });
+      expect(secondMapping.restoredNovelId).toBe(existingNovelId);
+      const novelsAfterReplay = await testDb.drizzleDb
+        .select()
+        .from(novelSchema)
+        .where(
+          and(
+            eq(novelSchema.path, '/restore/merge'),
+            eq(novelSchema.pluginId, 'merge-plugin'),
+          ),
+        )
+        .all();
+      const chaptersAfterReplay = await testDb.drizzleDb
+        .select()
+        .from(chapterSchema)
+        .where(eq(chapterSchema.novelId, existingNovelId))
+        .all();
+      expect(novelsAfterReplay).toHaveLength(1);
+      expect(chaptersAfterReplay).toHaveLength(2);
+      expect(
+        chaptersAfterReplay.map(chapter => chapter.id).sort((a, b) => a - b),
+      ).toEqual(
+        [conflictingChapterId, unrelatedChapterId].sort((a, b) => a - b),
+      );
+
+      await clearRestoreChapterMappings(restoreRunId);
+      expect(
+        await getRestoreChapterMappings(restoreRunId, 900, [9001]),
+      ).toEqual([]);
+      expect(
+        testDb.sqlite.executeSync('PRAGMA foreign_key_check').rows,
+      ).toEqual([]);
     });
   });
 });

@@ -1,9 +1,11 @@
 // db-manager.types.ts
-import type { DrizzleDb } from '@database/db';
 import type {
-  Placeholder,
-} from 'drizzle-orm';
-import { SQLitePreparedQuery } from 'drizzle-orm/sqlite-core';
+  BatchQueryResult,
+  SQLBatchTuple,
+} from '@op-engineering/op-sqlite';
+import type { DrizzleDb } from '@database/db';
+import type { Placeholder } from 'drizzle-orm';
+import type { SQLitePreparedQuery } from 'drizzle-orm/sqlite-core';
 
 // Define the TransactionParameter type based on your DrizzleDb
 export type TransactionParameter = Parameters<
@@ -14,6 +16,10 @@ export type TransactionParameter = Parameters<
  * This contract ensures consistent documentation and type safety across the application.
  */
 export interface IDbManager {
+  /**
+   * Executes raw op-sqlite commands as one atomic transaction.
+   */
+  executeBatch(commands: SQLBatchTuple[]): Promise<BatchQueryResult>;
   /**
    * Efficiently executes a Drizzle query for multiple data rows using
    * op-sqlite executeBatch under the hood. The batch owns its transaction;
@@ -26,7 +32,7 @@ export interface IDbManager {
       tx: TransactionParameter,
       ph: (arg: Extract<keyof T, string>) => Placeholder,
     ) => SQLitePreparedQuery<any>,
-  ): Promise<void>;
+  ): Promise<BatchQueryResult>;
 
   /**
    * Creates a subquery that defines a temporary named result set as a CTE.

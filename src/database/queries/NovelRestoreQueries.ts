@@ -1,4 +1,5 @@
-import { eq, inArray, sql } from 'drizzle-orm';
+import { and, eq, inArray, or } from 'drizzle-orm';
+import type { SQLBatchTuple, Scalar } from '@op-engineering/op-sqlite';
 
 import { fetchNovel } from '@services/plugin/fetch';
 import { insertChapters } from './ChapterQueries';
@@ -11,11 +12,10 @@ import {
   createNovelTriggerQueryUpdate,
 } from '@database/queryStrings/triggers';
 import {
-  chapterSchema,
   novelCategorySchema,
   novelSchema,
+  restoreChapterMappingSchema,
 } from '@database/schema';
-import type { TransactionParameter } from '@database/manager/manager.d';
 import { NOVEL_STORAGE } from '@utils/Storages';
 import type { BackupNovel, NovelInfo, RestoredNovelMapping } from '../types';
 
@@ -81,229 +81,322 @@ export const restoreLibrary = async (novel: NovelInfo) => {
     await insertChapters(novelId, sourceNovel.chapters);
   }
 };
+const sqliteBoolean = (value: boolean | null | undefined): Scalar =>
+  value == null ? null : value ? 1 : 0;
+const RESTORE_NOVEL_BATCH_SIZE = 100;
+const RESTORE_CHAPTER_BATCH_SIZE = 10_000;
 
-const disableNovelStatsTriggers = async (tx: TransactionParameter) => {
-  await tx.run(sql.raw('DROP TRIGGER IF EXISTS update_novel_stats'));
-  await tx.run(sql.raw('DROP TRIGGER IF EXISTS update_novel_stats_on_update'));
-  await tx.run(sql.raw('DROP TRIGGER IF EXISTS update_novel_stats_on_delete'));
+export type RestoreNovelOptions = {
+  includeChapterMappings?: boolean;
+  restoreRunId?: string;
 };
 
-const restoreNovelStatsTriggers = async (tx: TransactionParameter) => {
-  await tx.run(sql.raw(createNovelTriggerQueryInsert));
-  await tx.run(sql.raw(createNovelTriggerQueryDelete));
-  await tx.run(sql.raw(createNovelTriggerQueryUpdate));
-};
+const NOVEL_UPSERT_SQL = `
+  INSERT INTO Novel (
+    path, pluginId, name, cover, summary, author, artist, status, genres,
+    inLibrary, isLocal, totalPages
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  ON CONFLICT(path, pluginId) DO UPDATE SET
+    path = excluded.path,
+    pluginId = excluded.pluginId,
+    name = excluded.name,
+    cover = excluded.cover,
+    summary = excluded.summary,
+    author = excluded.author,
+    artist = excluded.artist,
+    status = excluded.status,
+    genres = excluded.genres,
+    inLibrary = excluded.inLibrary,
+    isLocal = excluded.isLocal,
+    totalPages = excluded.totalPages
+`;
 
-const restoreNovelRecord = async (
-  tx: TransactionParameter,
-  novel: Omit<BackupNovel, 'id' | 'chapters'>,
-) => {
-  const resetState = {
-    totalChapters: 0,
-    chaptersDownloaded: 0,
-    chaptersUnread: 0,
-    lastReadAt: null,
-    lastUpdatedAt: null,
-  };
+const NOVEL_COVER_UPDATE_SQL = `
+  UPDATE Novel
+  SET cover = ? || pluginId || '/' || id || '/cover.png' || ?
+  WHERE pluginId = ? AND path = ?
+`;
 
-  // The order here makes resetState authoritative.
-  const values = {
-    ...resetState,
-    ...novel,
-  };
+const restoreNovelValues = (novel: BackupNovel): Scalar[] => [
+  novel.path,
+  novel.pluginId,
+  novel.name,
+  novel.cover ?? null,
+  novel.summary ?? null,
+  novel.author ?? null,
+  novel.artist ?? null,
+  novel.status ?? null,
+  novel.genres ?? null,
+  sqliteBoolean(novel.inLibrary),
+  sqliteBoolean(novel.isLocal),
+  novel.totalPages ?? null,
+];
 
-  const localCover = values.cover?.startsWith(`file://${NOVEL_STORAGE}/`)
-    ? values.cover
-    : undefined;
-
-  const cacheSuffix = localCover?.match(/[?#].*$/)?.[0] ?? '';
-
-  const restoredNovel = await tx
-    .insert(novelSchema)
-    .values(values)
-    .onConflictDoUpdate({
-      target: [novelSchema.path, novelSchema.pluginId],
-      set: values,
-    })
-    .returning({ id: novelSchema.id })
-    .get();
-
-  await tx
-    .delete(chapterSchema)
-    .where(eq(chapterSchema.novelId, restoredNovel.id))
-    .run();
-
-  if (localCover !== undefined) {
-    await tx
-      .update(novelSchema)
-      .set({
-        cover:
-          `file://${NOVEL_STORAGE}/` +
-          `${values.pluginId}/${restoredNovel.id}/cover.png` +
-          cacheSuffix,
-      })
-      .where(eq(novelSchema.id, restoredNovel.id))
-      .run();
+const restoreNovelChunk = async (
+  backupNovels: BackupNovel[],
+): Promise<RestoredNovelMapping[]> => {
+  const commands: SQLBatchTuple[] = [
+    [NOVEL_UPSERT_SQL, backupNovels.map(restoreNovelValues)],
+  ];
+  const storedCovers = backupNovels
+    .filter(novel => novel.cover?.startsWith(`file://${NOVEL_STORAGE}/`))
+    .map(
+      novel =>
+        [
+          `file://${NOVEL_STORAGE}/`,
+          novel.cover?.match(/[?#].*$/)?.[0] ?? '',
+          novel.pluginId,
+          novel.path,
+        ] as Scalar[],
+    );
+  if (storedCovers.length > 0) {
+    commands.push([NOVEL_COVER_UPDATE_SQL, storedCovers]);
   }
+  await dbManager.executeBatch(commands);
 
-  return restoredNovel;
+  const rows = await dbManager
+    .select({
+      id: novelSchema.id,
+      path: novelSchema.path,
+      pluginId: novelSchema.pluginId,
+    })
+    .from(novelSchema)
+    .where(
+      or(
+        ...backupNovels.map(novel =>
+          and(
+            eq(novelSchema.pluginId, novel.pluginId),
+            eq(novelSchema.path, novel.path),
+          ),
+        ),
+      ),
+    )
+    .all();
+  const rowsByIdentity = new Map(
+    rows.map(row => [`${row.pluginId}\u0000${row.path}`, row]),
+  );
+  return backupNovels.map(backupNovel => {
+    const row = rowsByIdentity.get(
+      `${backupNovel.pluginId}\u0000${backupNovel.path}`,
+    );
+    if (!row) {
+      throw new Error('Restore returned incomplete novel mapping');
+    }
+    return {
+      pluginId: backupNovel.pluginId,
+      backupNovelId: backupNovel.id,
+      restoredNovelId: row.id,
+    };
+  });
+};
+
+const restoreNovelChunkWithRetry = async (
+  backupNovels: BackupNovel[],
+): Promise<RestoredNovelMapping[]> => {
+  try {
+    return await restoreNovelChunk(backupNovels);
+  } catch {
+    const mappings: RestoredNovelMapping[] = [];
+    let failed = false;
+    for (const backupNovel of backupNovels) {
+      try {
+        mappings.push(
+          await restoreNovelChunk([backupNovel]).then(([mapping]) => {
+            if (!mapping) {
+              throw new Error('Failed to restore novel');
+            }
+            return mapping;
+          }),
+        );
+      } catch {
+        failed = true;
+      }
+    }
+    if (failed) {
+      throw new Error('Failed to restore one or more novels');
+    }
+    return mappings;
+  }
 };
 
 const restoreChapterValues = (
-  chapters: BackupNovel['chapters'],
-  novelId: number,
-) =>
-  chapters.map(({ id: _chapterId, novelId: _novelId, ...chapter }) => ({
-    ...chapter,
-    novelId,
-  }));
+  chapter: BackupNovel['chapters'][number],
+  restoredNovelId: number,
+): Scalar[] => [
+  restoredNovelId,
+  chapter.path,
+  chapter.name,
+  chapter.releaseTime ?? null,
+  sqliteBoolean(chapter.bookmark),
+  sqliteBoolean(chapter.unread),
+  chapter.readTime ?? null,
+  sqliteBoolean(chapter.isDownloaded),
+  chapter.updatedTime ?? null,
+  chapter.chapterNumber ?? null,
+  chapter.page ?? null,
+  chapter.position ?? null,
+  chapter.progress ?? null,
+  chapter.scanlator ?? null,
+  chapter.timeSpent ?? null,
+];
 
-const refreshRestoredNovelStats = async (
-  tx: TransactionParameter,
-  novelIds: number[],
+type ChapterRestoreRecord = {
+  backupNovelId: number;
+  backupChapterId: number;
+  restoredNovelId: number;
+  chapter: BackupNovel['chapters'][number];
+};
+
+const CHAPTER_UPSERT_SQL = `
+  INSERT INTO Chapter (
+    novelId, path, name, releaseTime, bookmark, unread, readTime,
+    isDownloaded, updatedTime, chapterNumber, page, position, progress,
+    scanlator, timeSpent
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  ON CONFLICT(novelId, path) DO UPDATE SET
+    novelId = excluded.novelId,
+    path = excluded.path,
+    name = excluded.name,
+    releaseTime = excluded.releaseTime,
+    bookmark = excluded.bookmark,
+    unread = excluded.unread,
+    readTime = excluded.readTime,
+    isDownloaded = excluded.isDownloaded,
+    updatedTime = excluded.updatedTime,
+    chapterNumber = excluded.chapterNumber,
+    page = excluded.page,
+    position = excluded.position,
+    progress = excluded.progress,
+    scanlator = excluded.scanlator,
+    timeSpent = excluded.timeSpent
+`;
+
+const RESTORE_CHAPTER_MAPPING_INSERT_SQL = `
+  INSERT INTO RestoreChapterMapping (
+    restoreRunId, backupNovelId, backupChapterId,
+    restoredNovelId, restoredChapterId
+  )
+  SELECT ?, ?, ?, ?, id
+  FROM Chapter
+  WHERE novelId = ? AND path = ?
+  ON CONFLICT(restoreRunId, backupNovelId, backupChapterId) DO UPDATE SET
+    restoredNovelId = excluded.restoredNovelId,
+    restoredChapterId = excluded.restoredChapterId
+`;
+
+const restoreChapterChunk = async (
+  records: ChapterRestoreRecord[],
+  includeChapterMappings: boolean,
+  restoreRunId: string | undefined,
 ) => {
-  if (novelIds.length === 0) {
+  if (records.length === 0) {
     return;
   }
+  if (includeChapterMappings && !restoreRunId) {
+    throw new Error('Restore run ID is required for chapter mappings');
+  }
 
-  const stats = await tx
-    .select({
-      novelId: chapterSchema.novelId,
-      totalChapters: sql<number>`COUNT(*)`,
-      chaptersDownloaded: sql<number>`SUM(CASE WHEN ${chapterSchema.isDownloaded} = 1 THEN 1 ELSE 0 END)`,
-      chaptersUnread: sql<number>`SUM(CASE WHEN ${chapterSchema.unread} = 1 THEN 1 ELSE 0 END)`,
-      lastReadAt: sql<string | null>`MAX(${chapterSchema.readTime})`,
-      lastUpdatedAt: sql<string | null>`(
+  const commands: SQLBatchTuple[] = [
+    ['DROP TRIGGER IF EXISTS update_novel_stats'],
+    ['DROP TRIGGER IF EXISTS update_novel_stats_on_update'],
+    ['DROP TRIGGER IF EXISTS update_novel_stats_on_delete'],
+    [
+      CHAPTER_UPSERT_SQL,
+      records.map(record =>
+        restoreChapterValues(record.chapter, record.restoredNovelId),
+      ),
+    ],
+  ];
+  if (includeChapterMappings) {
+    commands.push([
+      RESTORE_CHAPTER_MAPPING_INSERT_SQL,
+      records.map(
+        record =>
+          [
+            restoreRunId,
+            record.backupNovelId,
+            record.backupChapterId,
+            record.restoredNovelId,
+            record.restoredNovelId,
+            record.chapter.path,
+          ] as Scalar[],
+      ),
+    ]);
+  }
+  commands.push(
+    [createNovelTriggerQueryInsert],
+    [createNovelTriggerQueryDelete],
+    [createNovelTriggerQueryUpdate],
+  );
+  await dbManager.executeBatch(commands);
+};
+
+const restoreChapterChunkWithRetry = async (
+  records: ChapterRestoreRecord[],
+  includeChapterMappings: boolean,
+  restoreRunId: string | undefined,
+) => {
+  try {
+    await restoreChapterChunk(records, includeChapterMappings, restoreRunId);
+  } catch {
+    let failed = false;
+    for (const record of records) {
+      try {
+        await restoreChapterChunk(
+          [record],
+          includeChapterMappings,
+          restoreRunId,
+        );
+      } catch {
+        failed = true;
+      }
+    }
+    if (failed) {
+      throw new Error('Failed to restore one or more chapters');
+    }
+  }
+};
+
+const NOVEL_STATS_UPDATE_SQL = `
+  UPDATE Novel
+  SET totalChapters = (
+        SELECT COUNT(*)
+        FROM Chapter
+        WHERE Chapter.novelId = Novel.id
+      ),
+      chaptersDownloaded = COALESCE((
+        SELECT SUM(CASE WHEN Chapter.isDownloaded = 1 THEN 1 ELSE 0 END)
+        FROM Chapter
+        WHERE Chapter.novelId = Novel.id
+      ), 0),
+      chaptersUnread = COALESCE((
+        SELECT SUM(CASE WHEN Chapter.unread = 1 THEN 1 ELSE 0 END)
+        FROM Chapter
+        WHERE Chapter.novelId = Novel.id
+      ), 0),
+      lastReadAt = (
+        SELECT MAX(Chapter.readTime)
+        FROM Chapter
+        WHERE Chapter.novelId = Novel.id
+      ),
+      lastUpdatedAt = (
         SELECT updatedChapter.updatedTime
         FROM Chapter AS updatedChapter
-        WHERE updatedChapter.novelId = Chapter.novelId
+        WHERE updatedChapter.novelId = Novel.id
           AND updatedChapter.updatedTime IS NOT NULL
         ORDER BY julianday(updatedChapter.updatedTime) DESC
         LIMIT 1
-      )`,
-    })
-    .from(chapterSchema)
-    .where(inArray(chapterSchema.novelId, novelIds))
-    .groupBy(chapterSchema.novelId)
-    .all();
+      )
+  WHERE Novel.id = ?
+`;
 
-  if (stats.length === 0) {
+const refreshRestoredNovelStats = async (novelIds: number[]) => {
+  if (novelIds.length === 0) {
     return;
   }
-
-  const ids = sql.join(
-    novelIds.map(id => sql`${id}`),
-    sql`, `,
-  );
-  const cases = <T extends keyof (typeof stats)[number]>(
-    field: T,
-    fallback: unknown,
-  ) =>
-    sql`CASE ${novelSchema.id} ${sql.join(
-      stats.map(
-        (stat: (typeof stats)[number]) =>
-          sql`WHEN ${stat.novelId} THEN ${stat[field]}`,
-      ),
-      sql` `,
-    )} ELSE ${fallback} END`;
-
-  await tx.run(sql`
-    UPDATE Novel
-    SET totalChapters = ${cases('totalChapters', novelSchema.totalChapters)},
-        chaptersDownloaded = ${cases(
-          'chaptersDownloaded',
-          novelSchema.chaptersDownloaded,
-        )},
-        chaptersUnread = ${cases('chaptersUnread', novelSchema.chaptersUnread)},
-        lastReadAt = ${cases('lastReadAt', novelSchema.lastReadAt)},
-        lastUpdatedAt = ${cases('lastUpdatedAt', novelSchema.lastUpdatedAt)}
-    WHERE id IN (${ids})
-  `);
-};
-
-const RESTORE_CHAPTER_BATCH_SIZE = 500;
-
-type RestoreNovelOptions = {
-  includeChapterMappings?: boolean;
-};
-
-const restoreNovelsAndChaptersInTransaction = async (
-  tx: TransactionParameter,
-  backupNovels: BackupNovel[],
-  includeChapterMappings: boolean,
-): Promise<RestoredNovelMapping[]> => {
-  await disableNovelStatsTriggers(tx);
-
-  try {
-    const restoredNovels: {
-      backupNovelId: number;
-      chapters: BackupNovel['chapters'];
-      novel: Omit<BackupNovel, 'id' | 'chapters'>;
-      restoredNovelId: number;
-    }[] = [];
-    for (const backupNovel of backupNovels) {
-      const { chapters, id: backupNovelId, ...novel } = backupNovel;
-      const restoredNovel = await restoreNovelRecord(tx, novel);
-      restoredNovels.push({
-        backupNovelId,
-        chapters,
-        novel,
-        restoredNovelId: restoredNovel.id,
-      });
-    }
-
-    const mappings: RestoredNovelMapping[] = [];
-    for (const restoredNovel of restoredNovels) {
-      const chapterMappings: RestoredNovelMapping['chapters'] = [];
-      for (
-        let i = 0;
-        i < restoredNovel.chapters.length;
-        i += RESTORE_CHAPTER_BATCH_SIZE
-      ) {
-        const batch = restoredNovel.chapters.slice(
-          i,
-          i + RESTORE_CHAPTER_BATCH_SIZE,
-        );
-        if (includeChapterMappings) {
-          const restoredChapters = (await tx
-            .insert(chapterSchema)
-            .values(restoreChapterValues(batch, restoredNovel.restoredNovelId))
-            .returning({ id: chapterSchema.id, path: chapterSchema.path })
-            .all()) as { id: number; path: string }[];
-          const restoredIdsByPath = new Map(
-            restoredChapters.map(chapter => [chapter.path, chapter.id]),
-          );
-          for (const chapter of batch) {
-            const restoredChapterId = restoredIdsByPath.get(chapter.path);
-            if (restoredChapterId !== undefined) {
-              chapterMappings.push({
-                backupChapterId: chapter.id,
-                restoredChapterId,
-              });
-            }
-          }
-        } else {
-          await tx
-            .insert(chapterSchema)
-            .values(restoreChapterValues(batch, restoredNovel.restoredNovelId))
-            .run();
-        }
-      }
-      mappings.push({
-        pluginId: restoredNovel.novel.pluginId,
-        backupNovelId: restoredNovel.backupNovelId,
-        restoredNovelId: restoredNovel.restoredNovelId,
-        chapters: chapterMappings,
-      });
-    }
-    await refreshRestoredNovelStats(
-      tx,
-      restoredNovels.map(restoredNovel => restoredNovel.restoredNovelId),
-    );
-    return mappings;
-  } finally {
-    await restoreNovelStatsTriggers(tx);
-  }
+  await dbManager.executeBatch([
+    [NOVEL_STATS_UPDATE_SQL, novelIds.map(id => [id] as Scalar[])],
+  ]);
 };
 
 export const _restoreNovelsAndChapters = async (
@@ -313,17 +406,63 @@ export const _restoreNovelsAndChapters = async (
   if (backupNovels.length === 0) {
     return [];
   }
-  return dbManager.write(tx =>
-    restoreNovelsAndChaptersInTransaction(
-      tx,
-      backupNovels,
-      options.includeChapterMappings ?? true,
-    ),
+  const includeChapterMappings = options.includeChapterMappings ?? true;
+  if (includeChapterMappings && !options.restoreRunId) {
+    throw new Error('Restore run ID is required for chapter mappings');
+  }
+
+  const mappings: RestoredNovelMapping[] = [];
+  for (
+    let start = 0;
+    start < backupNovels.length;
+    start += RESTORE_NOVEL_BATCH_SIZE
+  ) {
+    mappings.push(
+      ...(await restoreNovelChunkWithRetry(
+        backupNovels.slice(start, start + RESTORE_NOVEL_BATCH_SIZE),
+      )),
+    );
+  }
+
+  const restoredNovelIds = new Map(
+    mappings.map(mapping => [mapping.backupNovelId, mapping.restoredNovelId]),
   );
+  const chapterChunk: ChapterRestoreRecord[] = [];
+  for (const backupNovel of backupNovels) {
+    const restoredNovelId = restoredNovelIds.get(backupNovel.id);
+    if (restoredNovelId === undefined) {
+      throw new Error('Missing restored novel mapping');
+    }
+    for (const chapter of backupNovel.chapters) {
+      chapterChunk.push({
+        backupNovelId: backupNovel.id,
+        backupChapterId: chapter.id,
+        restoredNovelId,
+        chapter,
+      });
+      if (chapterChunk.length === RESTORE_CHAPTER_BATCH_SIZE) {
+        await restoreChapterChunkWithRetry(
+          chapterChunk,
+          includeChapterMappings,
+          options.restoreRunId,
+        );
+        chapterChunk.length = 0;
+      }
+    }
+  }
+  if (chapterChunk.length > 0) {
+    await restoreChapterChunkWithRetry(
+      chapterChunk,
+      includeChapterMappings,
+      options.restoreRunId,
+    );
+  }
+  await refreshRestoredNovelStats([...restoredNovelIds.values()]);
+  return mappings;
 };
 
 /**
- * Restores novel and chapters from a backup object.
+ * Restores a novel and its chapters from a backup object.
  */
 export const _restoreNovelAndChapters = async (
   backupNovel: BackupNovel,
@@ -334,4 +473,37 @@ export const _restoreNovelAndChapters = async (
     throw new Error('Failed to restore novel');
   }
   return mapping;
+};
+
+export const getRestoreChapterMappings = async (
+  restoreRunId: string,
+  backupNovelId: number,
+  backupChapterIds: number[],
+) => {
+  if (backupChapterIds.length === 0) {
+    return [];
+  }
+  return dbManager
+    .select({
+      backupChapterId: restoreChapterMappingSchema.backupChapterId,
+      restoredChapterId: restoreChapterMappingSchema.restoredChapterId,
+    })
+    .from(restoreChapterMappingSchema)
+    .where(
+      and(
+        eq(restoreChapterMappingSchema.restoreRunId, restoreRunId),
+        eq(restoreChapterMappingSchema.backupNovelId, backupNovelId),
+        inArray(restoreChapterMappingSchema.backupChapterId, backupChapterIds),
+      ),
+    )
+    .all();
+};
+
+export const clearRestoreChapterMappings = async (restoreRunId: string) => {
+  await dbManager.write(tx =>
+    tx
+      .delete(restoreChapterMappingSchema)
+      .where(eq(restoreChapterMappingSchema.restoreRunId, restoreRunId))
+      .run(),
+  );
 };

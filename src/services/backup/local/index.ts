@@ -7,6 +7,7 @@ import {
 import {
   finalizeRestoredPlugins,
   getRestoreCompletionText,
+  type RestoreResult,
 } from '../restoreResult';
 import { getBackupCompletionText } from '../backupResult';
 import NativeZipArchive from '@modules/native-zip-archive';
@@ -24,6 +25,7 @@ import {
   restoreNovelFiles,
 } from '../fileSections';
 import { resolveBackupOptions, type BackupOptions } from '../options';
+import { clearRestoreChapterMappings } from '@database/queries/NovelRestoreQueries';
 
 const logRestoreBenchmark = (message: string) => {
   if (!__DEV__) {
@@ -119,6 +121,7 @@ export const restoreBackup = async (
   setMeta?: TaskProgressUpdater,
 ) => {
   logRestoreBenchmark('local:start');
+  let restoreResult: RestoreResult | undefined;
   try {
     setMeta?.(meta => ({
       ...meta,
@@ -151,7 +154,7 @@ export const restoreBackup = async (
 
     await sleep(200);
 
-    const restoreResult = await restoreData(
+    restoreResult = await restoreData(
       CACHE_DIR_PATH,
       setMeta,
       logRestoreBenchmark,
@@ -164,10 +167,10 @@ export const restoreBackup = async (
       }
       const legacyFilesRestorePath = getLegacyFilesRestorePath(CACHE_DIR_PATH);
       await NativeZipArchive.unzip(legacyArchive, legacyFilesRestorePath);
-      logRestoreBenchmark('local:selected-archives:done');
       await restoreLegacyFiles(
         legacyFilesRestorePath,
         restoreResult.novelMappings,
+        restoreResult.restoreRunId,
       );
       logRestoreBenchmark('local:downloaded-files:done');
     } else {
@@ -204,10 +207,11 @@ export const restoreBackup = async (
             ? `${CACHE_DIR_PATH}/${BackupEntryName.NOVEL_FILES}`
             : novelFilesRestorePath,
           restoreResult.novelMappings,
+          restoreResult.restoreRunId,
         );
       }
-      logRestoreBenchmark('local:downloaded-files:done');
     }
+    logRestoreBenchmark('local:downloaded-files:done');
     logRestoreBenchmark('local:selected-files:done');
     const missingPluginIds = await finalizeRestoredPlugins(restoreResult);
     const completionText = getRestoreCompletionText(
@@ -229,5 +233,9 @@ export const restoreBackup = async (
       isRunning: false,
     }));
     throw error;
+  } finally {
+    if (restoreResult) {
+      await clearRestoreChapterMappings(restoreResult.restoreRunId);
+    }
   }
 };

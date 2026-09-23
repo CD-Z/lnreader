@@ -5,6 +5,7 @@ import { MMKVStorage } from '@utils/mmkv/mmkv';
 import { version } from '../../../package.json';
 import { getAllNovels } from '@database/queries/NovelQueries';
 import {
+  clearRestoreChapterMappings,
   _restoreNovelAndChapters,
   _restoreNovelsAndChapters,
 } from '@database/queries/NovelRestoreQueries';
@@ -19,7 +20,12 @@ import {
   BackupNovel,
   type RestoredNovelMapping,
 } from '@database/types';
-import { decodeNovelBatch, encodeNovelBatch } from './novelPayload';
+import {
+  decodeNovelBatch,
+  encodeNovelBatch,
+  normalizeLegacyNovel,
+  validateBackupNovel,
+} from './novelPayload';
 import {
   BackupEntryName,
   type BackupManifest,
@@ -340,12 +346,126 @@ const updateRestoreProgress = (
   }));
 };
 
+type BackupNovelFileDescriptor = {
+  name: string;
+  path: string;
+};
+
+const createRestoreRunId = () =>
+  `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+
+const decodeRestoreNovelFile = (
+  fileContent: string,
+  manifest: ResolvedBackupManifest,
+) => {
+  const payload: unknown = JSON.parse(fileContent);
+  const novels =
+    manifest.novelDataFormat === 2
+      ? decodeNovelBatch(payload)
+      : [normalizeLegacyNovel(payload)];
+  return novels.map(novel => {
+    const {
+      chaptersDownloaded: _chaptersDownloaded,
+      chaptersUnread: _chaptersUnread,
+      totalChapters: _totalChapters,
+      lastReadAt: _lastReadAt,
+      lastUpdatedAt: _lastUpdatedAt,
+      ...withoutAggregates
+    } = novel as BackupNovel & {
+      chaptersDownloaded?: number | null;
+      chaptersUnread?: number | null;
+      totalChapters?: number | null;
+      lastReadAt?: string | null;
+      lastUpdatedAt?: string | null;
+    };
+    const normalized = validateBackupNovel(withoutAggregates);
+    return normalized.cover && !normalized.cover.startsWith('http')
+      ? { ...normalized, cover: APP_STORAGE_URI + normalized.cover }
+      : normalized;
+  });
+};
+const getNovelFileRecordCount = (
+  fileContent: string,
+  manifest: ResolvedBackupManifest,
+) => {
+  if (manifest.novelDataFormat !== 2) {
+    return 1;
+  }
+  try {
+    const payload: unknown = JSON.parse(fileContent);
+    return Array.isArray(payload) ? Math.max(1, payload.length) : 1;
+  } catch {
+    return 1;
+  }
+};
+
+const validateNovelFileRecords = (
+  novels: BackupNovel[],
+  seenNovelIds: Set<number>,
+  seenNovelIdentities: Set<string>,
+  seenChapterIdentities: Set<string>,
+) => {
+  const fileNovelIds = new Set<number>();
+  const fileNovelIdentities = new Set<string>();
+  const fileChapterIdentities = new Set<string>();
+  for (const novel of novels) {
+    const novelIdentity = `${novel.pluginId}\u0000${novel.path}`;
+    if (
+      fileNovelIds.has(novel.id) ||
+      seenNovelIds.has(novel.id) ||
+      fileNovelIdentities.has(novelIdentity) ||
+      seenNovelIdentities.has(novelIdentity)
+    ) {
+      throw new Error('Duplicate backup novel identity');
+    }
+    fileNovelIds.add(novel.id);
+    fileNovelIdentities.add(novelIdentity);
+    for (const chapter of novel.chapters) {
+      const chapterIdentity = `${novel.id}\u0000${chapter.path}`;
+      if (
+        fileChapterIdentities.has(chapterIdentity) ||
+        seenChapterIdentities.has(chapterIdentity)
+      ) {
+        throw new Error('Duplicate backup chapter identity');
+      }
+      fileChapterIdentities.add(chapterIdentity);
+    }
+  }
+  for (const novelId of fileNovelIds) {
+    seenNovelIds.add(novelId);
+  }
+  for (const novelIdentity of fileNovelIdentities) {
+    seenNovelIdentities.add(novelIdentity);
+  }
+  for (const chapterIdentity of fileChapterIdentities) {
+    seenChapterIdentities.add(chapterIdentity);
+  }
+};
+
+const decodeAndValidateNovelFile = (
+  fileContent: string,
+  manifest: ResolvedBackupManifest,
+  seenNovelIds?: Set<number>,
+  seenNovelIdentities?: Set<string>,
+  seenChapterIdentities?: Set<string>,
+) => {
+  const novels = decodeRestoreNovelFile(fileContent, manifest);
+  validateNovelFileRecords(
+    novels,
+    seenNovelIds ?? new Set<number>(),
+    seenNovelIdentities ?? new Set<string>(),
+    seenChapterIdentities ?? new Set<string>(),
+  );
+  return novels;
+};
+
 type RestoreBenchmarkLogger = (message: string) => void;
 
-export const restoreData = async (
+const restoreDataInternal = async (
   cacheDirPath: string,
-  setMeta?: TaskProgressUpdater,
-  benchmarkLog?: RestoreBenchmarkLogger,
+  setMeta: TaskProgressUpdater | undefined,
+  benchmarkLog: RestoreBenchmarkLogger | undefined,
+  restoreRunId: string,
 ): Promise<RestoreResult> => {
   const manifest = await getBackupManifest(cacheDirPath);
   benchmarkLog?.('restoreData:manifest:loaded');
@@ -365,11 +485,12 @@ export const restoreData = async (
   })();
   let pluginsFromSettings: PluginItem[] = [];
 
-  benchmarkLog?.('restoreData:novels:start');
   if (manifest.sections.library) {
-    updateRestoreProgress(setMeta, getString('backupScreen.restoringNovels'));
+    benchmarkLog?.('restoreData:novels:validation:start');
+    updateRestoreProgress(setMeta, getString('backupScreen.validatingNovels'));
   }
   let novelCount = 0;
+  let totalNovelCount = 0;
   let failedCount = 0;
   let failedSectionCount = 0;
   let readMs = 0;
@@ -388,22 +509,75 @@ export const restoreData = async (
         .sort((left, right) =>
           left.name < right.name ? -1 : left.name > right.name ? 1 : 0,
         );
+      const validItems: BackupNovelFileDescriptor[] = [];
+      const seenNovelIds = new Set<number>();
+      const seenNovelIdentities = new Set<string>();
+      const seenChapterIdentities = new Set<string>();
+
+      for (const [index, item] of items.entries()) {
+        if (index % 100 === 0) {
+          setTimeout(async () => {
+            updateRestoreProgress(
+              setMeta,
+              getString('backupScreen.validatingNovelsProgress', {
+                current: index + 1,
+                total: items.length,
+              }),
+            );
+          }, 0)
+          }
+        const readStartedAt = performance.now();
+        let fileContent: string;
+        try {
+          fileContent = await NativeFile.readFile(item.path);
+        } catch {
+          failedCount++;
+          continue;
+        } finally {
+          readMs += performance.now() - readStartedAt;
+        }
+
+        const parseStartedAt = performance.now();
+        try {
+          const validatedNovels = decodeAndValidateNovelFile(
+            fileContent,
+            manifest,
+            seenNovelIds,
+            seenNovelIdentities,
+            seenChapterIdentities,
+          );
+          totalNovelCount += validatedNovels.length;
+          validItems.push({ name: item.name, path: item.path });
+        } catch {
+          failedCount += getNovelFileRecordCount(fileContent, manifest);
+        } finally {
+          parseMs += performance.now() - parseStartedAt;
+        }
+      }
+      benchmarkLog?.(
+        `restoreData:novels:validation:done total=${totalNovelCount}`,
+      );
+
       const pendingNovels: BackupNovel[] = [];
-      const restoreNovelBatchSize = RESTORE_NOVEL_BATCH_SIZE;
       const restoreNovelBatch = async () => {
         if (pendingNovels.length === 0) {
           return;
         }
         const batch = pendingNovels.splice(0, pendingNovels.length);
+        const restoreOptions = {
+          includeChapterMappings: manifest.sections.downloadedFiles,
+          ...(manifest.sections.downloadedFiles ? { restoreRunId } : {}),
+        };
         let restoredNovels: {
           backupNovel: BackupNovel;
           mapping: RestoredNovelMapping;
-        }[];
+        }[] = [];
         const databaseStartedAt = performance.now();
         try {
-          const mappings = await _restoreNovelsAndChapters(batch, {
-            includeChapterMappings: manifest.sections.downloadedFiles,
-          });
+          const mappings = await _restoreNovelsAndChapters(
+            batch,
+            restoreOptions,
+          );
           if (mappings.length !== batch.length) {
             throw new Error('Restore returned incomplete novel mappings');
           }
@@ -412,14 +586,14 @@ export const restoreData = async (
             mapping: mappings[index],
           }));
         } catch {
-          restoredNovels = [];
           for (const backupNovel of batch) {
             try {
               restoredNovels.push({
                 backupNovel,
-                mapping: await _restoreNovelAndChapters(backupNovel, {
-                  includeChapterMappings: manifest.sections.downloadedFiles,
-                }),
+                mapping: await _restoreNovelAndChapters(
+                  backupNovel,
+                  restoreOptions,
+                ),
               });
             } catch {
               failedCount++;
@@ -464,16 +638,13 @@ export const restoreData = async (
         }
       };
 
-      for (const [index, item] of items.entries()) {
-        updateRestoreProgress(
-          setMeta,
-          getString('backupScreen.restoringNovelsProgress', {
-            current: index + 1,
-            total: items.length,
-          }),
-        );
-        let fileContent: string;
+      benchmarkLog?.(
+        `restoreData:novels:restore:start total=${totalNovelCount}`,
+      );
+      updateRestoreProgress(setMeta, getString('backupScreen.restoringNovels'));
+      for (const item of validItems) {
         const readStartedAt = performance.now();
+        let fileContent: string;
         try {
           fileContent = await NativeFile.readFile(item.path);
         } catch {
@@ -485,28 +656,45 @@ export const restoreData = async (
 
         const parseStartedAt = performance.now();
         try {
-          const decodedNovels =
-            manifest.novelDataFormat === 2
-              ? decodeNovelBatch(JSON.parse(fileContent!))
-              : [JSON.parse(fileContent!) as BackupNovel];
+          const decodedNovels = decodeAndValidateNovelFile(
+            fileContent,
+            manifest,
+          );
           for (const backupNovel of decodedNovels) {
             pluginIds.add(backupNovel.pluginId);
-            if (backupNovel.cover && !backupNovel.cover.startsWith('http')) {
-              backupNovel.cover = APP_STORAGE_URI + backupNovel.cover;
-            }
             pendingNovels.push(backupNovel);
           }
         } catch {
-          failedCount++;
+          failedCount += getNovelFileRecordCount(fileContent, manifest);
         } finally {
           parseMs += performance.now() - parseStartedAt;
         }
 
-        if (pendingNovels.length >= restoreNovelBatchSize) {
+        if (pendingNovels.length >= RESTORE_NOVEL_BATCH_SIZE) {
           await restoreNovelBatch();
+          updateRestoreProgress(
+            setMeta,
+            getString('backupScreen.restoringNovelsProgress', {
+              current: novelCount,
+              total: totalNovelCount,
+            }),
+          );
+          benchmarkLog?.(
+            `restoreData:novels:restore:progress current=${novelCount} total=${totalNovelCount}`,
+          );
         }
       }
       await restoreNovelBatch();
+      updateRestoreProgress(
+        setMeta,
+        getString('backupScreen.restoringNovelsProgress', {
+          current: novelCount,
+          total: totalNovelCount,
+        }),
+      );
+      benchmarkLog?.(
+        `restoreData:novels:restore:progress current=${novelCount} total=${totalNovelCount}`,
+      );
       benchmarkLog?.(
         `restoreData:novels:done count=${novelCount} failed=${failedCount} readMs=${readMs.toFixed(
           1,
@@ -639,6 +827,26 @@ export const restoreData = async (
     failedSectionCount,
     pluginIds: [...pluginIds],
     novelMappings,
+    restoreRunId,
     manifest,
   };
+};
+
+export const restoreData = async (
+  cacheDirPath: string,
+  setMeta?: TaskProgressUpdater,
+  benchmarkLog?: RestoreBenchmarkLogger,
+): Promise<RestoreResult> => {
+  const restoreRunId = createRestoreRunId();
+  try {
+    return await restoreDataInternal(
+      cacheDirPath,
+      setMeta,
+      benchmarkLog,
+      restoreRunId,
+    );
+  } catch (error) {
+    await clearRestoreChapterMappings(restoreRunId).catch(() => undefined);
+    throw error;
+  }
 };

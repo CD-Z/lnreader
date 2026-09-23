@@ -83,7 +83,7 @@ const isString = (value: unknown): value is string => typeof value === 'string';
 const isNumber = (value: unknown): value is number =>
   typeof value === 'number' && Number.isFinite(value);
 const isId = (value: unknown): value is number =>
-  isNumber(value) && Number.isInteger(value);
+  isNumber(value) && Number.isInteger(value) && value > 0;
 const isBoolean = (value: unknown): value is boolean =>
   typeof value === 'boolean';
 
@@ -93,6 +93,177 @@ const nullableNumber = (value: unknown): value is NullableNumber =>
   isNullable(value, isNumber);
 const nullableBoolean = (value: unknown): value is NullableBoolean =>
   isNullable(value, isBoolean);
+const nonEmptyString = (value: unknown): value is string =>
+  isString(value) && value.trim().length > 0;
+
+const nullableLegacyString = (value: Record<string, unknown>, key: string) => {
+  const field = value[key];
+  if (field === undefined || field === null) {
+    return null;
+  }
+  if (!isString(field)) {
+    throw new Error(`Invalid legacy ${key}`);
+  }
+  return field;
+};
+
+const nullableLegacyNumber = (value: Record<string, unknown>, key: string) => {
+  const field = value[key];
+  if (field === undefined || field === null) {
+    return null;
+  }
+  if (!isNumber(field)) {
+    throw new Error(`Invalid legacy ${key}`);
+  }
+  return field;
+};
+
+const nullableLegacyBoolean = (value: Record<string, unknown>, key: string) => {
+  const field = value[key];
+  if (field === undefined || field === null) {
+    return null;
+  }
+  if (!isBoolean(field)) {
+    throw new Error(`Invalid legacy ${key}`);
+  }
+  return field;
+};
+
+const positiveId = (value: unknown): value is number =>
+  isId(value) && value > 0;
+
+const normalizeLegacyChapter = (
+  value: unknown,
+  containingNovelId: number,
+): ChapterInfo => {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw new Error('Invalid legacy chapter');
+  }
+  const chapter = value as Record<string, unknown>;
+  if (
+    !positiveId(chapter.id) ||
+    !nonEmptyString(chapter.path) ||
+    !nonEmptyString(chapter.name) ||
+    (chapter.novelId !== undefined &&
+      chapter.novelId !== null &&
+      !positiveId(chapter.novelId))
+  ) {
+    throw new Error('Invalid legacy chapter fields');
+  }
+  return {
+    id: chapter.id,
+    novelId: containingNovelId,
+    path: chapter.path,
+    name: chapter.name,
+    releaseTime: nullableLegacyString(chapter, 'releaseTime'),
+    readTime: nullableLegacyString(chapter, 'readTime'),
+    bookmark: nullableLegacyBoolean(chapter, 'bookmark'),
+    unread: nullableLegacyBoolean(chapter, 'unread'),
+    isDownloaded: nullableLegacyBoolean(chapter, 'isDownloaded'),
+    updatedTime: nullableLegacyString(chapter, 'updatedTime'),
+    chapterNumber: nullableLegacyNumber(chapter, 'chapterNumber'),
+    page: nullableLegacyString(chapter, 'page'),
+    progress: nullableLegacyNumber(chapter, 'progress'),
+    position: nullableLegacyNumber(chapter, 'position'),
+    scanlator: nullableLegacyString(chapter, 'scanlator'),
+    timeSpent: nullableLegacyNumber(chapter, 'timeSpent'),
+  };
+};
+
+export const validateBackupNovel = (novel: BackupNovel): BackupNovel => {
+  if (
+    !positiveId(novel.id) ||
+    !nonEmptyString(novel.path) ||
+    !nonEmptyString(novel.pluginId) ||
+    !isString(novel.name) ||
+    !Array.isArray(novel.chapters)
+  ) {
+    throw new Error('Invalid novel fields');
+  }
+  const stringFields = [
+    novel.cover,
+    novel.summary,
+    novel.author,
+    novel.artist,
+    novel.status,
+    novel.genres,
+  ];
+  if (stringFields.some(value => value !== null && !isString(value))) {
+    throw new Error('Invalid novel string field');
+  }
+  const booleanFields = [novel.inLibrary, novel.isLocal];
+  if (booleanFields.some(value => value !== null && !isBoolean(value))) {
+    throw new Error('Invalid novel boolean field');
+  }
+  if (novel.totalPages !== null && !isNumber(novel.totalPages)) {
+    throw new Error('Invalid novel number field');
+  }
+  for (const chapter of novel.chapters) {
+    if (
+      !positiveId(chapter.id) ||
+      !positiveId(chapter.novelId) ||
+      !nonEmptyString(chapter.path) ||
+      !isStringOrNull(chapter.releaseTime) ||
+      !isStringOrNull(chapter.readTime) ||
+      !isBooleanOrNull(chapter.bookmark) ||
+      !isBooleanOrNull(chapter.unread) ||
+      !isBooleanOrNull(chapter.isDownloaded) ||
+      !isStringOrNull(chapter.updatedTime) ||
+      !isNumberOrNull(chapter.chapterNumber) ||
+      !isStringOrNull(chapter.page) ||
+      !isNumberOrNull(chapter.progress) ||
+      !isNumberOrNull(chapter.position) ||
+      !isStringOrNull(chapter.scanlator) ||
+      !isNumberOrNull(chapter.timeSpent)
+    ) {
+      throw new Error('Invalid chapter fields');
+    }
+  }
+  return novel;
+};
+
+const isStringOrNull = (value: unknown): value is string | null =>
+  value === null || isString(value);
+const isNumberOrNull = (value: unknown): value is number | null =>
+  value === null || isNumber(value);
+const isBooleanOrNull = (value: unknown): value is boolean | null =>
+  value === null || isBoolean(value);
+
+export const normalizeLegacyNovel = (value: unknown): BackupNovel => {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw new Error('Invalid legacy novel');
+  }
+  const source = value as Record<string, unknown>;
+  if (
+    !positiveId(source.id) ||
+    !nonEmptyString(source.path) ||
+    !nonEmptyString(source.pluginId) ||
+    !isString(source.name) ||
+    !Array.isArray(source.chapters)
+  ) {
+    throw new Error('Invalid legacy novel fields');
+  }
+  const novelId = source.id;
+  const novel: BackupNovel = {
+    id: novelId,
+    path: source.path,
+    pluginId: source.pluginId,
+    name: source.name,
+    cover: nullableLegacyString(source, 'cover'),
+    summary: nullableLegacyString(source, 'summary'),
+    author: nullableLegacyString(source, 'author'),
+    artist: nullableLegacyString(source, 'artist'),
+    status: nullableLegacyString(source, 'status'),
+    genres: nullableLegacyString(source, 'genres'),
+    inLibrary: nullableLegacyBoolean(source, 'inLibrary'),
+    isLocal: nullableLegacyBoolean(source, 'isLocal'),
+    totalPages: nullableLegacyNumber(source, 'totalPages'),
+    chapters: source.chapters.map(chapter =>
+      normalizeLegacyChapter(chapter, novelId),
+    ),
+  };
+  return validateBackupNovel(novel);
+};
 
 const assertNovelKeys = (novel: Record<string, unknown>) => {
   const keys = Object.keys(novel).sort();
@@ -112,8 +283,8 @@ const isCompactChapter = (value: unknown): value is CompactChapter => {
 
   return (
     isId(value[0]) &&
-    isString(value[1]) &&
-    isString(value[2]) &&
+    nonEmptyString(value[1]) &&
+    nonEmptyString(value[2]) &&
     nullableString(value[3]) &&
     nullableBoolean(value[4]) &&
     nullableBoolean(value[5]) &&
@@ -139,8 +310,8 @@ const isCompactNovel = (value: unknown): value is CompactNovel => {
     Array.isArray(novel.c) &&
     novel.c.every(isCompactChapter) &&
     isId(novel.id) &&
-    isString(novel.p) &&
-    isString(novel.pi) &&
+    nonEmptyString(novel.p) &&
+    nonEmptyString(novel.pi) &&
     isString(novel.n) &&
     nullableString(novel.co) &&
     nullableString(novel.s) &&

@@ -1,8 +1,24 @@
 import NativeFile from '@modules/native-file';
 import NativeZipArchive from '@modules/native-zip-archive';
+import { clearRestoreChapterMappings } from '@database/queries/NovelRestoreQueries';
 import { createBackup, restoreBackup } from '../local';
+import * as fileSections from '../fileSections';
 import { finalizeRestoredPlugins } from '../restoreResult';
 import { prepareBackupData, restoreData } from '../utils';
+
+jest.mock('@database/queries/NovelRestoreQueries', () => ({
+  clearRestoreChapterMappings: jest.fn(),
+  getRestoreChapterMappings: jest.fn(),
+}));
+
+jest.mock('../fileSections', () => {
+  const actual = jest.requireActual('../fileSections');
+  return {
+    ...actual,
+    restoreLegacyFiles: jest.fn(),
+    restoreNovelFiles: jest.fn(),
+  };
+});
 
 jest.mock('../utils', () => ({
   CACHE_DIR_PATH: '/cache/BackupData',
@@ -56,6 +72,18 @@ describe('local selective backup', () => {
     jest.mocked(NativeFile.unlink).mockReset().mockResolvedValue(undefined);
     jest.mocked(NativeFile.readDir).mockReset().mockResolvedValue([]);
     jest.mocked(finalizeRestoredPlugins).mockReset().mockResolvedValue([]);
+    jest
+      .mocked(clearRestoreChapterMappings)
+      .mockReset()
+      .mockResolvedValue(undefined);
+    jest
+      .mocked(fileSections.restoreLegacyFiles)
+      .mockReset()
+      .mockResolvedValue(undefined);
+    jest
+      .mocked(fileSections.restoreNovelFiles)
+      .mockReset()
+      .mockResolvedValue(undefined);
   });
 
   it('creates archives only for selected file sections', async () => {
@@ -156,6 +184,7 @@ describe('local selective backup', () => {
       failedSectionCount: 0,
       pluginIds: ['restored'],
       novelMappings: [],
+      restoreRunId: 'restore-run-plugins',
       manifest: {
         appVersion: '2.1.0',
         formatVersion: 2 as const,
@@ -180,6 +209,9 @@ describe('local selective backup', () => {
       '/storage/Plugins',
     );
     expect(finalizeRestoredPlugins).toHaveBeenCalledWith(restoreResult);
+    expect(clearRestoreChapterMappings).toHaveBeenCalledWith(
+      restoreResult.restoreRunId,
+    );
     expect(
       jest.mocked(finalizeRestoredPlugins).mock.invocationCallOrder[0],
     ).toBeGreaterThan(
@@ -196,6 +228,7 @@ describe('local selective backup', () => {
       failedSectionCount: 0,
       pluginIds: [],
       novelMappings: [],
+      restoreRunId: 'restore-run-v1',
       manifest: {
         appVersion: '1.0.0',
         formatVersion: 1 as const,
@@ -223,6 +256,14 @@ describe('local selective backup', () => {
       '/cache/BackupData/novel-files.zip',
       expect.any(String),
     );
+    expect(fileSections.restoreLegacyFiles).toHaveBeenCalledWith(
+      '/cache/BackupData/RestoredLegacyFiles',
+      restoreResult.novelMappings,
+      restoreResult.restoreRunId,
+    );
+    expect(clearRestoreChapterMappings).toHaveBeenCalledWith(
+      restoreResult.restoreRunId,
+    );
   });
 
   it('extracts the v2 novel-files archive into the novel staging path', async () => {
@@ -235,6 +276,7 @@ describe('local selective backup', () => {
       failedSectionCount: 0,
       pluginIds: [],
       novelMappings: [],
+      restoreRunId: 'restore-run-v2',
       manifest: {
         appVersion: '2.0.0',
         formatVersion: 2 as const,
@@ -258,6 +300,14 @@ describe('local selective backup', () => {
       '/cache/BackupData/novel-files.zip',
       '/cache/BackupData/RestoredNovelFiles',
     );
+    expect(fileSections.restoreNovelFiles).toHaveBeenCalledWith(
+      '/cache/BackupData/RestoredNovelFiles',
+      restoreResult.novelMappings,
+      restoreResult.restoreRunId,
+    );
+    expect(clearRestoreChapterMappings).toHaveBeenCalledWith(
+      restoreResult.restoreRunId,
+    );
   });
 
   it('restores v3 novel files from the outer archive without nested extraction', async () => {
@@ -270,6 +320,7 @@ describe('local selective backup', () => {
       failedSectionCount: 0,
       pluginIds: [],
       novelMappings: [],
+      restoreRunId: 'restore-run-v3',
       manifest: {
         appVersion: '2.1.3',
         formatVersion: 3 as const,
@@ -298,6 +349,14 @@ describe('local selective backup', () => {
       '/cache/BackupData/novel-files.zip',
       expect.any(String),
     );
+    expect(fileSections.restoreNovelFiles).toHaveBeenCalledWith(
+      '/cache/BackupData/NovelFiles',
+      restoreResult.novelMappings,
+      restoreResult.restoreRunId,
+    );
+    expect(clearRestoreChapterMappings).toHaveBeenCalledWith(
+      restoreResult.restoreRunId,
+    );
   });
   it('rejects a v3 downloaded-file restore without NovelFiles', async () => {
     const restoreResult = {
@@ -309,6 +368,7 @@ describe('local selective backup', () => {
       failedSectionCount: 0,
       pluginIds: [],
       novelMappings: [],
+      restoreRunId: 'restore-run-v3-missing',
       manifest: {
         appVersion: '2.1.3',
         formatVersion: 3 as const,
@@ -333,5 +393,8 @@ describe('local selective backup', () => {
       restoreBackup({ sourceUri: 'content://backup.zip' }),
     ).rejects.toThrow('backupScreen.invalidBackupFolder');
     expect(finalizeRestoredPlugins).not.toHaveBeenCalled();
+    expect(clearRestoreChapterMappings).toHaveBeenCalledWith(
+      restoreResult.restoreRunId,
+    );
   });
 });
