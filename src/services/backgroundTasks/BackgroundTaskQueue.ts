@@ -50,10 +50,20 @@ export class BackgroundTaskQueue {
   }
 
   async refresh() {
-    const records = await NativeBackgroundTasks.getTasks();
-    const queue = records
-      .filter(record => ACTIVE_BACKGROUND_TASK_STATES.has(record.state))
-      .map(fromNativeTaskRecord);
+    const summaries = await NativeBackgroundTasks.getTasks();
+    const queue: QueuedBackgroundTask[] = [];
+
+    for (const summary of summaries) {
+      const record = await NativeBackgroundTasks.getTask(summary.id);
+      if (
+        record &&
+        ACTIVE_BACKGROUND_TASK_STATES.has(record.state) &&
+        record.payload
+      ) {
+        queue.push(fromNativeTaskRecord(record));
+      }
+    }
+
     this.store(queue);
     return queue;
   }
@@ -156,11 +166,17 @@ export class BackgroundTaskQueue {
           getString('notifications.taskCompleted'),
       );
     } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      const failureMessage =
+        task.name === 'LOCAL_RESTORE' ||
+        task.name === 'DRIVE_RESTORE' ||
+        task.name === 'SELF_HOST_RESTORE'
+          ? `${errorMessage}\n${getString('backupScreen.restoreMayBePartial')}`
+          : errorMessage;
       await NativeBackgroundTasks.fail(
         taskId,
-        getString('notifications.taskFailed', {
-          error: error instanceof Error ? error.message : String(error),
-        }),
+        getString('notifications.taskFailed', { error: failureMessage }),
         false,
       );
       if (!this.interruptedTasks.has(taskId)) {

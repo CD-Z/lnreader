@@ -44,6 +44,7 @@ export const defaultLibrarySettings = {
   displayMode: 'comfortable',
   showDownloadBadges: true,
   showUnreadBadges: true,
+  showContinueReadingButton: false,
   novelsPerRow: 3,
   sortOrder: 'DateAdded_DESC',
 };

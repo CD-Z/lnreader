@@ -70,6 +70,7 @@ const SettingsLibraryScreen = ({ navigation }: LibrarySettingsScreenProps) => {
     showDownloadBadges = true,
     showNumberOfNovels = false,
     showUnreadBadges = true,
+    showContinueReadingButton = false,
     sortOrder = LibrarySortOrder.DateAdded_DESC,
     defaultCategoryId,
     promptForCategoryOnAdd = false,
@@ -278,6 +279,16 @@ const SettingsLibraryScreen = ({ navigation }: LibrarySettingsScreenProps) => {
             onPress={novelBadgesModal.setTrue}
             theme={theme}
           />
+          <SettingSwitch
+            label={getString('generalSettingsScreen.showContinueReadingButton')}
+            value={showContinueReadingButton}
+            onPress={() =>
+              setLibrarySettings({
+                showContinueReadingButton: !showContinueReadingButton,
+              })
+            }
+            theme={theme}
+          />
           <List.Item
             title={getString('generalSettingsScreen.novelSort')}
             description={`${getString(sortOrderLabel)} ${sortOrderParts[1]}`}
@@ -314,6 +325,7 @@ const SettingsLibraryScreen = ({ navigation }: LibrarySettingsScreenProps) => {
           />
           <SettingSwitch
             label={getString('generalSettingsScreen.useFAB')}
+            description={getString('generalSettingsScreen.useFABDescription')}
             value={useLibraryFAB}
             onPress={() => setAppSettings({ useLibraryFAB: !useLibraryFAB })}
             theme={theme}

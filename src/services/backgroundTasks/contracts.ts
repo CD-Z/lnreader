@@ -55,6 +55,7 @@ export type EpubExportData = {
 export type ChapterDownload = {
   chapterId: number;
   chapterName: string;
+  novelId?: number;
 };
 
 export type BackgroundTask =

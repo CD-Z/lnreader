@@ -38,9 +38,14 @@ export default function useDownload() {
   const downloadingNovelIds = useMemo(
     () =>
       new Set(
-        downloadQueue.flatMap(item =>
-          item.task.data.novelId === undefined ? [] : [item.task.data.novelId],
-        ),
+        downloadQueue.flatMap(item => [
+          ...(item.task.data.novelId === undefined
+            ? []
+            : [item.task.data.novelId]),
+          ...item.task.data.chapters.flatMap(chapter =>
+            chapter.novelId === undefined ? [] : [chapter.novelId],
+          ),
+        ]),
       ),
     [downloadQueue],
   );

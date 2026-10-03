@@ -124,6 +124,7 @@ export interface LibrarySettings {
   filter?: LibraryFilter;
   showDownloadBadges?: boolean;
   showUnreadBadges?: boolean;
+  showContinueReadingButton?: boolean;
   showNumberOfNovels?: boolean;
   displayMode?: DisplayModes;
   novelsPerRow?: number;
@@ -385,6 +386,7 @@ const defaultLibrarySettings: LibrarySettings = {
   displayMode: DisplayModes.Comfortable,
   showDownloadBadges: true,
   showUnreadBadges: true,
+  showContinueReadingButton: false,
   novelsPerRow: 3,
   sortOrder: LibrarySortOrder.DateAdded_DESC,
 };

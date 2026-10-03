@@ -5,7 +5,7 @@ import { EmptyView } from '@components/index';
 import NovelList, { NovelListRenderItem } from '@components/NovelList';
 import LibraryNovelItem from './LibraryNovelItem';
 
-import { NovelInfo } from '@database/types';
+import { History, NovelInfo } from '@database/types';
 
 import { getString } from '@i18n/translations';
 import { useTheme } from '@hooks/persisted';
@@ -19,6 +19,8 @@ interface Props {
   categoryId: number;
   categoryName: string;
   novels: NovelInfo[];
+  historyByNovelId: Map<number, History>;
+  showContinueReadingButton: boolean;
   navigation: LibraryScreenProps['navigation'];
   pickAndImport: () => void;
 }
@@ -29,6 +31,8 @@ export const LibraryView: React.FC<Props> = ({
   pickAndImport,
   navigation,
   novels,
+  historyByNovelId,
+  showContinueReadingButton,
 }) => {
   const theme = useTheme();
   const { selectedIdsSet, hasSelection, toggleSelection } =
@@ -44,6 +48,16 @@ export const LibraryView: React.FC<Props> = ({
     [navigation],
   );
 
+  const onContinueReading = useCallback(
+    (item: NovelInfo, chapter: History) => {
+      navigation.navigate('ReaderStack', {
+        screen: 'Chapter',
+        params: { novel: item, chapter },
+      });
+    },
+    [navigation],
+  );
+
   const imageRequestInitMap = useMemo(() => {
     const map = new Map<string, ImageRequestInit | undefined>();
     for (const novel of novels) {
@@ -54,6 +68,11 @@ export const LibraryView: React.FC<Props> = ({
     return map;
   }, [novels]);
 
+  const extraData = useMemo(
+    () => ({ selectedIdsSet, historyByNovelId }),
+    [selectedIdsSet, historyByNovelId],
+  );
+
   const renderItem = useCallback(
     ({ item }: { item: NovelInfo }) => (
       <LibraryNovelItem
@@ -63,6 +82,9 @@ export const LibraryView: React.FC<Props> = ({
         hasSelection={hasSelection}
         onSelect={toggleSelection}
         onNavigate={onNavigate}
+        onContinueReading={onContinueReading}
+        lastReadChapter={historyByNovelId.get(item.id)}
+        showContinueReadingButton={showContinueReadingButton}
         imageRequestInit={imageRequestInitMap.get(item.pluginId)}
       />
     ),
@@ -72,6 +94,9 @@ export const LibraryView: React.FC<Props> = ({
       hasSelection,
       toggleSelection,
       onNavigate,
+      onContinueReading,
+      historyByNovelId,
+      showContinueReadingButton,
       imageRequestInitMap,
     ],
   );
@@ -126,7 +151,7 @@ export const LibraryView: React.FC<Props> = ({
     <View style={styles.flex}>
       <NovelList
         data={novels}
-        extraData={selectedIdsSet}
+        extraData={extraData}
         renderItem={renderItem as NovelListRenderItem}
         ListEmptyComponent={listEmptyComponent}
         refreshControl={refreshControl}

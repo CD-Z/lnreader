@@ -110,6 +110,7 @@ const ThirdRoute = () => {
     showDownloadBadges = true,
     showNumberOfNovels = false,
     showUnreadBadges = true,
+    showContinueReadingButton = false,
     displayMode = DisplayModes.Comfortable,
     setLibrarySettings,
   } = useLibrarySettings();
@@ -117,7 +118,7 @@ const ThirdRoute = () => {
   return (
     <View style={styles.flex}>
       <Text style={[styles.sectionHeader, { color: theme.onSurfaceVariant }]}>
-        {getString('libraryScreen.bottomSheet.display.badges')}
+        {getString('libraryScreen.bottomSheet.display.overlays')}
       </Text>
       <Checkbox
         label={getString('libraryScreen.bottomSheet.display.downloadBadges')}
@@ -145,6 +146,18 @@ const ThirdRoute = () => {
         onPress={() =>
           setLibrarySettings({
             showNumberOfNovels: !showNumberOfNovels,
+          })
+        }
+        theme={theme}
+      />
+      <Checkbox
+        label={getString(
+          'libraryScreen.bottomSheet.display.continueReadingButton',
+        )}
+        status={showContinueReadingButton}
+        onPress={() =>
+          setLibrarySettings({
+            showContinueReadingButton: !showContinueReadingButton,
           })
         }
         theme={theme}
