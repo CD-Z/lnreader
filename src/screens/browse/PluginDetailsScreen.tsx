@@ -26,6 +26,8 @@ import { getLocaleLanguageName } from '@utils/constants/languages';
 import { showToast } from '@utils/showToast';
 
 import { PluginSettingField } from './components/PluginSettingField';
+import { PluginIssuesSection } from './components/PluginIssuesSection';
+
 import { usePluginSettings } from './hooks/usePluginSettings';
 
 const PluginDetailsScreen = ({
@@ -143,6 +145,7 @@ const PluginDetailsScreen = ({
             }
           />
         </View>
+        <PluginIssuesSection pluginId={plugin.id} />
         {settingsLoading ? (
           <ActivityIndicator
             accessibilityLabel={getString('common.loading')}
