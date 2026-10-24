@@ -1,11 +1,17 @@
 import { act, renderHook, waitFor } from '@testing-library/react-native';
+import { getEnabledRepositoriesFromDb } from '@database/queries/RepositoryQueries';
 
 import { usePluginActions } from '../usePlugins';
+import { usePluginIssues } from '../usePluginIssues';
 import {
   pluginIssueIndexStore,
   type PluginIssueIndex,
 } from '@plugins/issueIndex';
 import type { PluginItem } from '@plugins/types';
+
+jest.mock('@database/queries/RepositoryQueries', () => ({
+  getEnabledRepositoriesFromDb: jest.fn().mockResolvedValue([]),
+}));
 
 jest.mock('expo-localization', () => ({
   getLocales: () => [{ languageCode: 'en' }],
@@ -59,6 +65,9 @@ const mockFetchPlugins = jest.requireMock<PluginManagerMock>(
 ).fetchPlugins;
 const mockFetchTimeout =
   jest.requireMock<FetchMock>('@utils/fetch/fetch').fetchTimeout;
+const mockGetEnabledRepositoriesFromDb = jest.mocked(
+  getEnabledRepositoriesFromDb,
+);
 
 const installedPlugin: PluginItem = {
   id: 'galaxynovels',
@@ -83,21 +92,33 @@ const issueIndexFixture: PluginIssueIndex = {
   novelupdates: [[0, 729, 736]],
   emptyplugin: [],
 };
-const primaryIssueIndexUrl =
-  'https://raw.githubusercontent.com/LNReader/lnreader-plugins/issue-index/issue-index.min.json';
-const forkIssueIndexUrl =
-  'https://raw.githubusercontent.com/CD-Z/lnreader-sources/issue-index/issue-index.min.json';
+const defaultManifestUrl =
+  'https://raw.githubusercontent.com/galaxy-team/novel-sources/plugins/v4/plugins.min.json';
+const defaultIssueIndexUrl =
+  'https://raw.githubusercontent.com/galaxy-team/novel-sources/issue-index/issue-index.min.json';
 
 const jsonResponse = (body: unknown) => ({
   ok: true,
   json: jest.fn().mockResolvedValue(body),
 });
 
+const createDeferred = <T>() => {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>(resolvePromise => {
+    resolve = resolvePromise;
+  });
+  return { promise, resolve };
+};
+
 describe('plugin issue refresh integration', () => {
   beforeEach(() => {
     mockStorage.clear();
     mockFetchPlugins.mockReset();
     mockFetchTimeout.mockReset();
+    mockGetEnabledRepositoriesFromDb.mockReset();
+    mockGetEnabledRepositoriesFromDb.mockResolvedValue([
+      { id: 1, url: defaultManifestUrl, enabled: true },
+    ]);
     pluginIssueIndexStore.setState({
       index: undefined,
       isRefreshing: false,
@@ -105,7 +126,7 @@ describe('plugin issue refresh integration', () => {
     });
   });
 
-  it('persists manifest updates when issue refresh fails', async () => {
+  it('persists manifest updates when configured issue refresh fails', async () => {
     mockStorage.set('INSTALLED_PLUGINS', [installedPlugin]);
     mockFetchPlugins.mockResolvedValue([updatedPlugin]);
     mockFetchTimeout.mockRejectedValue(new Error('issue index unavailable'));
@@ -130,27 +151,21 @@ describe('plugin issue refresh integration', () => {
       refreshFailed: true,
     });
     expect(mockFetchTimeout.mock.calls.map(([url]) => url)).toEqual([
-      primaryIssueIndexUrl,
-      forkIssueIndexUrl,
+      defaultIssueIndexUrl,
     ]);
   });
 
-  it('persists manifests and publishes issue reports from the fork fallback', async () => {
+  it('persists manifests and publishes reports from a configured custom repository', async () => {
     mockStorage.set('INSTALLED_PLUGINS', [installedPlugin]);
     mockFetchPlugins.mockResolvedValue([updatedPlugin]);
-    mockFetchTimeout.mockImplementation((url: string) => {
-      if (url === primaryIssueIndexUrl) {
-        return Promise.resolve({ ok: false, status: 404, json: jest.fn() });
-      }
-      if (url === forkIssueIndexUrl) {
-        return Promise.resolve(jsonResponse(issueIndexFixture));
-      }
-      throw new Error(`Unexpected issue index URL: ${url}`);
-    });
-    const { result } = renderHook(usePluginActions);
+    mockFetchTimeout.mockResolvedValue(jsonResponse(issueIndexFixture));
+    const { result: actions } = renderHook(usePluginActions);
+    const { result: issues } = renderHook(() =>
+      usePluginIssues('galaxynovels'),
+    );
 
     await act(async () => {
-      await result.current.refreshPlugins();
+      await actions.current.refreshPlugins();
     });
 
     expect(mockStorage.get('AVAILABLE_PLUGINS')).toEqual([updatedPlugin]);
@@ -159,14 +174,38 @@ describe('plugin issue refresh integration', () => {
       isRefreshing: false,
       refreshFailed: false,
     });
+    expect(issues.current.groups).toEqual(issueIndexFixture.galaxynovels);
     expect(mockStorage.get('PLUGIN_ISSUE_INDEX')).toEqual(issueIndexFixture);
     expect(mockFetchTimeout.mock.calls.map(([url]) => url)).toEqual([
-      primaryIssueIndexUrl,
-      forkIssueIndexUrl,
+      defaultIssueIndexUrl,
     ]);
+
+    const updatedIssueIndex: PluginIssueIndex = {
+      galaxynovels: [[2, 4242]],
+    };
+    mockGetEnabledRepositoriesFromDb.mockResolvedValue([
+      {
+        id: 1,
+        url: 'https://raw.githubusercontent.com/another-owner/another-source/refs/heads/main/plugins.min.json',
+        enabled: true,
+      },
+    ]);
+    mockFetchTimeout.mockResolvedValue(jsonResponse(updatedIssueIndex));
+
+    await act(async () => {
+      await actions.current.refreshPlugins();
+    });
+
+    expect(mockFetchTimeout.mock.calls.map(([url]) => url)).toEqual([
+      defaultIssueIndexUrl,
+      'https://raw.githubusercontent.com/another-owner/another-source/issue-index/issue-index.min.json',
+    ]);
+    expect(pluginIssueIndexStore.getState().index).toEqual(updatedIssueIndex);
+    expect(issues.current.groups).toEqual(updatedIssueIndex.galaxynovels);
+    expect(mockStorage.get('PLUGIN_ISSUE_INDEX')).toEqual(updatedIssueIndex);
   });
 
-  it('publishes reports even when manifest refresh rejects', async () => {
+  it('publishes issue reports even when manifest refresh rejects', async () => {
     mockFetchPlugins.mockRejectedValue(new Error('manifest unavailable'));
     mockFetchTimeout.mockResolvedValue(jsonResponse(issueIndexFixture));
     const { result } = renderHook(usePluginActions);
@@ -183,6 +222,9 @@ describe('plugin issue refresh integration', () => {
       refreshFailed: false,
     });
     expect(mockStorage.get('PLUGIN_ISSUE_INDEX')).toEqual(issueIndexFixture);
+    expect(mockFetchTimeout.mock.calls.map(([url]) => url)).toEqual([
+      defaultIssueIndexUrl,
+    ]);
   });
 
   it('removes old report associations after a later successful empty refresh', async () => {
@@ -208,17 +250,15 @@ describe('plugin issue refresh integration', () => {
     });
     expect(mockStorage.get('PLUGIN_ISSUE_INDEX')).toEqual({});
     expect(mockFetchTimeout.mock.calls.map(([url]) => url)).toEqual([
-      primaryIssueIndexUrl,
-      primaryIssueIndexUrl,
+      defaultIssueIndexUrl,
+      defaultIssueIndexUrl,
     ]);
   });
 
   it('writes manifest results while waiting for the concurrent report request', async () => {
     mockFetchPlugins.mockResolvedValue([updatedPlugin]);
-    let resolveIssueResponse!: (response: unknown) => void;
-    const issueResponse = new Promise<unknown>(resolve => {
-      resolveIssueResponse = resolve;
-    });
+    const { promise: issueResponse, resolve: resolveIssueResponse } =
+      createDeferred<unknown>();
     mockFetchTimeout.mockReturnValue(issueResponse);
     const { result } = renderHook(usePluginActions);
     let refreshFinished = false;

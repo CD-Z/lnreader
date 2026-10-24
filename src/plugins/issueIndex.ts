@@ -1,5 +1,7 @@
 import { createStore, type StoreApi } from 'zustand';
 
+import { getEnabledRepositoriesFromDb } from '@database/queries/RepositoryQueries';
+
 import { fetchTimeout } from '@utils/fetch/fetch';
 import { getMMKVObject, setMMKVObject } from '@utils/mmkv/mmkv';
 
@@ -13,11 +15,46 @@ export interface PluginIssueIndexState {
   refreshFailed: boolean;
 }
 
-const issueIndexUrl =
-  'https://raw.githubusercontent.com/LNReader/lnreader-plugins/issue-index/issue-index.min.json';
-const temporaryIssueIndexUrl =
-  'https://raw.githubusercontent.com/CD-Z/lnreader-sources/issue-index/issue-index.min.json';
 const issueIndexStorageKey = 'PLUGIN_ISSUE_INDEX';
+
+const getIssueIndexUrl = (repositoryUrl: string): string | undefined => {
+  try {
+    const manifestUrl = new URL(repositoryUrl);
+    const pathSegments = manifestUrl.pathname.split('/').filter(Boolean);
+    if (
+      !['http:', 'https:'].includes(manifestUrl.protocol) ||
+      manifestUrl.hostname !== 'raw.githubusercontent.com' ||
+      pathSegments.length < 4 ||
+      pathSegments[pathSegments.length - 1] !== 'plugins.min.json'
+    ) {
+      return undefined;
+    }
+
+    const issueIndexUrl = new URL(manifestUrl.origin);
+    issueIndexUrl.pathname = `/${pathSegments[0]}/${pathSegments[1]}/issue-index/issue-index.min.json`;
+    return issueIndexUrl.toString();
+  } catch {
+    return undefined;
+  }
+};
+
+const getConfiguredIssueIndexUrls = async (): Promise<string[]> => {
+  const repositories = await getEnabledRepositoriesFromDb();
+  const urls = repositories
+    .map(repository => getIssueIndexUrl(repository.url))
+    .filter((url): url is string => url !== undefined);
+  const seen = new Set<string>();
+  return urls
+    .reverse()
+    .filter(url => {
+      if (seen.has(url)) {
+        return false;
+      }
+      seen.add(url);
+      return true;
+    })
+    .reverse();
+};
 
 const fetchIssueIndex = async (url: string): Promise<PluginIssueIndex> => {
   const response = await fetchTimeout(url, {
@@ -93,36 +130,71 @@ export const pluginIssueIndexStore: StoreApi<PluginIssueIndexState> =
     refreshFailed: false,
   }));
 
-const refreshIssueIndex = async (): Promise<void> => {
+interface ActiveRefresh {
+  key: string;
+  promise: Promise<void>;
+}
+
+let activeRefresh: ActiveRefresh | undefined;
+
+const refreshIssueIndex = async (
+  urls: string[],
+  refresh: ActiveRefresh,
+): Promise<void> => {
   pluginIssueIndexStore.setState({ isRefreshing: true, refreshFailed: false });
 
   try {
-    let index: PluginIssueIndex;
-    try {
-      index = await fetchIssueIndex(issueIndexUrl);
-    } catch {
-      index = await fetchIssueIndex(temporaryIssueIndexUrl);
+    const results = await Promise.allSettled(urls.map(fetchIssueIndex));
+    if (activeRefresh !== refresh) {
+      return;
+    }
+    if (results.some(result => result.status === 'rejected')) {
+      throw new Error('A configured plugin issue index request failed');
+    }
+
+    const index: PluginIssueIndex = Object.create(null);
+    for (const result of results) {
+      if (result.status === 'fulfilled') {
+        Object.assign(index, result.value);
+      }
     }
 
     setMMKVObject(issueIndexStorageKey, index);
-    pluginIssueIndexStore.setState({ index, refreshFailed: false });
+    if (activeRefresh === refresh) {
+      pluginIssueIndexStore.setState({ index, refreshFailed: false });
+    }
   } catch {
-    pluginIssueIndexStore.setState({ refreshFailed: true });
+    if (activeRefresh === refresh) {
+      pluginIssueIndexStore.setState({ refreshFailed: true });
+    }
   } finally {
-    pluginIssueIndexStore.setState({ isRefreshing: false });
+    if (activeRefresh === refresh) {
+      pluginIssueIndexStore.setState({ isRefreshing: false });
+      activeRefresh = undefined;
+    }
   }
 };
 
-let inFlightRefresh: Promise<void> | undefined;
-
-export const refreshPluginIssueIndex = (): Promise<void> => {
-  if (inFlightRefresh) {
-    return inFlightRefresh;
+export const refreshPluginIssueIndex = async (): Promise<void> => {
+  let urls: string[];
+  try {
+    urls = await getConfiguredIssueIndexUrls();
+  } catch {
+    activeRefresh = undefined;
+    pluginIssueIndexStore.setState({
+      isRefreshing: false,
+      refreshFailed: true,
+    });
+    return;
   }
 
-  const refresh = refreshIssueIndex();
-  inFlightRefresh = refresh.finally(() => {
-    inFlightRefresh = undefined;
-  });
-  return inFlightRefresh;
+  const key = JSON.stringify(urls);
+  if (activeRefresh?.key === key) {
+    return activeRefresh.promise;
+  }
+
+  const refresh = { key, promise: Promise.resolve() };
+  activeRefresh = refresh;
+  refresh.promise = refreshIssueIndex(urls, refresh);
+  return refresh.promise;
 };
