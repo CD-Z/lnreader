@@ -558,9 +558,6 @@ describe('plugin issue index', () => {
     const bUrl = issueIndexUrl('example', 'source-b');
     const snapshotAJson = { galaxynovels: [[1, 101]] };
     const snapshotBJson = { galaxynovels: [[2, 202]] };
-    const snapshotA: PluginIssueIndex = {
-      galaxynovels: [[1, reportFor(101)]],
-    };
     const snapshotB: PluginIssueIndex = {
       galaxynovels: [[2, reportFor(202, 'example', 'source-b')]],
     };

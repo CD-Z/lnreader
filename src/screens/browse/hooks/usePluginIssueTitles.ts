@@ -22,7 +22,7 @@ export function usePluginIssueTitles(
     results: new Map(),
   });
 
-  const reports = (groups ?? []).flatMap(([, ...reports]) => reports);
+  const reports = (groups ?? []).flatMap(([, ...groupReports]) => groupReports);
   const currentResults = state.groups === groups ? state.results : undefined;
   const titles = new Map<PluginIssueReport, string | null | undefined>();
   for (const report of reports) {
@@ -39,7 +39,7 @@ export function usePluginIssueTitles(
     let active = true;
     const seenReportKeys = new Set<string>();
     const uncachedReports = (groups ?? [])
-      .flatMap(([, ...reports]) => reports)
+      .flatMap(([, ...groupReports]) => groupReports)
       .filter(report => {
         const cacheKey = getPluginIssueTitleCacheKey(
           report.repository,
