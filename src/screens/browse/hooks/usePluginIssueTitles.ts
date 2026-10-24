@@ -2,11 +2,12 @@ import { useEffect, useState } from 'react';
 
 import {
   getCachedPluginIssueTitle,
+  getPluginIssueTitleCacheKey,
   loadPluginIssueTitle,
 } from '@plugins/issueMetadata';
-import type { PluginIssueGroup } from '@plugins/issueIndex';
+import type { PluginIssueGroup, PluginIssueReport } from '@plugins/issueIndex';
 
-type IssueTitleResults = Partial<Record<number, string | null>>;
+type IssueTitleResults = Map<string, string | null>;
 
 type IssueTitleState = {
   groups: PluginIssueGroup[] | undefined;
@@ -15,39 +16,60 @@ type IssueTitleState = {
 
 export function usePluginIssueTitles(
   groups: PluginIssueGroup[] | undefined,
-): Readonly<Partial<Record<number, string | null>>> {
+): ReadonlyMap<PluginIssueReport, string | null | undefined> {
   const [state, setState] = useState<IssueTitleState>({
     groups: undefined,
-    results: {},
+    results: new Map(),
   });
 
-  const issueNumbers = [
-    ...new Set((groups ?? []).flatMap(group => group.slice(1))),
-  ];
-  const currentResults: IssueTitleResults =
-    state.groups === groups ? state.results : {};
-  const titles: IssueTitleResults = {};
-  for (const issueNumber of issueNumbers) {
-    titles[issueNumber] =
-      getCachedPluginIssueTitle(issueNumber) ?? currentResults[issueNumber];
+  const reports = (groups ?? []).flatMap(([, ...reports]) => reports);
+  const currentResults = state.groups === groups ? state.results : undefined;
+  const titles = new Map<PluginIssueReport, string | null | undefined>();
+  for (const report of reports) {
+    titles.set(
+      report,
+      getCachedPluginIssueTitle(report.repository, report.issueNumber) ??
+        currentResults?.get(
+          getPluginIssueTitleCacheKey(report.repository, report.issueNumber),
+        ),
+    );
   }
 
   useEffect(() => {
     let active = true;
-    const effectIssueNumbers = [
-      ...new Set((groups ?? []).flatMap(group => group.slice(1))),
-    ];
-    const uncachedIssueNumbers = effectIssueNumbers.filter(
-      issueNumber => getCachedPluginIssueTitle(issueNumber) === undefined,
-    );
+    const seenReportKeys = new Set<string>();
+    const uncachedReports = (groups ?? [])
+      .flatMap(([, ...reports]) => reports)
+      .filter(report => {
+        const cacheKey = getPluginIssueTitleCacheKey(
+          report.repository,
+          report.issueNumber,
+        );
+        if (seenReportKeys.has(cacheKey)) {
+          return false;
+        }
+        seenReportKeys.add(cacheKey);
+        return (
+          getCachedPluginIssueTitle(report.repository, report.issueNumber) ===
+          undefined
+        );
+      });
     let cursor = 0;
 
     const loadNext = async () => {
-      while (active && cursor < uncachedIssueNumbers.length) {
-        const issueNumber = uncachedIssueNumbers[cursor++];
+      while (active && cursor < uncachedReports.length) {
+        const report = uncachedReports[cursor++];
+        const cacheKey = getPluginIssueTitleCacheKey(
+          report.repository,
+          report.issueNumber,
+        );
         let title: string | null;
         try {
-          title = (await loadPluginIssueTitle(issueNumber)) ?? null;
+          title =
+            (await loadPluginIssueTitle(
+              report.repository,
+              report.issueNumber,
+            )) ?? null;
         } catch {
           title = null;
         }
@@ -58,17 +80,18 @@ export function usePluginIssueTitles(
               return current;
             }
 
-            const results = current.groups === groups ? current.results : {};
-            return {
-              groups,
-              results: { ...results, [issueNumber]: title },
-            };
+            const results =
+              current.groups === groups
+                ? new Map(current.results)
+                : new Map<string, string | null>();
+            results.set(cacheKey, title);
+            return { groups, results };
           });
         }
       }
     };
 
-    const workerCount = Math.min(6, uncachedIssueNumbers.length);
+    const workerCount = Math.min(6, uncachedReports.length);
     for (let worker = 0; worker < workerCount; worker++) {
       void loadNext();
     }

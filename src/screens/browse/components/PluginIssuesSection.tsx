@@ -13,11 +13,15 @@ import { IconButtonV2 } from '@components';
 import ShimmerPlaceholder from '@components/Skeleton/ShimmerPlaceholder';
 import { usePluginActions, useTheme } from '@hooks/persisted';
 import { usePluginIssues } from '@hooks/persisted/usePluginIssues';
-import { getPluginIssueUrl } from '@plugins/issueMetadata';
+import {
+  getPluginIssueTitleCacheKey,
+  getPluginIssueUrl,
+} from '@plugins/issueMetadata';
 import { getString } from '@i18n/translations';
 import useLoadingColors from '@utils/useLoadingColors';
 import { showToast } from '@utils/showToast';
 
+import type { PluginIssueReport } from '@plugins/issueIndex';
 import { usePluginIssueTitles } from '../hooks/usePluginIssueTitles';
 import { pluginIssuePresentation } from '../utils/pluginIssuePresentation';
 
@@ -45,9 +49,10 @@ export const PluginIssuesSection = ({ pluginId }: PluginIssuesSectionProps) => {
     }
   };
 
-  const openIssue = async (issueNumber: number) => {
+  const openIssue = async (report: PluginIssueReport) => {
+    const { repository, issueNumber } = report;
     try {
-      await Linking.openURL(getPluginIssueUrl(issueNumber));
+      await Linking.openURL(getPluginIssueUrl(repository, issueNumber));
     } catch {
       showToast(
         getString('browseScreen.issueIndex.openFailed', { issueNumber }),
@@ -109,7 +114,7 @@ export const PluginIssuesSection = ({ pluginId }: PluginIssuesSectionProps) => {
             </Text>
           ) : (
             groups.map(group => {
-              const category = group[0];
+              const [category, ...reports] = group;
               const presentation = pluginIssuePresentation[category];
 
               return (
@@ -131,12 +136,9 @@ export const PluginIssuesSection = ({ pluginId }: PluginIssuesSectionProps) => {
                     </Text>
                   </View>
                   <View>
-                    {group.map((issueNumber, index) => {
-                      if (index === 0) {
-                        return null;
-                      }
-
-                      const title = titles[issueNumber];
+                    {reports.map(report => {
+                      const { issueNumber } = report;
+                      const title = titles.get(report);
                       const hasTitle = title !== undefined && title !== null;
                       const accessibilityLabel = hasTitle
                         ? getString(
@@ -151,9 +153,12 @@ export const PluginIssuesSection = ({ pluginId }: PluginIssuesSectionProps) => {
                         <Pressable
                           accessibilityLabel={accessibilityLabel}
                           accessibilityRole="link"
-                          key={issueNumber}
+                          key={getPluginIssueTitleCacheKey(
+                            report.repository,
+                            issueNumber,
+                          )}
                           onPress={() => {
-                            void openIssue(issueNumber);
+                            void openIssue(report);
                           }}
                           android_ripple={{ color: theme.rippleColor }}
                           style={[

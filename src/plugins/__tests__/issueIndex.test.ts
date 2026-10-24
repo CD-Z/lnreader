@@ -1,12 +1,28 @@
 import type { PluginIssueIndex } from '../issueIndex';
 
 const PLUGIN_ISSUE_INDEX = 'PLUGIN_ISSUE_INDEX';
-const issueIndexFixture: PluginIssueIndex = {
+const reportFor = (
+  issueNumber: number,
+  owner = 'example',
+  name = 'source-a',
+) => ({
+  issueNumber,
+  repository: { owner, name },
+});
+const issueIndexJsonFixture = {
   galaxynovels: [
     [6, 2133],
     [3, 2667],
   ],
   novelupdates: [[0, 729, 736]],
+  emptyplugin: [],
+};
+const issueIndexFixture: PluginIssueIndex = {
+  galaxynovels: [
+    [6, reportFor(2133)],
+    [3, reportFor(2667)],
+  ],
+  novelupdates: [[0, reportFor(729), reportFor(736)]],
   emptyplugin: [],
 };
 const defaultManifestUrl =
@@ -117,7 +133,7 @@ describe('plugin issue index', () => {
         loadIssueIndex();
       const firstIssueIndexUrl = issueIndexUrl('example', 'source-a');
       const secondIssueIndexUrl = issueIndexUrl('example', 'source-b');
-      const partialSnapshot: PluginIssueIndex = { partialplugin: [[4, 912]] };
+      const partialSnapshot = { partialplugin: [[4, 912]] };
       mockGetEnabledRepositoriesFromDb.mockResolvedValue([
         enabledRepository(manifestUrl('example', 'source-a'), 1),
         enabledRepository(manifestUrl('example', 'source-b'), 2),
@@ -165,12 +181,17 @@ describe('plugin issue index', () => {
   it('hydrates the cached snapshot and refreshes it from the configured origin', async () => {
     cacheIndex(issueIndexFixture);
     const { pluginIssueIndexStore, refreshPluginIssueIndex } = loadIssueIndex();
-    const refreshedIndex: PluginIssueIndex = {
+    const refreshedIndexJson = {
       galaxynovels: [[5, 2133]],
       novelupdates: [[0, 729, 736]],
       emptyplugin: [],
     };
-    mockFetchTimeout.mockResolvedValue(jsonResponse(refreshedIndex));
+    const refreshedIndex: PluginIssueIndex = {
+      galaxynovels: [[5, reportFor(2133)]],
+      novelupdates: [[0, reportFor(729), reportFor(736)]],
+      emptyplugin: [],
+    };
+    mockFetchTimeout.mockResolvedValue(jsonResponse(refreshedIndexJson));
 
     expect(pluginIssueIndexStore.getState()).toEqual({
       index: issueIndexFixture,
@@ -182,7 +203,7 @@ describe('plugin issue index', () => {
 
     expect(pluginIssueIndexStore.getState().index).toEqual(refreshedIndex);
     expect(pluginIssueIndexStore.getState().index?.novelupdates).toEqual([
-      [0, 729, 736],
+      [0, reportFor(729), reportFor(736)],
     ]);
     expect(
       pluginIssueIndexStore.getState().index?.['GalaxyNovels'],
@@ -207,7 +228,7 @@ describe('plugin issue index', () => {
     mockGetEnabledRepositoriesFromDb.mockResolvedValue([
       enabledRepository(configuredManifest),
     ]);
-    mockFetchTimeout.mockResolvedValue(jsonResponse(issueIndexFixture));
+    mockFetchTimeout.mockResolvedValue(jsonResponse(issueIndexJsonFixture));
 
     await refreshPluginIssueIndex();
 
@@ -224,21 +245,51 @@ describe('plugin issue index', () => {
     );
   });
 
-  it('merges repository snapshots in repository order, regardless of network completion order', async () => {
+  it('persists decoded repository names from encoded manifest path segments', async () => {
+    const { pluginIssueIndexStore, refreshPluginIssueIndex } = loadIssueIndex();
+    const encodedManifest =
+      'https://raw.githubusercontent.com/galaxy%2Dteam/novel%2Dsources/refs/heads/main/catalog/plugins.min.json';
+    const configuredIssueIndexUrl =
+      'https://raw.githubusercontent.com/galaxy%2Dteam/novel%2Dsources/issue-index/issue-index.min.json';
+    const expectedIndex: PluginIssueIndex = {
+      galaxynovels: [[6, reportFor(2133, 'galaxy-team', 'novel-sources')]],
+    };
+    mockGetEnabledRepositoriesFromDb.mockResolvedValue([
+      enabledRepository(encodedManifest),
+    ]);
+    mockFetchTimeout.mockResolvedValue(
+      jsonResponse({ galaxynovels: [[6, 2133]] }),
+    );
+
+    await refreshPluginIssueIndex();
+
+    expect(mockFetchTimeout).toHaveBeenCalledWith(
+      configuredIssueIndexUrl,
+      PLUGIN_INDEX_HEADERS,
+    );
+    expect(pluginIssueIndexStore.getState().index).toEqual(expectedIndex);
+    expect(JSON.parse(mockStorage.get(PLUGIN_ISSUE_INDEX)!)).toEqual(
+      expectedIndex,
+    );
+  });
+
+  it('attaches reports to their source and preserves repository-order merging', async () => {
     const { pluginIssueIndexStore, refreshPluginIssueIndex } = loadIssueIndex();
     const firstIssueIndexUrl = issueIndexUrl('example', 'source-a');
     const secondIssueIndexUrl = issueIndexUrl('example', 'source-b');
-    const firstSnapshot: PluginIssueIndex = {
+    const firstSnapshot = {
       firstonly: [[1, 11]],
       shared: [
         [1, 111],
         [2, 222],
       ],
+      sourceaissue: [[4, 42]],
       clearedbysecond: [[4, 444]],
     };
-    const secondSnapshot: PluginIssueIndex = {
+    const secondSnapshot = {
       secondonly: [[3, 33]],
       shared: [[6, 666]],
+      sourcebissue: [[5, 42]],
       clearedbysecond: [],
     };
     const { promise: firstResponse, resolve: resolveFirst } =
@@ -268,9 +319,11 @@ describe('plugin issue index', () => {
 
     expect(pluginIssueIndexStore.getState()).toEqual({
       index: {
-        firstonly: [[1, 11]],
-        secondonly: [[3, 33]],
-        shared: [[6, 666]],
+        firstonly: [[1, reportFor(11)]],
+        secondonly: [[3, reportFor(33, 'example', 'source-b')]],
+        shared: [[6, reportFor(666, 'example', 'source-b')]],
+        sourceaissue: [[4, reportFor(42)]],
+        sourcebissue: [[5, reportFor(42, 'example', 'source-b')]],
         clearedbysecond: [],
       },
       isRefreshing: false,
@@ -308,9 +361,9 @@ describe('plugin issue index', () => {
     ]);
     expect(mockFetchTimeout).toHaveBeenCalledTimes(2);
     expect(pluginIssueIndexStore.getState().index).toEqual({
-      shared: [[6, 66]],
-      fromb: [[3, 3]],
-      froma: [[1, 1]],
+      shared: [[6, reportFor(66)]],
+      fromb: [[3, reportFor(3, 'example', 'source-b')]],
+      froma: [[1, reportFor(1)]],
     });
   });
 
@@ -327,8 +380,12 @@ describe('plugin issue index', () => {
         'https://raw.githubusercontent.com/example/source/plugins.json',
         4,
       ),
+      enabledRepository(
+        'https://raw.githubusercontent.com/example%2Fowner/source/plugins/v4/plugins.min.json',
+        5,
+      ),
     ]);
-    mockFetchTimeout.mockResolvedValue(jsonResponse(issueIndexFixture));
+    mockFetchTimeout.mockResolvedValue(jsonResponse(issueIndexJsonFixture));
 
     await refreshPluginIssueIndex();
 
@@ -414,7 +471,7 @@ describe('plugin issue index', () => {
   it('rejects an invalid cached shape without preventing a later successful fetch', async () => {
     cacheIndex({ galaxynovels: [[7, 2133]] });
     const { pluginIssueIndexStore, refreshPluginIssueIndex } = loadIssueIndex();
-    mockFetchTimeout.mockResolvedValue(jsonResponse(issueIndexFixture));
+    mockFetchTimeout.mockResolvedValue(jsonResponse(issueIndexJsonFixture));
 
     expect(pluginIssueIndexStore.getState().index).toBeUndefined();
 
@@ -424,10 +481,27 @@ describe('plugin issue index', () => {
     expect(pluginIssueIndexStore.getState().refreshFailed).toBe(false);
   });
 
+  it('does not assign a configured source to a legacy numeric cache', async () => {
+    cacheIndex({ galaxynovels: [[6, 42]] });
+    const { pluginIssueIndexStore, refreshPluginIssueIndex } = loadIssueIndex();
+    mockFetchTimeout.mockRejectedValue(new Error('network unavailable'));
+
+    expect(pluginIssueIndexStore.getState().index).toBeUndefined();
+
+    await refreshPluginIssueIndex();
+
+    expect(pluginIssueIndexStore.getState()).toEqual({
+      index: undefined,
+      isRefreshing: false,
+      refreshFailed: true,
+    });
+    expect(mockSetMMKVObject).not.toHaveBeenCalled();
+  });
+
   it('ignores corrupt cached JSON and still fetches a valid snapshot', async () => {
     mockStorage.set(PLUGIN_ISSUE_INDEX, '{invalid json');
     const { pluginIssueIndexStore, refreshPluginIssueIndex } = loadIssueIndex();
-    mockFetchTimeout.mockResolvedValue(jsonResponse(issueIndexFixture));
+    mockFetchTimeout.mockResolvedValue(jsonResponse(issueIndexJsonFixture));
 
     expect(pluginIssueIndexStore.getState().index).toBeUndefined();
 
@@ -482,8 +556,14 @@ describe('plugin issue index', () => {
     const { pluginIssueIndexStore, refreshPluginIssueIndex } = loadIssueIndex();
     const aUrl = issueIndexUrl('example', 'source-a');
     const bUrl = issueIndexUrl('example', 'source-b');
-    const snapshotA: PluginIssueIndex = { galaxynovels: [[1, 101]] };
-    const snapshotB: PluginIssueIndex = { galaxynovels: [[2, 202]] };
+    const snapshotAJson = { galaxynovels: [[1, 101]] };
+    const snapshotBJson = { galaxynovels: [[2, 202]] };
+    const snapshotA: PluginIssueIndex = {
+      galaxynovels: [[1, reportFor(101)]],
+    };
+    const snapshotB: PluginIssueIndex = {
+      galaxynovels: [[2, reportFor(202, 'example', 'source-b')]],
+    };
     const { promise: responseA, resolve: resolveA } = createDeferred<unknown>();
     const { promise: responseB, resolve: resolveB } = createDeferred<unknown>();
     mockGetEnabledRepositoriesFromDb
@@ -506,12 +586,12 @@ describe('plugin issue index', () => {
       bUrl,
     ]);
 
-    resolveB(jsonResponse(snapshotB));
+    resolveB(jsonResponse(snapshotBJson));
     await refreshB;
     expect(pluginIssueIndexStore.getState().index).toEqual(snapshotB);
     expect(mockStorage.get(PLUGIN_ISSUE_INDEX)).toBe(JSON.stringify(snapshotB));
 
-    resolveA(jsonResponse(snapshotA));
+    resolveA(jsonResponse(snapshotAJson));
     await refreshA;
 
     expect(pluginIssueIndexStore.getState()).toEqual({
@@ -531,7 +611,7 @@ describe('plugin issue index', () => {
       createDeferred<unknown>();
     mockFetchTimeout
       .mockReturnValueOnce(failedResponse)
-      .mockResolvedValueOnce(jsonResponse(issueIndexFixture));
+      .mockResolvedValueOnce(jsonResponse(issueIndexJsonFixture));
 
     const firstRefresh = refreshPluginIssueIndex();
     const overlappingRefresh = refreshPluginIssueIndex();

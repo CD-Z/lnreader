@@ -1,11 +1,22 @@
 import * as cheerio from 'cheerio';
 import { fetchTimeout } from '@utils/fetch/fetch';
+import type { PluginIssueRepository } from './issueIndex';
 
-const issueTitles = new Map<number, string>();
-const inFlightTitles = new Map<number, Promise<string | undefined>>();
+const issueTitles = new Map<string, string>();
+const inFlightTitles = new Map<string, Promise<string | undefined>>();
 
-export function getPluginIssueUrl(issueNumber: number): string {
-  return `https://github.com/LNReader/lnreader-plugins/issues/${issueNumber}`;
+export function getPluginIssueTitleCacheKey(
+  repository: PluginIssueRepository,
+  issueNumber: number,
+): string {
+  return `${repository.owner.toLowerCase()}/${repository.name.toLowerCase()}#${issueNumber}`;
+}
+
+export function getPluginIssueUrl(
+  repository: PluginIssueRepository,
+  issueNumber: number,
+): string {
+  return `https://github.com/${repository.owner}/${repository.name}/issues/${issueNumber}`;
 }
 
 function normalizeTitle(value: string | undefined): string | undefined {
@@ -13,8 +24,13 @@ function normalizeTitle(value: string | undefined): string | undefined {
   return title || undefined;
 }
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 function parseIssueTitle(
   html: string,
+  repository: PluginIssueRepository,
   issueNumber: number,
 ): string | undefined {
   const closingHead = /<\/head\s*>/i.exec(html);
@@ -35,27 +51,39 @@ function parseIssueTitle(
     return undefined;
   }
 
+  const repositoryPath = `${escapeRegExp(repository.owner)}/${escapeRegExp(
+    repository.name,
+  )}`;
   const issueDecoration = new RegExp(
-    ` · Issue #${issueNumber} · lnreader/lnreader-plugins(?: · GitHub)?$`,
+    ` · Issue #${issueNumber} · ${repositoryPath}(?: · GitHub)?$`,
     'i',
   );
   return normalizeTitle(selectedTitle.replace(issueDecoration, ''));
 }
 
 async function requestIssueTitle(
+  repository: PluginIssueRepository,
   issueNumber: number,
 ): Promise<string | undefined> {
   try {
-    const response = await fetchTimeout(getPluginIssueUrl(issueNumber), {
-      headers: { Accept: 'text/html' },
-    });
+    const response = await fetchTimeout(
+      getPluginIssueUrl(repository, issueNumber),
+      { headers: { Accept: 'text/html' } },
+    );
     if (!response.ok) {
       return undefined;
     }
 
-    const title = parseIssueTitle(await response.text(), issueNumber);
+    const title = parseIssueTitle(
+      await response.text(),
+      repository,
+      issueNumber,
+    );
     if (title) {
-      issueTitles.set(issueNumber, title);
+      issueTitles.set(
+        getPluginIssueTitleCacheKey(repository, issueNumber),
+        title,
+      );
       return title;
     }
   } catch {
@@ -66,29 +94,32 @@ async function requestIssueTitle(
 }
 
 export function getCachedPluginIssueTitle(
+  repository: PluginIssueRepository,
   issueNumber: number,
 ): string | undefined {
-  return issueTitles.get(issueNumber);
+  return issueTitles.get(getPluginIssueTitleCacheKey(repository, issueNumber));
 }
 
 export function loadPluginIssueTitle(
+  repository: PluginIssueRepository,
   issueNumber: number,
 ): Promise<string | undefined> {
-  const cachedTitle = getCachedPluginIssueTitle(issueNumber);
+  const cachedTitle = getCachedPluginIssueTitle(repository, issueNumber);
   if (cachedTitle !== undefined) {
     return Promise.resolve(cachedTitle);
   }
 
-  const inFlightTitle = inFlightTitles.get(issueNumber);
+  const cacheKey = getPluginIssueTitleCacheKey(repository, issueNumber);
+  const inFlightTitle = inFlightTitles.get(cacheKey);
   if (inFlightTitle) {
     return inFlightTitle;
   }
 
-  const request = requestIssueTitle(issueNumber);
-  inFlightTitles.set(issueNumber, request);
+  const request = requestIssueTitle(repository, issueNumber);
+  inFlightTitles.set(cacheKey, request);
   return request.finally(() => {
-    if (inFlightTitles.get(issueNumber) === request) {
-      inFlightTitles.delete(issueNumber);
+    if (inFlightTitles.get(cacheKey) === request) {
+      inFlightTitles.delete(cacheKey);
     }
   });
 }

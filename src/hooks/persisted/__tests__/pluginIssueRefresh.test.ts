@@ -84,12 +84,28 @@ const updatedPlugin: PluginItem = {
   url: 'https://updated.example.com/galaxynovels.js',
   iconUrl: 'https://updated.example.com/galaxynovels.png',
 };
-const issueIndexFixture: PluginIssueIndex = {
+const reportFor = (
+  issueNumber: number,
+  owner = 'galaxy-team',
+  name = 'novel-sources',
+) => ({
+  issueNumber,
+  repository: { owner, name },
+});
+const issueIndexJsonFixture = {
   galaxynovels: [
     [6, 2133],
     [3, 2667],
   ],
   novelupdates: [[0, 729, 736]],
+  emptyplugin: [],
+};
+const issueIndexFixture: PluginIssueIndex = {
+  galaxynovels: [
+    [6, reportFor(2133)],
+    [3, reportFor(2667)],
+  ],
+  novelupdates: [[0, reportFor(729), reportFor(736)]],
   emptyplugin: [],
 };
 const defaultManifestUrl =
@@ -158,7 +174,7 @@ describe('plugin issue refresh integration', () => {
   it('persists manifests and publishes reports from a configured custom repository', async () => {
     mockStorage.set('INSTALLED_PLUGINS', [installedPlugin]);
     mockFetchPlugins.mockResolvedValue([updatedPlugin]);
-    mockFetchTimeout.mockResolvedValue(jsonResponse(issueIndexFixture));
+    mockFetchTimeout.mockResolvedValue(jsonResponse(issueIndexJsonFixture));
     const { result: actions } = renderHook(usePluginActions);
     const { result: issues } = renderHook(() =>
       usePluginIssues('galaxynovels'),
@@ -180,8 +196,11 @@ describe('plugin issue refresh integration', () => {
       defaultIssueIndexUrl,
     ]);
 
-    const updatedIssueIndex: PluginIssueIndex = {
+    const updatedIssueIndexJson = {
       galaxynovels: [[2, 4242]],
+    };
+    const updatedIssueIndex: PluginIssueIndex = {
+      galaxynovels: [[2, reportFor(4242, 'another-owner', 'another-source')]],
     };
     mockGetEnabledRepositoriesFromDb.mockResolvedValue([
       {
@@ -190,7 +209,7 @@ describe('plugin issue refresh integration', () => {
         enabled: true,
       },
     ]);
-    mockFetchTimeout.mockResolvedValue(jsonResponse(updatedIssueIndex));
+    mockFetchTimeout.mockResolvedValue(jsonResponse(updatedIssueIndexJson));
 
     await act(async () => {
       await actions.current.refreshPlugins();
@@ -207,7 +226,7 @@ describe('plugin issue refresh integration', () => {
 
   it('publishes issue reports even when manifest refresh rejects', async () => {
     mockFetchPlugins.mockRejectedValue(new Error('manifest unavailable'));
-    mockFetchTimeout.mockResolvedValue(jsonResponse(issueIndexFixture));
+    mockFetchTimeout.mockResolvedValue(jsonResponse(issueIndexJsonFixture));
     const { result } = renderHook(usePluginActions);
 
     await act(async () => {
@@ -230,7 +249,7 @@ describe('plugin issue refresh integration', () => {
   it('removes old report associations after a later successful empty refresh', async () => {
     mockFetchPlugins.mockResolvedValue([]);
     mockFetchTimeout
-      .mockResolvedValueOnce(jsonResponse(issueIndexFixture))
+      .mockResolvedValueOnce(jsonResponse(issueIndexJsonFixture))
       .mockResolvedValueOnce(jsonResponse({}));
     const { result } = renderHook(usePluginActions);
 
@@ -273,7 +292,7 @@ describe('plugin issue refresh integration', () => {
     expect(refreshFinished).toBe(false);
     expect(pluginIssueIndexStore.getState().isRefreshing).toBe(true);
 
-    resolveIssueResponse(jsonResponse(issueIndexFixture));
+    resolveIssueResponse(jsonResponse(issueIndexJsonFixture));
     await act(async () => {
       await refresh;
     });

@@ -209,12 +209,20 @@ const unindexedPlugin = {
   version: '1.0.0',
 } as PluginItem;
 
+const defaultIssueRepository = {
+  owner: 'LNReader',
+  name: 'lnreader-plugins',
+};
+const issueReport = (
+  issueNumber: number,
+  repository = defaultIssueRepository,
+) => ({ issueNumber, repository });
 const fixture: PluginIssueIndex = {
   galaxynovels: [
-    [6, 2133],
-    [3, 2667],
+    [6, issueReport(2133)],
+    [3, issueReport(2667)],
   ],
-  novelupdates: [[0, 729, 736]],
+  novelupdates: [[0, issueReport(729), issueReport(736)]],
   emptyplugin: [],
 };
 
@@ -333,7 +341,7 @@ describe('PluginIssueIndicator in browse lists', () => {
 
     setIssueSnapshot({
       ...fixture,
-      galaxynovels: [[3, 2667]],
+      galaxynovels: [[3, issueReport(2667)]],
     });
     expect(
       screen.getAllByRole('image', {
@@ -692,7 +700,7 @@ describe('PluginIssuesSection in plugin details', () => {
   it('passes disabled animation settings to the shared title shimmer', () => {
     mockDisableLoadingAnimations = true;
     mockFetch.mockReturnValue(new Promise<Response>(() => {}));
-    setIssueSnapshot({ galaxynovels: [[0, 2991]] });
+    setIssueSnapshot({ galaxynovels: [[0, issueReport(2991)]] });
     render(<PluginIssuesSection pluginId="galaxynovels" />, {
       wrapper: PaperProvider,
     });
@@ -840,9 +848,83 @@ describe('PluginIssuesSection in plugin details', () => {
     ).toBeOnTheScreen();
     expect(mockFetch).not.toHaveBeenCalled();
   });
+
+  it('shows each repository title and opens its source for a shared issue number', async () => {
+    const repositoryA = { owner: 'custom-owner', name: 'custom-plugins' };
+    const repositoryB = { owner: 'another-owner', name: 'another-plugins' };
+    const urlA = 'https://github.com/custom-owner/custom-plugins/issues/42';
+    const urlB = 'https://github.com/another-owner/another-plugins/issues/42';
+    const pendingResponses = new Map<string, (response: Response) => void>();
+    mockFetch.mockImplementation((url: string) => {
+      let resolveResponse!: (response: Response) => void;
+      const promise = new Promise<Response>(resolve => {
+        resolveResponse = resolve;
+      });
+      pendingResponses.set(url, resolveResponse);
+      return promise;
+    });
+    setIssueSnapshot({
+      galaxynovels: [
+        [0, issueReport(42, repositoryA), issueReport(42, repositoryB)],
+      ],
+    });
+    render(<PluginIssuesSection pluginId="galaxynovels" />, {
+      wrapper: PaperProvider,
+    });
+
+    expect(
+      screen.getAllByRole('link', { name: 'Open issue #42' }),
+    ).toHaveLength(2);
+    await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(2));
+    expect(mockFetch.mock.calls.map(([url]) => url)).toEqual([urlA, urlB]);
+
+    await act(async () => {
+      pendingResponses.get(urlB)?.({
+        ok: true,
+        text: async () => '<head><title>Another source title</title></head>',
+      } as unknown as Response);
+      await Promise.resolve();
+    });
+    expect(
+      await screen.findByRole('link', {
+        name: 'Open issue #42: Another source title',
+      }),
+    ).toBeOnTheScreen();
+    expect(
+      screen.getAllByRole('link', { name: 'Open issue #42' }),
+    ).toHaveLength(1);
+
+    await act(async () => {
+      pendingResponses.get(urlA)?.({
+        ok: true,
+        text: async () => '<head><title>Custom source title</title></head>',
+      } as unknown as Response);
+      await Promise.resolve();
+    });
+    expect(
+      screen.getByRole('link', { name: 'Open issue #42: Custom source title' }),
+    ).toBeOnTheScreen();
+    expect(
+      screen.getByRole('link', {
+        name: 'Open issue #42: Another source title',
+      }),
+    ).toBeOnTheScreen();
+
+    fireEvent.press(
+      screen.getByRole('link', { name: 'Open issue #42: Custom source title' }),
+    );
+    await waitFor(() => expect(Linking.openURL).toHaveBeenCalledWith(urlA));
+    fireEvent.press(
+      screen.getByRole('link', {
+        name: 'Open issue #42: Another source title',
+      }),
+    );
+    await waitFor(() => expect(Linking.openURL).toHaveBeenCalledWith(urlB));
+  });
+
   it('keeps an issue-number link available when title metadata fails', async () => {
     mockFetch.mockRejectedValueOnce(new Error('network unavailable'));
-    setIssueSnapshot({ galaxynovels: [[0, 2442]] });
+    setIssueSnapshot({ galaxynovels: [[0, issueReport(2442)]] });
     render(<PluginIssuesSection pluginId="galaxynovels" />, {
       wrapper: PaperProvider,
     });

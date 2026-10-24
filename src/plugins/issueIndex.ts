@@ -6,7 +6,12 @@ import { fetchTimeout } from '@utils/fetch/fetch';
 import { getMMKVObject, setMMKVObject } from '@utils/mmkv/mmkv';
 
 export type PluginIssueCategory = 0 | 1 | 2 | 3 | 4 | 5 | 6;
-export type PluginIssueGroup = [PluginIssueCategory, number, ...number[]];
+export type PluginIssueRepository = { owner: string; name: string };
+export type PluginIssueReport = {
+  issueNumber: number;
+  repository: PluginIssueRepository;
+};
+export type PluginIssueGroup = [PluginIssueCategory, ...PluginIssueReport[]];
 export type PluginIssueIndex = Record<string, PluginIssueGroup[]>;
 
 export interface PluginIssueIndexState {
@@ -17,47 +22,83 @@ export interface PluginIssueIndexState {
 
 const issueIndexStorageKey = 'PLUGIN_ISSUE_INDEX';
 
-const getIssueIndexUrl = (repositoryUrl: string): string | undefined => {
+interface PluginIssueIndexSource {
+  url: string;
+  repository: PluginIssueRepository;
+}
+
+const decodeRepositoryPathSegment = (segment: string): string | undefined => {
+  try {
+    const decoded = decodeURIComponent(segment);
+    return decoded &&
+      decoded !== '.' &&
+      decoded !== '..' &&
+      !/[\/\\?#%]/.test(decoded)
+      ? decoded
+      : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
+const getIssueIndexSource = (
+  repositoryUrl: string,
+): PluginIssueIndexSource | undefined => {
   try {
     const manifestUrl = new URL(repositoryUrl);
     const pathSegments = manifestUrl.pathname.split('/').filter(Boolean);
+    const encodedOwner = pathSegments[0];
+    const encodedName = pathSegments[1];
+    const owner = encodedOwner && decodeRepositoryPathSegment(encodedOwner);
+    const name = encodedName && decodeRepositoryPathSegment(encodedName);
     if (
       !['http:', 'https:'].includes(manifestUrl.protocol) ||
       manifestUrl.hostname !== 'raw.githubusercontent.com' ||
       pathSegments.length < 4 ||
+      !encodedOwner ||
+      !encodedName ||
+      !owner ||
+      !name ||
       pathSegments[pathSegments.length - 1] !== 'plugins.min.json'
     ) {
       return undefined;
     }
 
     const issueIndexUrl = new URL(manifestUrl.origin);
-    issueIndexUrl.pathname = `/${pathSegments[0]}/${pathSegments[1]}/issue-index/issue-index.min.json`;
-    return issueIndexUrl.toString();
+    issueIndexUrl.pathname = `/${encodedOwner}/${encodedName}/issue-index/issue-index.min.json`;
+    return {
+      url: issueIndexUrl.toString(),
+      repository: { owner, name },
+    };
   } catch {
     return undefined;
   }
 };
 
-const getConfiguredIssueIndexUrls = async (): Promise<string[]> => {
+const getConfiguredIssueIndexSources = async (): Promise<
+  PluginIssueIndexSource[]
+> => {
   const repositories = await getEnabledRepositoriesFromDb();
-  const urls = repositories
-    .map(repository => getIssueIndexUrl(repository.url))
-    .filter((url): url is string => url !== undefined);
+  const sources = repositories
+    .map(repository => getIssueIndexSource(repository.url))
+    .filter((source): source is PluginIssueIndexSource => source !== undefined);
   const seen = new Set<string>();
-  return urls
+  return sources
     .reverse()
-    .filter(url => {
-      if (seen.has(url)) {
+    .filter(source => {
+      if (seen.has(source.url)) {
         return false;
       }
-      seen.add(url);
+      seen.add(source.url);
       return true;
     })
     .reverse();
 };
 
-const fetchIssueIndex = async (url: string): Promise<PluginIssueIndex> => {
-  const response = await fetchTimeout(url, {
+const fetchIssueIndex = async (
+  source: PluginIssueIndexSource,
+): Promise<PluginIssueIndex> => {
+  const response = await fetchTimeout(source.url, {
     headers: { pragma: 'no-cache', 'cache-control': 'no-cache' },
   });
   if (!response.ok) {
@@ -65,13 +106,32 @@ const fetchIssueIndex = async (url: string): Promise<PluginIssueIndex> => {
   }
 
   const index: unknown = await response.json();
-  if (!isPluginIssueIndex(index)) {
+  if (!isRawPluginIssueIndex(index)) {
     throw new Error('Plugin issue index response has an invalid shape');
   }
-  return index;
+
+  return Object.fromEntries(
+    Object.entries(index).map(([pluginId, groups]) => [
+      pluginId,
+      groups.map(
+        (group): PluginIssueGroup => [
+          group[0],
+          ...group.slice(1).map(issueNumber => ({
+            issueNumber,
+            repository: source.repository,
+          })),
+        ],
+      ),
+    ]),
+  );
 };
 
-const isPluginIssueIndex = (value: unknown): value is PluginIssueIndex => {
+type RawPluginIssueGroup = [PluginIssueCategory, number, ...number[]];
+type RawPluginIssueIndex = Record<string, RawPluginIssueGroup[]>;
+
+const isRawPluginIssueIndex = (
+  value: unknown,
+): value is RawPluginIssueIndex => {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
     return false;
   }
@@ -114,6 +174,66 @@ const isPluginIssueIndex = (value: unknown): value is PluginIssueIndex => {
   return true;
 };
 
+const isPluginIssueIndex = (value: unknown): value is PluginIssueIndex => {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    return false;
+  }
+
+  for (const pluginId of Object.keys(value)) {
+    const groups = (value as Record<string, unknown>)[pluginId];
+    if (!Array.isArray(groups)) {
+      return false;
+    }
+
+    for (let groupIndex = 0; groupIndex < groups.length; groupIndex++) {
+      const group = groups[groupIndex];
+      if (!Array.isArray(group) || group.length < 2) {
+        return false;
+      }
+
+      const category = group[0];
+      if (
+        typeof category !== 'number' ||
+        !Number.isInteger(category) ||
+        category < 0 ||
+        category > 6
+      ) {
+        return false;
+      }
+
+      for (let issueIndex = 1; issueIndex < group.length; issueIndex++) {
+        const report = group[issueIndex];
+        if (
+          typeof report !== 'object' ||
+          report === null ||
+          Array.isArray(report)
+        ) {
+          return false;
+        }
+
+        const issueNumber = (report as PluginIssueReport).issueNumber;
+        const repository = (report as PluginIssueReport).repository;
+        if (
+          typeof issueNumber !== 'number' ||
+          !Number.isSafeInteger(issueNumber) ||
+          issueNumber <= 0 ||
+          typeof repository !== 'object' ||
+          repository === null ||
+          Array.isArray(repository) ||
+          typeof (repository as PluginIssueRepository).owner !== 'string' ||
+          (repository as PluginIssueRepository).owner.length === 0 ||
+          typeof (repository as PluginIssueRepository).name !== 'string' ||
+          (repository as PluginIssueRepository).name.length === 0
+        ) {
+          return false;
+        }
+      }
+    }
+  }
+
+  return true;
+};
+
 const readCachedIndex = (): PluginIssueIndex | undefined => {
   try {
     const cachedIndex = getMMKVObject<unknown>(issueIndexStorageKey);
@@ -138,13 +258,13 @@ interface ActiveRefresh {
 let activeRefresh: ActiveRefresh | undefined;
 
 const refreshIssueIndex = async (
-  urls: string[],
+  sources: PluginIssueIndexSource[],
   refresh: ActiveRefresh,
 ): Promise<void> => {
   pluginIssueIndexStore.setState({ isRefreshing: true, refreshFailed: false });
 
   try {
-    const results = await Promise.allSettled(urls.map(fetchIssueIndex));
+    const results = await Promise.allSettled(sources.map(fetchIssueIndex));
     if (activeRefresh !== refresh) {
       return;
     }
@@ -176,9 +296,9 @@ const refreshIssueIndex = async (
 };
 
 export const refreshPluginIssueIndex = async (): Promise<void> => {
-  let urls: string[];
+  let sources: PluginIssueIndexSource[];
   try {
-    urls = await getConfiguredIssueIndexUrls();
+    sources = await getConfiguredIssueIndexSources();
   } catch {
     activeRefresh = undefined;
     pluginIssueIndexStore.setState({
@@ -188,13 +308,13 @@ export const refreshPluginIssueIndex = async (): Promise<void> => {
     return;
   }
 
-  const key = JSON.stringify(urls);
+  const key = JSON.stringify(sources.map(source => source.url));
   if (activeRefresh?.key === key) {
     return activeRefresh.promise;
   }
 
   const refresh = { key, promise: Promise.resolve() };
   activeRefresh = refresh;
-  refresh.promise = refreshIssueIndex(urls, refresh);
+  refresh.promise = refreshIssueIndex(sources, refresh);
   return refresh.promise;
 };
