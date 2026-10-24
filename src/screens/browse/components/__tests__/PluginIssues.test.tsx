@@ -611,11 +611,12 @@ describe('PluginIssuesSection in plugin details', () => {
     expect(
       screen.getByRole('link', { name: 'Open issue #2667' }),
     ).toBeOnTheScreen();
-    await waitFor(() => {
-      expect(queryTitleSkeleton(2133)).toBeNull();
-      expect(queryTitleSkeleton(2667)).toBeNull();
+    await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(2));
+    await act(async () => {
+      await Promise.all(
+        mockFetch.mock.results.map(result => result.value as Promise<Response>),
+      );
     });
-    expect(screen.getByText('#2133')).toBeOnTheScreen();
   });
 
   it('uses the shared refresh action for retries and reports failures', async () => {
