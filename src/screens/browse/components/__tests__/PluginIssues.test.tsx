@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react';
 
+import { StyleSheet } from 'react-native';
+
 import { act, fireEvent, render, screen, waitFor } from '@test-utils';
 import * as Linking from 'expo-linking';
 import { getString } from '@i18n/translations';
@@ -58,6 +60,7 @@ jest.mock('@screens/novel/NovelContext', () => {
   };
 });
 
+let mockDisableLoadingAnimations = false;
 let mockInstalledPlugins: PluginItem[] = [];
 let mockAvailablePlugins: PluginItem[] = [];
 const mockPluginActions = {
@@ -83,6 +86,9 @@ interface MockMaterialIconProps {
 }
 
 jest.mock('@hooks/persisted', () => ({
+  useAppSettings: () => ({
+    disableLoadingAnimations: mockDisableLoadingAnimations,
+  }),
   useBrowseSettings: () => ({ showAniList: false, showMyAnimeList: false }),
   useFilteredAvailablePlugins: () => mockAvailablePlugins,
   useFilteredInstalledPlugins: () => mockInstalledPlugins,
@@ -233,9 +239,19 @@ const renderBrowseTabs = (navigation: BrowseScreenProps['navigation']) => (
     />
   </>
 );
+const getTitleSkeleton = (issueNumber: number) =>
+  screen.getByTestId(`plugin-issue-title-loading-${issueNumber}`, {
+    includeHiddenElements: true,
+  });
+
+const queryTitleSkeleton = (issueNumber: number) =>
+  screen.queryByTestId(`plugin-issue-title-loading-${issueNumber}`, {
+    includeHiddenElements: true,
+  });
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockDisableLoadingAnimations = false;
   mockFetch.mockReset().mockResolvedValue({
     ok: false,
     text: jest.fn(),
@@ -507,8 +523,16 @@ describe('PluginIssuesSection in plugin details', () => {
       'Open issue #2133',
       'Open issue #2667',
     ]);
-    expect(screen.getByText('#2133')).toBeOnTheScreen();
-    expect(screen.getByText('#2667')).toBeOnTheScreen();
+    expect(
+      screen.getByRole('link', { name: 'Open issue #2133' }),
+    ).toBeOnTheScreen();
+    expect(
+      screen.getByRole('link', { name: 'Open issue #2667' }),
+    ).toBeOnTheScreen();
+    await waitFor(() => {
+      expect(queryTitleSkeleton(2133)).toBeNull();
+      expect(queryTitleSkeleton(2667)).toBeNull();
+    });
 
     fireEvent.press(screen.getByRole('link', { name: 'Open issue #2667' }));
     await waitFor(() =>
@@ -523,9 +547,10 @@ describe('PluginIssuesSection in plugin details', () => {
         getString('browseScreen.issueIndex.openFailed', { issueNumber: 2133 }),
       ),
     );
+    expect(screen.getByText('#2133')).toBeOnTheScreen();
   });
 
-  it('distinguishes unavailable, empty, and retained cached reports', () => {
+  it('distinguishes unavailable, empty, and retained cached reports', async () => {
     setIssueSnapshot(undefined);
     const { rerender } = render(
       <PluginIssuesSection pluginId="galaxynovels" />,
@@ -565,7 +590,9 @@ describe('PluginIssuesSection in plugin details', () => {
     expect(
       screen.getByLabelText(getString('common.loading')),
     ).toBeOnTheScreen();
-    expect(screen.getByText('#2133')).toBeOnTheScreen();
+    expect(
+      screen.getByRole('link', { name: 'Open issue #2133' }),
+    ).toBeOnTheScreen();
 
     act(() => {
       pluginIssueIndexStore.setState({
@@ -578,8 +605,17 @@ describe('PluginIssuesSection in plugin details', () => {
     expect(
       screen.getByText('Reports could not be refreshed. Showing cached data.'),
     ).toBeOnTheScreen();
+    expect(
+      screen.getByRole('link', { name: 'Open issue #2133' }),
+    ).toBeOnTheScreen();
+    expect(
+      screen.getByRole('link', { name: 'Open issue #2667' }),
+    ).toBeOnTheScreen();
+    await waitFor(() => {
+      expect(queryTitleSkeleton(2133)).toBeNull();
+      expect(queryTitleSkeleton(2667)).toBeNull();
+    });
     expect(screen.getByText('#2133')).toBeOnTheScreen();
-    expect(screen.getByText('#2667')).toBeOnTheScreen();
   });
 
   it('uses the shared refresh action for retries and reports failures', async () => {
@@ -596,6 +632,7 @@ describe('PluginIssuesSection in plugin details', () => {
     expect(
       screen.getByRole('button', { name: 'Refresh plugins and reports' }),
     ).toBeEnabled();
+    expect(screen.queryByText('Refresh plugins and reports')).toBeNull();
     fireEvent.press(
       screen.getByRole('button', { name: 'Refresh plugins and reports' }),
     );
@@ -651,6 +688,48 @@ describe('PluginIssuesSection in plugin details', () => {
     ).toBeOnTheScreen();
   });
 
+  it('passes disabled animation settings to the shared title shimmer', () => {
+    mockDisableLoadingAnimations = true;
+    mockFetch.mockReturnValue(new Promise<Response>(() => {}));
+    setIssueSnapshot({ galaxynovels: [[0, 2991]] });
+    render(<PluginIssuesSection pluginId="galaxynovels" />, {
+      wrapper: PaperProvider,
+    });
+
+    const shimmerContainer = getTitleSkeleton(2991);
+    expect(shimmerContainer.props.accessibilityElementsHidden).toBe(true);
+    expect(shimmerContainer.props.importantForAccessibility).toBe(
+      'no-hide-descendants',
+    );
+    expect(StyleSheet.flatten(shimmerContainer.props.style)).toEqual(
+      expect.objectContaining({
+        borderRadius: 4,
+        height: 20,
+        maxWidth: '100%',
+        width: '80%',
+      }),
+    );
+
+    let shimmerComponent = shimmerContainer.parent;
+    while (shimmerComponent && !('stopAutoRun' in shimmerComponent.props)) {
+      shimmerComponent = shimmerComponent.parent;
+    }
+    expect(shimmerComponent?.props).toEqual(
+      expect.objectContaining({
+        height: 20,
+        stopAutoRun: true,
+      }),
+    );
+    expect(shimmerComponent?.props.shimmerColors).toEqual([
+      expect.any(String),
+      expect.any(String),
+      expect.any(String),
+    ]);
+    expect(shimmerComponent?.props.shimmerColors[0]).toBe(
+      shimmerComponent?.props.shimmerColors[2],
+    );
+  });
+
   it('loads issue titles independently and keeps matching accessible links', async () => {
     const pendingResponses = new Map<number, (response: Response) => void>();
     mockFetch.mockImplementation((url: string) => {
@@ -663,18 +742,21 @@ describe('PluginIssuesSection in plugin details', () => {
       return promise;
     });
     setIssueSnapshot(fixture);
-    render(<PluginIssuesSection pluginId="galaxynovels" />, {
-      wrapper: PaperProvider,
-    });
+    const { unmount } = render(
+      <PluginIssuesSection pluginId="galaxynovels" />,
+      { wrapper: PaperProvider },
+    );
 
+    expect(getTitleSkeleton(2133)).toBeOnTheScreen();
+    expect(getTitleSkeleton(2667)).toBeOnTheScreen();
+    expect(screen.getByText('#2133')).toBeOnTheScreen();
+    expect(screen.getByText('#2667')).toBeOnTheScreen();
     expect(
       screen.getByRole('link', { name: 'Open issue #2133' }),
     ).toBeOnTheScreen();
     expect(
       screen.getByRole('link', { name: 'Open issue #2667' }),
     ).toBeOnTheScreen();
-    expect(screen.getByText('#2133')).toBeOnTheScreen();
-    expect(screen.getByText('#2667')).toBeOnTheScreen();
     await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(2));
     expect(mockFetch).toHaveBeenCalledWith(
       'https://github.com/LNReader/lnreader-plugins/issues/2133',
@@ -695,8 +777,15 @@ describe('PluginIssuesSection in plugin details', () => {
         }),
       ).toBeOnTheScreen();
     });
+    expect(queryTitleSkeleton(2667)).toBeNull();
+    expect(getTitleSkeleton(2133)).toBeOnTheScreen();
     expect(
       screen.getByRole('link', { name: 'Open issue #2133' }),
+    ).toBeOnTheScreen();
+    expect(
+      screen.getByRole('link', {
+        name: `Open issue #2667: ${issue2667Title}`,
+      }),
     ).toBeOnTheScreen();
     expect(screen.getByText(issue2667Title)).toBeOnTheScreen();
     expect(screen.getByText('#2667')).toBeOnTheScreen();
@@ -714,6 +803,7 @@ describe('PluginIssuesSection in plugin details', () => {
         }),
       ).toBeOnTheScreen();
     });
+    expect(queryTitleSkeleton(2133)).toBeNull();
     expect(
       screen.getAllByRole('link').map(link => link.props.accessibilityLabel),
     ).toEqual([
@@ -731,8 +821,24 @@ describe('PluginIssuesSection in plugin details', () => {
         'https://github.com/LNReader/lnreader-plugins/issues/2667',
       ),
     );
-  });
 
+    unmount();
+    mockFetch.mockClear();
+    render(<PluginIssuesSection pluginId="galaxynovels" />, {
+      wrapper: PaperProvider,
+    });
+    expect(
+      screen.getByRole('link', {
+        name: `Open issue #2133: ${issue2133Title}`,
+      }),
+    ).toBeOnTheScreen();
+    expect(
+      screen.getByRole('link', {
+        name: `Open issue #2667: ${issue2667Title}`,
+      }),
+    ).toBeOnTheScreen();
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
   it('keeps an issue-number link available when title metadata fails', async () => {
     mockFetch.mockRejectedValueOnce(new Error('network unavailable'));
     setIssueSnapshot({ galaxynovels: [[0, 2442]] });
@@ -740,14 +846,9 @@ describe('PluginIssuesSection in plugin details', () => {
       wrapper: PaperProvider,
     });
 
-    expect(
-      screen.getByRole('link', { name: 'Open issue #2442' }),
-    ).toBeOnTheScreen();
+    expect(getTitleSkeleton(2442)).toBeOnTheScreen();
     await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(1));
-    await act(async () => {
-      await Promise.resolve();
-      await Promise.resolve();
-    });
+    await waitFor(() => expect(queryTitleSkeleton(2442)).toBeNull());
     expect(screen.getByText('#2442')).toBeOnTheScreen();
     expect(
       screen.getByRole('link', { name: 'Open issue #2442' }),

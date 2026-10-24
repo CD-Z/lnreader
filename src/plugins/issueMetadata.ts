@@ -65,10 +65,16 @@ async function requestIssueTitle(
   return undefined;
 }
 
+export function getCachedPluginIssueTitle(
+  issueNumber: number,
+): string | undefined {
+  return issueTitles.get(issueNumber);
+}
+
 export function loadPluginIssueTitle(
   issueNumber: number,
 ): Promise<string | undefined> {
-  const cachedTitle = issueTitles.get(issueNumber);
+  const cachedTitle = getCachedPluginIssueTitle(issueNumber);
   if (cachedTitle !== undefined) {
     return Promise.resolve(cachedTitle);
   }

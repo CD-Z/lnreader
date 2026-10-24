@@ -145,7 +145,6 @@ const PluginDetailsScreen = ({
             }
           />
         </View>
-        <PluginIssuesSection pluginId={plugin.id} />
         {settingsLoading ? (
           <ActivityIndicator
             accessibilityLabel={getString('common.loading')}
@@ -175,6 +174,7 @@ const PluginDetailsScreen = ({
             ))}
           </>
         ) : null}
+        <PluginIssuesSection pluginId={plugin.id} />
       </ScrollView>
       <ConfirmationDialog
         title={getString('browseScreen.uninstall')}

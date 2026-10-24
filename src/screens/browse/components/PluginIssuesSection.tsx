@@ -9,11 +9,13 @@ import {
 import MaterialCommunityIcons from '@react-native-vector-icons/material-design-icons';
 import * as Linking from 'expo-linking';
 
-import { Button } from '@components';
+import { IconButtonV2 } from '@components';
+import ShimmerPlaceholder from '@components/Skeleton/ShimmerPlaceholder';
 import { usePluginActions, useTheme } from '@hooks/persisted';
 import { usePluginIssues } from '@hooks/persisted/usePluginIssues';
 import { getPluginIssueUrl } from '@plugins/issueMetadata';
 import { getString } from '@i18n/translations';
+import useLoadingColors from '@utils/useLoadingColors';
 import { showToast } from '@utils/showToast';
 
 import { usePluginIssueTitles } from '../hooks/usePluginIssueTitles';
@@ -22,12 +24,14 @@ import { pluginIssuePresentation } from '../utils/pluginIssuePresentation';
 interface PluginIssuesSectionProps {
   pluginId: string;
 }
-
 export const PluginIssuesSection = ({ pluginId }: PluginIssuesSectionProps) => {
   const theme = useTheme();
+
   const { groups, isRefreshing, refreshFailed } = usePluginIssues(pluginId);
   const { refreshPlugins } = usePluginActions();
   const titles = usePluginIssueTitles(groups);
+  const [highlightColor, backgroundColor, disableLoadingAnimations] =
+    useLoadingColors(theme);
   const [isPending, setIsPending] = useState(false);
 
   const refresh = async () => {
@@ -53,21 +57,22 @@ export const PluginIssuesSection = ({ pluginId }: PluginIssuesSectionProps) => {
 
   return (
     <View style={[styles.section, { borderTopColor: theme.outlineVariant }]}>
-      <Text
-        accessibilityRole="header"
-        style={[styles.title, { color: theme.onSurface }]}
-      >
-        {getString('browseScreen.issueIndex.title')}
-      </Text>
-      <Button
-        compact
-        disabled={isPending || isRefreshing}
-        icon="refresh"
-        mode="text"
-        onPress={refresh}
-        style={styles.refreshButton}
-        title={getString('browseScreen.issueIndex.refresh')}
-      />
+      <View style={styles.header}>
+        <Text
+          accessibilityRole="header"
+          style={[styles.title, styles.headerTitle, { color: theme.onSurface }]}
+        >
+          {getString('browseScreen.issueIndex.title')}
+        </Text>
+        <IconButtonV2
+          accessibilityLabel={getString('browseScreen.issueIndex.refresh')}
+          disabled={isPending || isRefreshing}
+          name="refresh"
+          onPress={refresh}
+          padding={12}
+          theme={theme}
+        />
+      </View>
 
       {groups === undefined ? (
         isRefreshing ? (
@@ -132,7 +137,8 @@ export const PluginIssuesSection = ({ pluginId }: PluginIssuesSectionProps) => {
                       }
 
                       const title = titles[issueNumber];
-                      const accessibilityLabel = title
+                      const hasTitle = title !== undefined && title !== null;
+                      const accessibilityLabel = hasTitle
                         ? getString(
                             'browseScreen.issueIndex.openIssueWithTitle',
                             { issueNumber, title },
@@ -156,7 +162,31 @@ export const PluginIssuesSection = ({ pluginId }: PluginIssuesSectionProps) => {
                           ]}
                         >
                           <View style={styles.issueText}>
-                            {title ? (
+                            {title === undefined ? (
+                              <>
+                                <ShimmerPlaceholder
+                                  containerProps={{
+                                    testID: `plugin-issue-title-loading-${issueNumber}`,
+                                  }}
+                                  height={20}
+                                  shimmerColors={[
+                                    backgroundColor,
+                                    highlightColor,
+                                    backgroundColor,
+                                  ]}
+                                  stopAutoRun={disableLoadingAnimations}
+                                  style={styles.issueTitleSkeleton}
+                                />
+                                <Text
+                                  style={[
+                                    styles.supportingIssueNumber,
+                                    { color: theme.onSurfaceVariant },
+                                  ]}
+                                >
+                                  #{issueNumber}
+                                </Text>
+                              </>
+                            ) : hasTitle ? (
                               <>
                                 <Text
                                   numberOfLines={2}
@@ -238,6 +268,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
   },
+  issueTitleSkeleton: {
+    borderRadius: 4,
+    maxWidth: '100%',
+    width: '80%',
+  },
   message: {
     marginTop: 8,
   },
@@ -248,8 +283,13 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     marginTop: 8,
   },
-  refreshButton: {
-    alignSelf: 'flex-start',
+  header: {
+    alignItems: 'center',
+    flexDirection: 'row',
+  },
+  headerTitle: {
+    flex: 1,
+    minWidth: 0,
   },
   section: {
     borderTopWidth: StyleSheet.hairlineWidth,
